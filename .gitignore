@@ -4,9 +4,20 @@
 *.dll
 *.so
 *.dylib
+cmswww/cmswww
 
 # Test binary, build with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Dependencies
+vendor
+
+# Misc
+*~
+*.pyc
+*.sw?
+*.orig
+*.diff

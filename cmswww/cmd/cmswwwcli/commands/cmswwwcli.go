@@ -15,14 +15,15 @@ type Options struct {
 	Verbose    func()             `short:"v" long:"verbose" description:"Print request and response details"`
 
 	// cli commands
-	InviteNewUser     InviteNewUserCmd  `command:"invite" description:"generate a new contractor invitation"`
 	Login             LoginCmd          `command:"login" description:"login to the contractor mgmt system"`
+	Logout            LogoutCmd         `command:"logout" description:"logout of the contractor mgmt system"`
 	NewIdentity       NewIdentityCmd    `command:"newidentity" description:"generate a new identity"`
 	VerifyNewIdentity VerifyIdentityCmd `command:"verifyidentity" description:"verify a newly generated identity"`
-	Logout            LogoutCmd         `command:"logout" description:"logout of the contractor mgmt system"`
 	Register          RegisterCmd       `command:"register" description:"complete registration as a contractor"`
 	Policy            PolicyCmd         `command:"policy" description:"fetch server policy"`
 	Version           VersionCmd        `command:"version" description:"fetch server info and CSRF token"`
+	InviteNewUser     InviteNewUserCmd  `command:"invite" description:"generate a new contractor invitation"`
+	UserDetails       UserDetailsCmd    `command:"user" description:"fetch the user details given the user id"`
 }
 
 var Ctx *client.Ctx

@@ -18,6 +18,12 @@ type routeHandlerFunc func(
 	*http.Request,
 ) (interface{}, error)
 
+type pathParamsHandlerFunc func(
+	interface{},
+	http.ResponseWriter,
+	*http.Request,
+) error
+
 // addRoute sets up a handler for a specific method+route.
 func (c *cmswww) addRoute(
 	method string,
@@ -53,6 +59,7 @@ func (c *cmswww) addGetRoute(
 	req interface{},
 	perm permission,
 	requiresInventory bool,
+	pathParamsHandler pathParamsHandlerFunc,
 ) {
 	wrapper := func(w http.ResponseWriter, r *http.Request) {
 		// Get the command.
@@ -65,6 +72,11 @@ func (c *cmswww) addGetRoute(
 			return
 		}
 
+		// Add in any path params.
+		if pathParamsHandler != nil {
+			pathParamsHandler(req, w, r)
+		}
+
 		user, err := c.GetSessionUser(r)
 		if err != nil && err != database.ErrUserNotFound {
 			RespondWithError(w, r, 0,
@@ -72,7 +84,7 @@ func (c *cmswww) addGetRoute(
 			return
 		}
 
-		resp, err := handler(&req, user, w, r)
+		resp, err := handler(req, user, w, r)
 		if err != nil {
 			RespondWithError(w, r, 0, "route handler: %v", err)
 			return
@@ -126,7 +138,7 @@ func (c *cmswww) SetupRoutes() {
 	c.router.HandleFunc("/", closeBody(logging(c.HandleVersion))).Methods(http.MethodGet)
 	c.router.NotFoundHandler = closeBody(c.HandleNotFound)
 	c.addGetRoute(v1.RoutePolicy, c.HandlePolicy, new(v1.Policy),
-		permissionPublic, false)
+		permissionPublic, false, nil)
 	c.addPostRoute(v1.RouteRegister, c.HandleRegister, new(v1.Register),
 		permissionPublic, false)
 	c.addPostRoute(v1.RouteLogin, c.HandleLogin, new(v1.Login),
@@ -136,11 +148,15 @@ func (c *cmswww) SetupRoutes() {
 
 	// Routes that require being logged in.
 	c.addPostRoute(v1.RouteNewIdentity, c.HandleNewIdentity,
-		new(v1.NewIdentity), permissionLogin, true)
+		new(v1.NewIdentity), permissionLogin, false)
 	c.addPostRoute(v1.RouteVerifyNewIdentity, c.HandleVerifyNewIdentity,
-		new(v1.VerifyNewIdentity), permissionLogin, true)
+		new(v1.VerifyNewIdentity), permissionLogin, false)
 
 	// Routes that require being logged in as an admin user.
 	c.addPostRoute(v1.RouteInviteNewUser, c.HandleInviteNewUser,
-		new(v1.InviteNewUser), permissionAdmin, true)
+		new(v1.InviteNewUser), permissionAdmin, false)
+	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, new(v1.UserDetails),
+		permissionAdmin, false, c.SetUserDetailsPathParams)
+	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, new(v1.EditUser),
+		permissionAdmin, false)
 }

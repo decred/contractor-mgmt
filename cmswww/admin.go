@@ -1,13 +1,15 @@
 package main
 
-/*
 import (
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
@@ -19,12 +21,14 @@ func convertWWWUserFromDatabaseUser(user *database.User) v1.User {
 		Email:    user.Email,
 		Username: user.Username,
 		Admin:    user.Admin,
-		RegisterVerificationToken:  user.RegisterVerificationToken,
-		RegisterVerificationExpiry: user.RegisterVerificationExpiry,
-		LastLogin:                 user.LastLogin,
-		FailedLoginAttempts:       user.FailedLoginAttempts,
-		Locked:                    IsUserLocked(user.FailedLoginAttempts),
-		Identities:                convertWWWIdentitiesFromDatabaseIdentities(user.Identities),
+		RegisterVerificationToken:        user.RegisterVerificationToken,
+		RegisterVerificationExpiry:       user.RegisterVerificationExpiry,
+		UpdateIdentityVerificationToken:  user.UpdateIdentityVerificationToken,
+		UpdateIdentityVerificationExpiry: user.UpdateIdentityVerificationExpiry,
+		LastLogin:                        user.LastLogin,
+		FailedLoginAttempts:              user.FailedLoginAttempts,
+		Locked:                           IsUserLocked(user.FailedLoginAttempts),
+		Identities:                       convertWWWIdentitiesFromDatabaseIdentities(user.Identities),
 	}
 }
 
@@ -103,7 +107,26 @@ func (c *cmswww) logAdminInvoiceAction(adminUser *database.User, token, action s
 	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v", action, token))
 }
 
-func (c *cmswww) ProcessUserDetails(ud *v1.UserDetails) (*v1.UserDetailsReply, error) {
+func (c *cmswww) SetUserDetailsPathParams(
+	req interface{},
+	w http.ResponseWriter,
+	r *http.Request,
+) error {
+	ud := req.(*v1.UserDetails)
+
+	pathParams := mux.Vars(r)
+	ud.UserID = pathParams["userid"]
+	return nil
+}
+
+func (c *cmswww) HandleUserDetails(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	ud := req.(*v1.UserDetails)
+
 	// Fetch the database user.
 	user, err := c.getUserByIDStr(ud.UserID)
 	if err != nil {
@@ -113,23 +136,31 @@ func (c *cmswww) ProcessUserDetails(ud *v1.UserDetails) (*v1.UserDetailsReply, e
 	// Convert the database user into a proper response.
 	var udr v1.UserDetailsReply
 	udr.User = convertWWWUserFromDatabaseUser(user)
+	/*
+		// Fetch the first page of the user's invoices.
+		up := v1.UserInvoices{
+			UserId: ud.UserID,
+		}
+		upr, err := c.ProcessUserInvoices(&up, false, true)
+		if err != nil {
+			return nil, err
+		}
 
-	// Fetch the first page of the user's invoices.
-	up := v1.UserInvoices{
-		UserId: ud.UserID,
-	}
-	upr, err := c.ProcessUserInvoices(&up, false, true)
-	if err != nil {
-		return nil, err
-	}
-
-	udr.User.Invoices = upr.Invoices
+		udr.User.Invoices = upr.Invoices
+	*/
 	return &udr, nil
 }
 
-func (c *cmswww) ProcessEditUser(eu *v1.EditUser, adminUser *database.User) (*v1.EditUserReply, error) {
+func (c *cmswww) HandleEditUser(
+	req interface{},
+	adminUser *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	eu := req.(*v1.EditUser)
+
 	// Fetch the database user.
-	user, err := c.getUserByIDStr(eu.UserID)
+	targetUser, err := c.getUserByIDStr(eu.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,15 +173,17 @@ func (c *cmswww) ProcessEditUser(eu *v1.EditUser, adminUser *database.User) (*v1
 	}
 
 	// Validate that the reason is supplied.
-	eu.Reason = strings.TrimSpace(eu.Reason)
-	if len(eu.Reason) == 0 {
-		return nil, v1.UserError{
-			ErrorCode: v1.ErrorStatusInvalidInput,
+	if eu.Action == v1.UserEditLock {
+		eu.Reason = strings.TrimSpace(eu.Reason)
+		if len(eu.Reason) == 0 {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusInvalidInput,
+			}
 		}
 	}
 
 	// Append this action to the admin log file.
-	err = c.logAdminUserActionLock(adminUser, user, eu.Action, eu.Reason)
+	err = c.logAdminUserActionLock(adminUser, targetUser, eu.Action, eu.Reason)
 	if err != nil {
 		return nil, err
 	}
@@ -160,16 +193,19 @@ func (c *cmswww) ProcessEditUser(eu *v1.EditUser, adminUser *database.User) (*v1
 
 	switch eu.Action {
 	case v1.UserEditRegenerateRegisterVerification:
-		user.RegisterVerificationExpiry = expiredTime
+		targetUser.RegisterVerificationExpiry = expiredTime
+	case v1.UserEditRegenerateUpdateIdentityVerification:
+		targetUser.UpdateIdentityVerificationExpiry = expiredTime
 	case v1.UserEditUnlock:
-		user.FailedLoginAttempts = 0
+		targetUser.FailedLoginAttempts = 0
+	case v1.UserEditLock:
+		targetUser.FailedLoginAttempts = v1.LoginAttemptsToLockUser
 	default:
 		return nil, fmt.Errorf("unsupported user edit action: %v",
 			v1.UserEditAction[eu.Action])
 	}
 
 	// Update the user in the database.
-	err = c.db.UserUpdate(*user)
+	err = c.db.UserUpdate(*targetUser)
 	return &v1.EditUserReply{}, err
 }
-*/

@@ -192,7 +192,8 @@ func (c *cmswww) HandleEditUser(
 	expiredTime := time.Now().Add(-168 * time.Hour).Unix()
 
 	switch eu.Action {
-	case v1.UserEditRegenerateRegisterVerification:
+	case v1.UserEditResendInvite:
+		// TODO
 		targetUser.RegisterVerificationExpiry = expiredTime
 	case v1.UserEditRegenerateUpdateIdentityVerification:
 		targetUser.UpdateIdentityVerificationExpiry = expiredTime

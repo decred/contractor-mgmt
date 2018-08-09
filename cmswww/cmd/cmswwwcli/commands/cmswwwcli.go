@@ -15,15 +15,16 @@ type Options struct {
 	Verbose    func()             `short:"v" long:"verbose" description:"Print request and response details"`
 
 	// cli commands
-	Login             LoginCmd          `command:"login" description:"login to the contractor mgmt system"`
-	Logout            LogoutCmd         `command:"logout" description:"logout of the contractor mgmt system"`
-	NewIdentity       NewIdentityCmd    `command:"newidentity" description:"generate a new identity"`
-	VerifyNewIdentity VerifyIdentityCmd `command:"verifyidentity" description:"verify a newly generated identity"`
-	Register          RegisterCmd       `command:"register" description:"complete registration as a contractor"`
-	Policy            PolicyCmd         `command:"policy" description:"fetch server policy"`
-	Version           VersionCmd        `command:"version" description:"fetch server info and CSRF token"`
-	InviteNewUser     InviteNewUserCmd  `command:"invite" description:"generate a new contractor invitation"`
-	UserDetails       UserDetailsCmd    `command:"user" description:"fetch the user details given the user id"`
+	Login             LoginCmd          `command:"login" description:"Login to the contractor mgmt system.\n\n           Parameters: <email> <password>\n  --------------------------------------"`
+	Logout            LogoutCmd         `command:"logout" description:"Logout of the contractor mgmt system. Parameters: none\n  --------------------------------------"`
+	NewIdentity       NewIdentityCmd    `command:"newidentity" description:"Generate a new identity. Parameters: none\n  --------------------------------------"`
+	VerifyNewIdentity VerifyIdentityCmd `command:"verifyidentity" description:"Verify a newly generated identity.\n\n           Parameters: <token>\n  --------------------------------------"`
+	Register          RegisterCmd       `command:"register" description:"Complete registration as a contractor.\n\n           Parameters: <email> <username> <password> <token>\n  --------------------------------------"`
+	Policy            PolicyCmd         `command:"policy" description:"Fetch server policy. Parameters: none\n  --------------------------------------"`
+	Version           VersionCmd        `command:"version" description:"Fetch server info and CSRF token. Parameters: none\n  --------------------------------------"`
+	InviteNewUser     InviteNewUserCmd  `command:"invite" description:"Send a new contractor invitation.\n\n           Parameters: <email>\n  --------------------------------------"`
+	UserDetails       UserDetailsCmd    `command:"user" description:"Fetch a user's details given the user id.\n\n           Parameters: <user id>\n  --------------------------------------"`
+	EditUser          EditUserCmd       `command:"edituser" description:"Edit a user by user id.\n\n           Parameters: <user id> <action> <reason>\n    Available actions: resendinvite, resendidentitytoken, lock, unlock\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

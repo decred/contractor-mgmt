@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	createAdminUser = flag.Bool("createadmin", false, "Create an admin user. Parameters: <email> <password>")
-	dataDir         = flag.String("datadir", sharedCfg.DefaultDataDir, "Specify the cmswww data directory.")
+	createAdminUser = flag.Bool("createadmin", false, "Create an admin user. Parameters: <email> <username> <password>")
+	dataDir         = flag.String("datadir", sharedconfig.DefaultDataDir, "Specify the cmswww data directory.")
 	dumpDb          = flag.Bool("dump", false, "Dump the entire cmswww database contents or contents for a specific user. Parameters: [email]")
 	testnet         = flag.Bool("testnet", false, "Whether to check the testnet database or not.")
 	dbDir           = ""
@@ -57,12 +57,12 @@ func dumpAction() error {
 
 func createAdminUserAction() error {
 	args := flag.Args()
-	if len(args) < 2 {
+	if len(args) < 3 {
 		flag.Usage()
 		return nil
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(args[1]),
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(args[2]),
 		bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func createAdminUserAction() error {
 
 	user := database.User{
 		Email:          args[0],
-		Username:       "admin",
+		Username:       args[1],
 		HashedPassword: hashedPassword,
 		Admin:          true,
 	}
@@ -79,6 +79,12 @@ func createAdminUserAction() error {
 	if err == nil {
 		return fmt.Errorf("user with email %v already found in the database",
 			user.Email)
+	}
+
+	dbUser, _ := db.UserGetByUsername(user.Username)
+	if dbUser != nil {
+		return fmt.Errorf("user with username %v (%v) already found in the database",
+			user.Username, user.Email)
 	}
 
 	if err = db.UserNew(user); err != nil {

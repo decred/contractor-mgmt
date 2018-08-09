@@ -126,6 +126,9 @@ func (c *Ctx) handleResponse(r *http.Response, responseJSON interface{}) error {
 
 	if config.JSONOutput {
 		c.LastCommandOutput = string(responseBody)
+		if responseJSON != nil {
+			json.Unmarshal(responseBody, responseJSON)
+		}
 		return nil
 	}
 

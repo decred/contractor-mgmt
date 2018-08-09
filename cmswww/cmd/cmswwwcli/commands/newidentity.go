@@ -20,6 +20,7 @@ func (cmd *NewIdentityCmd) Execute(args []string) error {
 
 	if config.LoggedInUser == nil {
 		fmt.Printf("You must be logged in to perform this action.\n")
+		return nil
 	}
 
 	// Generate and save the new identity.

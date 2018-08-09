@@ -3,7 +3,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package config
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ var (
 // config defines the configuration options for cmswwwdataload.
 //
 // See loadConfig for details on the configuration load process.
-type config struct {
+type Config struct {
 	AdminEmail       string `long:"adminemail" description:"Admin user email address"`
 	AdminUser        string `long:"adminuser" description:"Admin username"`
 	AdminPass        string `long:"adminpass" description:"Admin password"`
@@ -72,11 +72,11 @@ func fileExists(name string) bool {
 }
 
 // newConfigParser returns a new command line flags parser.
-func newConfigParser(cfg *config, options flags.Options) *flags.Parser {
+func newConfigParser(cfg *Config, options flags.Options) *flags.Parser {
 	return flags.NewParser(cfg, options)
 }
 
-// loadConfig initializes and parses the config using a config file and command
+// Load initializes and parses the config using a config file and command
 // line options.
 //
 // The configuration proceeds as follows:
@@ -88,9 +88,9 @@ func newConfigParser(cfg *config, options flags.Options) *flags.Parser {
 // The above results in rpc functioning properly without any config settings
 // while still allowing the user to override settings with config files and
 // command line options.  Command line options always take precedence.
-func loadConfig() (*config, error) {
+func Load() (*Config, error) {
 	// Default config.
-	cfg := config{
+	cfg := Config{
 		AdminEmail:      "admin@example.com",
 		AdminUser:       "admin",
 		AdminPass:       "password",

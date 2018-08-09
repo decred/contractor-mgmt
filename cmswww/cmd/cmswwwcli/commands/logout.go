@@ -10,13 +10,18 @@ import (
 type LogoutCmd struct{}
 
 func (cmd *LogoutCmd) Execute(args []string) error {
-	err := Ctx.Post(v1.RouteLogout, v1.Logout{}, nil)
+	err := InitialVersionRequest()
 	if err != nil {
 		return err
 	}
 
-	if !config.JSONOut {
-		fmt.Printf("\nYou are now logged out\n\n")
+	err = Ctx.Post(v1.RouteLogout, v1.Logout{}, nil)
+	if err != nil {
+		return err
+	}
+
+	if !config.JSONOutput {
+		fmt.Printf("You are now logged out\n")
 	}
 	config.LoggedInUser = nil
 	config.LoggedInUserIdentity = nil

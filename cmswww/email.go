@@ -7,9 +7,14 @@ import (
 	"github.com/dajohi/goemail"
 )
 
-type NewUserEmailTemplateData struct {
+type RegisterEmailTemplateData struct {
 	Token string
 	Email string
+}
+type NewIdentityEmailTemplateData struct {
+	Token     string
+	Email     string
+	PublicKey string
 }
 
 const (
@@ -17,12 +22,10 @@ const (
 )
 
 var (
-	templateNewUserEmail = template.Must(
-		template.New("new_user_email_template").Parse(templateNewUserEmailRaw))
-	templateResetPasswordEmail = template.Must(
-		template.New("reset_password_email_template").Parse(templateResetPasswordEmailRaw))
-	templateUpdateUserKeyEmail = template.Must(
-		template.New("update_user_key_email_template").Parse(templateUpdateUserKeyEmailRaw))
+	templateRegisterEmail = template.Must(
+		template.New("register_email_template").Parse(templateRegisterEmailRaw))
+	templateNewIdentityEmail = template.Must(
+		template.New("new_identity_email_template").Parse(templateNewIdentityEmailRaw))
 	templateUserLockedResetPassword = template.Must(
 		template.New("user_locked_reset_password").Parse(templateUserLockedResetPasswordRaw))
 )
@@ -33,24 +36,51 @@ func ExecuteTemplate(tpl *template.Template, tplData interface{}) error {
 	return tpl.Execute(&buf, &tplData)
 }
 
-// emailNewUserVerificationLink emails the link with the new user verification token
+// emailRegisterVerificationLink emails the link with the new user verification token
 // if the email server is set up.
-func (c *cmswww) emailNewUserVerificationLink(email, token string) error {
+func (c *cmswww) emailRegisterVerificationLink(email, token string) error {
 	if c.cfg.SMTP == nil {
 		return nil
 	}
 
 	var buf bytes.Buffer
-	tplData := NewUserEmailTemplateData{
+	tplData := RegisterEmailTemplateData{
 		Email: email,
 		Token: token,
 	}
-	err := templateNewUserEmail.Execute(&buf, &tplData)
+	err := templateRegisterEmail.Execute(&buf, &tplData)
 	if err != nil {
 		return err
 	}
 	from := "noreply@decred.org"
 	subject := "Verify Your Email"
+	body := buf.String()
+
+	msg := goemail.NewHTMLMessage(from, subject, body)
+	msg.AddTo(email)
+
+	msg.SetName(cmsMailName)
+	return c.cfg.SMTP.Send(msg)
+}
+
+// emailUpdateIdentityVerificationLink emails the link with the verification token
+// used for setting a new key pair if the email server is set up.
+func (c *cmswww) emailUpdateIdentityVerificationLink(email, publicKey, token string) error {
+	if c.cfg.SMTP == nil {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	tplData := NewIdentityEmailTemplateData{
+		Email: email,
+		Token: token,
+	}
+	err := templateNewIdentityEmail.Execute(&buf, &tplData)
+	if err != nil {
+		return err
+	}
+	from := "noreply@decred.org"
+	subject := "Verify Your New Identity"
 	body := buf.String()
 
 	msg := goemail.NewHTMLMessage(from, subject, body)

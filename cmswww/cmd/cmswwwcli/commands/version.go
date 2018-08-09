@@ -2,8 +2,8 @@ package commands
 
 import (
 	"fmt"
-	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 
+	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
@@ -18,25 +18,38 @@ func (cmd *VersionCmd) Execute(args []string) error {
 
 	if vr.User != nil {
 		config.LoggedInUser = vr.User
-		fmt.Printf("You are logged in as %v\n", vr.User.Username)
+		if !config.JSONOutput && !config.SuppressOutput {
+			fmt.Printf("You are currently logged in as %v\n", vr.User.Username)
+		}
+
+		// Load identity, if available.
+		_, err = config.LoadUserIdentity(vr.User.Email)
+		if err != nil && !config.JSONOutput {
+			fmt.Printf("WARNING: Your identity could not be loaded, please generate" +
+				" a new one using the newidentity command\n")
+		}
+	} else if !config.JSONOutput && !config.SuppressOutput {
+		fmt.Printf("You are not currently logged in\n")
 	}
 
 	// CSRF protection works via double-submit method. One token is stored in the
 	// cookie. A different token is sent via the header. Both tokens must be
 	// persisted between cli commands.
 
-	// persist CSRF header token
-	err = config.SaveCsrf(Ctx.Csrf)
-	if err != nil {
-		return err
-	}
-
 	// persist session cookie
 	ck, err := Ctx.Cookies(config.Host)
 	if err != nil {
 		return err
 	}
-	err = config.SaveCookies(ck)
+	return config.SaveCookies(ck)
+}
 
-	return err
+func InitialVersionRequest() error {
+	config.SuppressOutput = true
+	defer func() {
+		config.SuppressOutput = false
+	}()
+
+	version := VersionCmd{}
+	return version.Execute(nil)
 }

@@ -2086,7 +2086,7 @@ Reply:
 | Status | Value | Description |
 |-|-|-|
 | <a name="UserEditInvalid">UserEditInvalid</a>| 0 | An invalid action. This shall be considered a bug. |
-| <a name="UserEditExpireNewUserVerification">UserEditExpireNewUserVerification</a> | 1 | Expires the new user verification token. |
+| <a name="UserEditExpireRegisterVerification">UserEditExpireRegisterVerification</a> | 1 | Expires the new user verification token. |
 | <a name="UserEditExpireUpdateKeyVerification">UserEditExpireUpdateKeyVerification</a> | 2 | Expires the update key verification token. |
 | <a name="UserEditExpireResetPasswordVerification">UserEditExpireResetPasswordVerification</a> | 3 | Expires the reset password verification token. |
 | <a name="UserEditClearUserPaywall">UserEditClearUserPaywall</a> | 4 | Clears the user's paywall. |

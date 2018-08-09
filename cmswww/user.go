@@ -56,18 +56,18 @@ func (c *cmswww) getUsernameByID(idStr string) string {
 	return user.Username
 }
 
-// HandleGenerateNewUser creates a new user in the db if it doesn't already
+// HandleInviteNewUser creates a new user in the db if it doesn't already
 // exist and sets a verification token and expiry; the token must be
 // verified before it expires.
-func (c *cmswww) HandleGenerateNewUser(
+func (c *cmswww) HandleInviteNewUser(
 	req interface{},
 	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	gnu := req.(*v1.GenerateNewUser)
+	gnu := req.(*v1.InviteNewUser)
 	var (
-		gnur   v1.GenerateNewUserReply
+		gnur   v1.InviteNewUserReply
 		token  []byte
 		expiry int64
 	)
@@ -75,14 +75,14 @@ func (c *cmswww) HandleGenerateNewUser(
 	existingUser, err := c.db.UserGet(gnu.Email)
 	if err == nil {
 		// Check if the user is already verified.
-		if existingUser.NewUserVerificationToken == nil {
+		if existingUser.RegisterVerificationToken == nil {
 			return nil, v1.UserError{
 				ErrorCode: v1.ErrorStatusUserAlreadyExists,
 			}
 		}
 
 		// Check if the verification token hasn't expired yet.
-		if existingUser.NewUserVerificationExpiry > time.Now().Unix() {
+		if existingUser.RegisterVerificationExpiry > time.Now().Unix() {
 			return nil, v1.UserError{
 				ErrorCode: v1.ErrorStatusVerificationTokenUnexpired,
 			}
@@ -99,15 +99,15 @@ func (c *cmswww) HandleGenerateNewUser(
 	newUser := database.User{
 		Email: strings.ToLower(gnu.Email),
 		Admin: false,
-		NewUserVerificationToken:  token,
-		NewUserVerificationExpiry: expiry,
+		RegisterVerificationToken:  token,
+		RegisterVerificationExpiry: expiry,
 	}
 
 	// Try to email the verification link first; if it fails, then
 	// the new user won't be created.
 	//
 	// This is conditional on the email server being setup.
-	err = c.emailNewUserVerificationLink(gnu.Email, hex.EncodeToString(token))
+	err = c.emailRegisterVerificationLink(gnu.Email, hex.EncodeToString(token))
 	if err != nil {
 		return nil, err
 	}
@@ -125,16 +125,16 @@ func (c *cmswww) HandleGenerateNewUser(
 	return &gnur, nil
 }
 
-// HandleNewUser verifies the token generated for a recently created
+// HandleRegister verifies the token generated for a recently created
 // user.  It ensures that the token matches with the input and that the token
 // hasn't expired.  On success it returns database user record.
-func (c *cmswww) HandleNewUser(
+func (c *cmswww) HandleRegister(
 	req interface{},
 	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	nu := req.(*v1.NewUser)
+	nu := req.(*v1.Register)
 
 	// Check that the user already exists.
 	user, err := c.db.UserGet(nu.Email)
@@ -156,14 +156,14 @@ func (c *cmswww) HandleNewUser(
 	}
 
 	// Check that the verification token matches.
-	if !bytes.Equal(token, user.NewUserVerificationToken) {
+	if !bytes.Equal(token, user.RegisterVerificationToken) {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
 		}
 	}
 
 	// Check that the token hasn't expired.
-	if time.Now().Unix() > user.NewUserVerificationExpiry {
+	if time.Now().Unix() > user.RegisterVerificationExpiry {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
 		}
@@ -176,7 +176,7 @@ func (c *cmswww) HandleNewUser(
 	}
 
 	// Validate the username.
-	err = c.validateUsername(nu.Username, user)
+	err = c.validateUsername(nu.Username, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -222,8 +222,8 @@ func (c *cmswww) HandleNewUser(
 	c.SetUserPubkeyAssociaton(user, nu.PublicKey)
 
 	// Update the user in the db.
-	user.NewUserVerificationToken = nil
-	user.NewUserVerificationExpiry = 0
+	user.RegisterVerificationToken = nil
+	user.RegisterVerificationExpiry = 0
 	user.HashedPassword = hashedPassword
 	user.Username = nu.Username
 	user.Identities = []database.Identity{{
@@ -232,7 +232,148 @@ func (c *cmswww) HandleNewUser(
 	copy(user.Identities[0].Key[:], pk)
 
 	err = c.db.UserUpdate(*user)
-	return &v1.NewUserReply{}, err
+	return &v1.RegisterReply{}, err
+}
+
+func (c *cmswww) HandleNewIdentity(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	ni := req.(*v1.NewIdentity)
+
+	var token []byte
+	var expiry int64
+
+	// Ensure we got a proper pubkey.
+	pk, err := validatePubkey(ni.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate that the pubkey isn't already taken.
+	err = c.validatePubkeyIsUnique(ni.PublicKey, user)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the verification token hasn't expired yet.
+	if user.UpdateIdentityVerificationToken != nil {
+		if user.UpdateIdentityVerificationExpiry > time.Now().Unix() {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusVerificationTokenUnexpired,
+				ErrorContext: []string{
+					strconv.FormatInt(user.UpdateIdentityVerificationExpiry, 10),
+				},
+			}
+		}
+	}
+
+	// Generate a new verification token and expiry.
+	token, expiry, err = c.generateVerificationTokenAndExpiry()
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the updated user information to the db.
+	user.UpdateIdentityVerificationToken = token
+	user.UpdateIdentityVerificationExpiry = expiry
+
+	identity := database.Identity{}
+	copy(identity.Key[:], pk)
+	user.Identities = append(user.Identities, identity)
+
+	err = c.db.UserUpdate(*user)
+	if err != nil {
+		return nil, err
+	}
+
+	// This is conditional on the email server being setup.
+	err = c.emailUpdateIdentityVerificationLink(user.Email, ni.PublicKey,
+		hex.EncodeToString(token))
+	if err != nil {
+		return nil, err
+	}
+
+	// Only set the token if email verification is disabled.
+	var nir v1.NewIdentityReply
+	if c.cfg.SMTP == nil {
+		nir.VerificationToken = hex.EncodeToString(token)
+	}
+	return &nir, nil
+}
+
+func (c *cmswww) HandleVerifyNewIdentity(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	vni := req.(*v1.VerifyNewIdentity)
+
+	// Decode the verification token.
+	token, err := hex.DecodeString(vni.VerificationToken)
+	if err != nil {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+		}
+	}
+
+	// Check that the verification token matches.
+	if !bytes.Equal(token, user.UpdateIdentityVerificationToken) {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+		}
+	}
+
+	// Check that the token hasn't expired.
+	if user.UpdateIdentityVerificationExpiry < time.Now().Unix() {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
+		}
+	}
+
+	// Check signature
+	sig, err := util.ConvertSignature(vni.Signature)
+	if err != nil {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusInvalidSignature,
+		}
+	}
+
+	id := user.Identities[len(user.Identities)-1]
+	pi, err := identity.PublicIdentityFromBytes(id.Key[:])
+	if err != nil {
+		return nil, err
+	}
+
+	if !pi.VerifyMessage([]byte(vni.VerificationToken), sig) {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusInvalidSignature,
+		}
+	}
+
+	// Associate the user id with the new public key.
+	c.SetUserPubkeyAssociaton(user, pi.String())
+
+	// Clear out the verification token fields in the db and activate
+	// the key and deactivate the one it's replacing.
+	user.UpdateIdentityVerificationToken = nil
+	user.UpdateIdentityVerificationExpiry = 0
+
+	t := time.Now().Unix()
+	for k, v := range user.Identities {
+		if v.Deactivated == 0 {
+			user.Identities[k].Deactivated = t
+			break
+		}
+	}
+	user.Identities[len(user.Identities)-1].Activated = t
+	user.Identities[len(user.Identities)-1].Deactivated = 0
+	err = c.db.UserUpdate(*user)
+
+	return &v1.VerifyNewIdentityReply{}, err
 }
 
 /*

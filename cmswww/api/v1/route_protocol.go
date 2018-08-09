@@ -5,19 +5,21 @@ import (
 )
 
 const (
-	RouteRoot             = "/"
-	RouteGenerateNewUser  = "/user/generate"
-	RouteNewUser          = "/user/new"
-	RouteUserInvoices     = "/user/invoices"
-	RouteUserDetails      = "/user/{userid:[0-9]+}"
-	RouteEditUser         = "/user/edit"
-	RouteLogin            = "/login"
-	RouteLogout           = "/logout"
-	RouteInvoices         = "/invoices"
-	RouteNewInvoice       = "/invoice/new"
-	RouteInvoiceDetails   = "/invoice/{token:[A-z0-9]{64}}"
-	RouteSetInvoiceStatus = "/invoice/{token:[A-z0-9]{64}}/status"
-	RoutePolicy           = "/policy"
+	RouteRoot              = "/"
+	RouteInviteNewUser     = "/user/invite"
+	RouteRegister          = "/user/new"
+	RouteNewIdentity       = "/user/identity"
+	RouteVerifyNewIdentity = "/user/identity/verify"
+	RouteUserInvoices      = "/user/invoices"
+	RouteUserDetails       = "/user/{userid:[0-9]+}"
+	RouteEditUser          = "/user/edit"
+	RouteLogin             = "/login"
+	RouteLogout            = "/logout"
+	RouteInvoices          = "/invoices"
+	RouteNewInvoice        = "/invoice/new"
+	RouteInvoiceDetails    = "/invoice/{token:[A-z0-9]{64}}"
+	RouteSetInvoiceStatus  = "/invoice/{token:[A-z0-9]{64}}/status"
+	RoutePolicy            = "/policy"
 )
 
 var (
@@ -121,20 +123,20 @@ type VersionReply struct {
 	User      *LoginReply `json:"user,omitempty"` // Currently logged in user
 }
 
-// GenerateNewUser is used to request that a new user be created within the db.
+// InviteNewUser is used to request that a new user be created within the db.
 // If successful, the user will require verification before being able to login.
-type GenerateNewUser struct {
+type InviteNewUser struct {
 	Email string `json:"email"`
 }
 
-// GenerateNewUserReply responds with the verification token for the user
+// InviteNewUserReply responds with the verification token for the user
 // (if an email server is not set up).
-type GenerateNewUserReply struct {
+type InviteNewUserReply struct {
 	VerificationToken string `json:"verificationtoken"`
 }
 
-// NewUser is used to request that a new user be verified.
-type NewUser struct {
+// Register is used to request that a new user be verified.
+type Register struct {
 	Email             string `json:"email"`
 	Username          string `json:"username"`
 	Password          string `json:"password"`
@@ -143,8 +145,27 @@ type NewUser struct {
 	Signature         string `json:"signature"`
 }
 
-// NewUserReply replies to NewUser with no properties, if successful.
-type NewUserReply struct{}
+// RegisterReply replies to Register with no properties, if successful.
+type RegisterReply struct{}
+
+// NewIdentity is used to generate a new identity.
+type NewIdentity struct {
+	PublicKey string `json:"publickey"`
+}
+
+// NewIdentityReply replies to the NewIdentity command.
+type NewIdentityReply struct {
+	VerificationToken string `json:"verificationtoken"` // Server verification token
+}
+
+// VerifyNewIdentity is used to verify the generation of a new identitys.
+type VerifyNewIdentity struct {
+	VerificationToken string `json:"verificationtoken"` // Server provided verification token
+	Signature         string `json:"signature"`         // Verification token signature
+}
+
+// VerifyNewIdentityReply replies to the VerifyNewIdentity command.
+type VerifyNewIdentityReply struct{}
 
 // UserInvoices is used to request a list of invoices that the
 // user has submitted.
@@ -265,17 +286,19 @@ type EditUserReply struct{}
 
 // User represents an individual user.
 type User struct {
-	ID                        string          `json:"id"`
-	Email                     string          `json:"email"`
-	Username                  string          `json:"username"`
-	Admin                     bool            `json:"isadmin"`
-	NewUserVerificationToken  []byte          `json:"newuserverificationtoken"`
-	NewUserVerificationExpiry int64           `json:"newuserverificationexpiry"`
-	LastLogin                 int64           `json:"lastlogin"`
-	FailedLoginAttempts       uint64          `json:"failedloginattempts"`
-	Locked                    bool            `json:"islocked"`
-	Identities                []UserIdentity  `json:"identities"`
-	Invoices                  []InvoiceRecord `json:"invoices"`
+	ID                               string          `json:"id"`
+	Email                            string          `json:"email"`
+	Username                         string          `json:"username"`
+	Admin                            bool            `json:"isadmin"`
+	RegisterVerificationToken        []byte          `json:"newuserverificationtoken"`
+	RegisterVerificationExpiry       int64           `json:"newuserverificationexpiry"`
+	UpdateIdentityVerificationToken  []byte          `json:"updateidentityverificationtoken"`
+	UpdateIdentityVerificationExpiry int64           `json:"updateidentityverificationexpiry"`
+	LastLogin                        int64           `json:"lastlogin"`
+	FailedLoginAttempts              uint64          `json:"failedloginattempts"`
+	Locked                           bool            `json:"islocked"`
+	Identities                       []UserIdentity  `json:"identities"`
+	Invoices                         []InvoiceRecord `json:"invoices"`
 }
 
 // UserIdentity represents a user's unique identity.

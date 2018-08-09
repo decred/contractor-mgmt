@@ -127,7 +127,7 @@ func (c *cmswww) SetupRoutes() {
 	c.router.NotFoundHandler = closeBody(c.HandleNotFound)
 	c.addGetRoute(v1.RoutePolicy, c.HandlePolicy, new(v1.Policy),
 		permissionPublic, false)
-	c.addPostRoute(v1.RouteNewUser, c.HandleNewUser, new(v1.NewUser),
+	c.addPostRoute(v1.RouteRegister, c.HandleRegister, new(v1.Register),
 		permissionPublic, false)
 	c.addPostRoute(v1.RouteLogin, c.HandleLogin, new(v1.Login),
 		permissionPublic, false)
@@ -135,10 +135,12 @@ func (c *cmswww) SetupRoutes() {
 		permissionPublic, false)
 
 	// Routes that require being logged in.
-	//c.addPostRoute(v1.RouteNewInvoice, c.HandleNewInvoice, new(v1.NewInvoice),
-	//	permissionLogin, true)
+	c.addPostRoute(v1.RouteNewIdentity, c.HandleNewIdentity,
+		new(v1.NewIdentity), permissionLogin, true)
+	c.addPostRoute(v1.RouteVerifyNewIdentity, c.HandleVerifyNewIdentity,
+		new(v1.VerifyNewIdentity), permissionLogin, true)
 
 	// Routes that require being logged in as an admin user.
-	c.addPostRoute(v1.RouteGenerateNewUser, c.HandleGenerateNewUser,
-		new(v1.GenerateNewUser), permissionAdmin, true)
+	c.addPostRoute(v1.RouteInviteNewUser, c.HandleInviteNewUser,
+		new(v1.InviteNewUser), permissionAdmin, true)
 }

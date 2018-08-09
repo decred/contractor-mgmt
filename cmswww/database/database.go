@@ -60,15 +60,17 @@ func ActiveIdentityString(i []Identity) (string, bool) {
 
 // User record.
 type User struct {
-	ID                        uint64 // Unique id
-	Email                     string // Email address + lookup key.
-	Username                  string // Unique username
-	HashedPassword            []byte // Blowfish hash
-	Admin                     bool   // Is user an admin
-	NewUserVerificationToken  []byte // Verification token during signup
-	NewUserVerificationExpiry int64  // Verification expiration
-	LastLogin                 int64  // Unix timestamp of when the user last logged in
-	FailedLoginAttempts       uint64 // Number of failed login a user has made in a row
+	ID                               uint64 // Unique id
+	Email                            string // Email address + lookup key.
+	Username                         string // Unique username
+	HashedPassword                   []byte // Blowfish hash
+	Admin                            bool   // Is user an admin
+	RegisterVerificationToken        []byte // Verification token during signup
+	RegisterVerificationExpiry       int64  // Verification expiration
+	UpdateIdentityVerificationToken  []byte // Verification token when creating a new identity
+	UpdateIdentityVerificationExpiry int64  // Verification expiration
+	LastLogin                        int64  // Unix timestamp of when the user last logged in
+	FailedLoginAttempts              uint64 // Number of failed login a user has made in a row
 
 	// All identities the user has ever used.  User should only have one
 	// active key at a time.  We allow multiples in order to deal with key

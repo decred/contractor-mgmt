@@ -83,6 +83,13 @@ func (c *cmswww) removeSession(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	// Check for invalid session.
+	if session.ID == "" {
+		return nil
+	}
+
+	// Saving the session with a negative MaxAge will cause it to be deleted
+	// from the filesystem.
 	session.Options.MaxAge = -1
 	return session.Save(r, w)
 }
@@ -166,7 +173,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	}
 
 	// Check that the user is verified.
-	if user.NewUserVerificationToken != nil {
+	if user.RegisterVerificationToken != nil {
 		return loginReplyWithError{
 			reply: nil,
 			err: v1.UserError{

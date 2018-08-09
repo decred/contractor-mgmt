@@ -99,7 +99,6 @@
     "internal/helpers",
     "internal/zero",
     "netparams",
-    "rpc/walletrpc",
     "wallet/internal/snacl",
     "wallet/internal/txsizes",
     "wallet/internal/walletdb",
@@ -117,9 +116,6 @@
     "politeiad/api/v1/identity",
     "politeiad/api/v1/mime",
     "politeiawww/api/v1",
-    "politeiawww/cmd/politeiawwwcli/client",
-    "politeiawww/cmd/politeiawwwcli/config",
-    "politeiawww/sharedconfig",
     "util"
   ]
   revision = "09f4d067e6712d7a167594771495017b6a347926"
@@ -129,18 +125,6 @@
   packages = ["."]
   revision = "fbd821ef791ba2b8ae945f5d44f4e49396d230c5"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/golang/protobuf"
-  packages = [
-    "proto",
-    "ptypes",
-    "ptypes/any",
-    "ptypes/duration",
-    "ptypes/timestamp"
-  ]
-  revision = "89a0c16f4dc2a70c0ed864d8ef64878f24fdaa51"
 
 [[projects]]
   branch = "master"
@@ -197,6 +181,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/kennygrant/sanitize"
+  packages = ["."]
+  revision = "06ec0d0dbcd497d01e5189b16f5263f712e61a8e"
+  version = "v1.2.4"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -233,8 +223,7 @@
     "poly1305",
     "ripemd160",
     "salsa20/salsa",
-    "scrypt",
-    "ssh/terminal"
+    "scrypt"
   ]
   revision = "56440b844dfe139a8ac053f4ecac0b20b79058f4"
 
@@ -242,25 +231,12 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = [
-    "context",
-    "http/httpguts",
-    "http2",
-    "http2/hpack",
+    "html",
+    "html/atom",
     "idna",
-    "internal/timeseries",
-    "publicsuffix",
-    "trace"
+    "publicsuffix"
   ]
   revision = "f4c29de78a2a91c00474a2e689954305c350adf9"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/sys"
-  packages = [
-    "unix",
-    "windows"
-  ]
-  revision = "0ffbfd41fbef8ffcf9b62b0b0aa3a5873ed7a4fe"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -283,48 +259,9 @@
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
-[[projects]]
-  branch = "master"
-  name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
-  revision = "daca94659cb50e9f37c1b834680f2e46358f10b0"
-
-[[projects]]
-  name = "google.golang.org/grpc"
-  packages = [
-    ".",
-    "balancer",
-    "balancer/base",
-    "balancer/roundrobin",
-    "codes",
-    "connectivity",
-    "credentials",
-    "encoding",
-    "encoding/proto",
-    "grpclog",
-    "internal",
-    "internal/backoff",
-    "internal/channelz",
-    "internal/envconfig",
-    "internal/grpcrand",
-    "internal/transport",
-    "keepalive",
-    "metadata",
-    "naming",
-    "peer",
-    "resolver",
-    "resolver/dns",
-    "resolver/passthrough",
-    "stats",
-    "status",
-    "tap"
-  ]
-  revision = "32fb0ac620c32ba40a4626ddf94d90d12cce3455"
-  version = "v1.14.0"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8ce436e5b1b9a51ced89a088b512666eb8d1c35e6e1522a1de3b92d985c9ccc8"
+  inputs-digest = "a0c6971d880cafc677842008ec8167ed9b16e4808525d4efe02a9cf0ec050545"
   solver-name = "gps-cdcl"
   solver-version = 1

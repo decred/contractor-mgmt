@@ -9,18 +9,23 @@ import (
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
-type NewUserArgs struct {
+type RegisterArgs struct {
 	Email    string `positional-arg-name:"email"`
 	Username string `positional-arg-name:"username"`
 	Password string `positional-arg-name:"password"`
 	Token    string `positional-arg-name:"token"`
 }
 
-type NewUserCmd struct {
-	Args NewUserArgs `positional-args:"true" required:"true"`
+type RegisterCmd struct {
+	Args RegisterArgs `positional-args:"true" required:"true"`
 }
 
-func (cmd *NewUserCmd) Execute(args []string) error {
+func (cmd *RegisterCmd) Execute(args []string) error {
+	err := InitialVersionRequest()
+	if err != nil {
+		return err
+	}
+
 	id, err := identity.New()
 	if err != nil {
 		return err
@@ -32,7 +37,7 @@ func (cmd *NewUserCmd) Execute(args []string) error {
 
 	signature := id.SignMessage([]byte(cmd.Args.Token))
 
-	nu := v1.NewUser{
+	nu := v1.Register{
 		Email:             cmd.Args.Email,
 		Username:          cmd.Args.Username,
 		Password:          cmd.Args.Password,
@@ -41,8 +46,8 @@ func (cmd *NewUserCmd) Execute(args []string) error {
 		Signature:         hex.EncodeToString(signature[:]),
 	}
 
-	var nur v1.NewUserReply
-	err = Ctx.Post(v1.RouteNewUser, nu, &nur)
+	var nur v1.RegisterReply
+	err = Ctx.Post(v1.RouteRegister, nu, &nur)
 	if err != nil {
 		config.DeleteUserIdentity(nu.Email)
 	}

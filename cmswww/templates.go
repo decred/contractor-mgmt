@@ -4,7 +4,7 @@
 
 package main
 
-const templateNewUserEmailRaw = `
+const templateRegisterEmailRaw = `
 <div>
 	You are invited to join Decred as a contractor! To complete your registration,
 	you will need to download <a href="#">this command-line program</a>
@@ -12,32 +12,37 @@ const templateNewUserEmailRaw = `
 </div>
 <div style="margin: 20px 0 0 10px">
 	<pre><code>
-> cmswwwcli newidentity
-> cmswwwcli newuser <email> {{.Token}}
+$ cmswwwcli
+
+  > newuser &lt;email> &lt;username> &lt;password> {{.Token}}
 	</code></pre>
 </div>
 <div style="margin-top: 20px">
 	You are receiving this email because <span style="font-weight: bold">{{.Email}}</span>
-	 was used to register for Politeia. If you did not perform this action,
-	please ignore this email.
+	 was invited to join Decred. If you have no knowledge of this invitation,
+	 please ignore this email.
 </div>
 `
 
-const templateResetPasswordEmailRaw = `
-<div>Click the link below to continue resetting your password:</div>
-<div style="margin: 20px 0 0 10px"><a href="{{.Link}}">{{.Link}}</a></div>
-<div style="margin-top: 20px">You are receiving this email because a password reset
-was initiated for <span style="font-weight: bold">{{.Email}}</span> on Politeia.
-If you did not perform this action, please contact Politeia administrators.</div>
-`
+const templateNewIdentityEmailRaw = `
+<div>
+	You have generated a new identity. To verify and start using it,
+	you will need to execute the following:
+</div>
+<div style="margin: 20px 0 0 10px">
+	<pre><code>
+$ cmswwwcli
 
-const templateUpdateUserKeyEmailRaw = `
-<div>Click the link below to verify your new identity:</div>
-<div style="margin: 20px 0 0 10px"><a href="{{.Link}}">{{.Link}}</a></div>
-<div style="margin-top: 20px">You are receiving this email because a new identity
-(public key: {{.PublicKey}}) was generated for
-<span style="font-weight: bold">{{.Email}}</span> on Politeia. If you did not perform
-this action, please contact Politeia administrators.</div>
+  > login &lt;email> &lt;password>
+  > verifyidentity {{.Token}}
+	</code></pre>
+</div>
+<div style="margin-top: 20px">
+	You are receiving this email because a new identity (public key:
+	 {{.PublicKey}}) was generated for <span style="font-weight: bold">{{.Email}}</span>
+	 on Decred Contractor Management. If you did not perform this action,
+	 please notify the administrators.</div>
+</div>
 `
 
 const templateUserLockedResetPasswordRaw = `

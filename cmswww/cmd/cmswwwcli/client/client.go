@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/decred/politeia/util"
@@ -20,7 +21,6 @@ import (
 
 type Ctx struct {
 	client            *http.Client
-	Csrf              string
 	LastCommandOutput string
 }
 
@@ -101,8 +101,8 @@ func (c *Ctx) makeRequest(method, route string, requestJSON interface{}, respons
 	if err != nil {
 		return err
 	}
-	if route != v1.RouteRoot {
-		req.Header.Add(v1.CsrfToken, c.Csrf)
+	if config.CsrfToken != "" {
+		req.Header.Add(v1.CsrfToken, config.CsrfToken)
 	}
 	r, err := c.client.Do(req)
 	if err != nil {
@@ -113,25 +113,52 @@ func (c *Ctx) makeRequest(method, route string, requestJSON interface{}, respons
 	}()
 
 	if route == v1.RouteRoot {
-		// store CSRF tokens
+		// store CSRF and cookies
 		c.SetCookies(config.Host, r.Cookies())
-		c.Csrf = r.Header.Get(v1.CsrfToken)
+		config.SaveCsrf(r.Header.Get(v1.CsrfToken))
 	}
 
+	return c.handleResponse(r, responseJSON)
+}
+
+func (c *Ctx) handleResponse(r *http.Response, responseJSON interface{}) error {
 	responseBody := util.ConvertBodyToByteArray(r.Body, false)
+
+	if config.JSONOutput {
+		c.LastCommandOutput = string(responseBody)
+		return nil
+	}
+
 	if r.StatusCode != http.StatusOK {
-		var ue v1.UserError
-		err = json.Unmarshal(responseBody, &ue)
-		if err == nil {
-			return fmt.Errorf("%v, %v %v", r.Status,
-				v1.ErrorStatus[ue.ErrorCode], strings.Join(ue.ErrorContext, ", "))
+		if config.Verbose {
+			fmt.Printf("Response: %v ", r.Status)
+			var errJSON interface{}
+			err := json.Unmarshal(responseBody, &errJSON)
+			if err == nil {
+				prettyPrintJSON(errJSON)
+			} else {
+				fmt.Println()
+			}
 		}
 
-		return fmt.Errorf("%v", r.Status)
+		var ue v1.ErrorReply
+		err := json.Unmarshal(responseBody, &ue)
+		if err != nil {
+			return fmt.Errorf("Error: %v", r.Status)
+		}
+
+		detailedErr, ok := v1.ErrorStatus[v1.ErrorStatusT(ue.ErrorCode)]
+		if ok && ue.ErrorCode != 0 {
+			detailedErr += " " + strings.Join(ue.ErrorContext, ", ")
+		} else {
+			detailedErr = strconv.FormatInt(ue.ErrorCode, 10)
+		}
+
+		return fmt.Errorf("%v, %v", r.Status, detailedErr)
 	}
 
 	if responseJSON != nil {
-		err = json.Unmarshal(responseBody, responseJSON)
+		err := json.Unmarshal(responseBody, responseJSON)
 		if err != nil {
 			return fmt.Errorf("Could not unmarshal reply: %v", err)
 		}
@@ -144,9 +171,6 @@ func (c *Ctx) makeRequest(method, route string, requestJSON interface{}, respons
 		} else {
 			fmt.Println()
 		}
-	}
-	if config.JSONOut {
-		c.LastCommandOutput = string(responseBody)
 	}
 
 	return nil

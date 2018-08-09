@@ -632,11 +632,20 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Ensure the templates are evaluating with dummy data.
-	tplData := NewUserEmailTemplateData{
+	newUserTplData := RegisterEmailTemplateData{
 		Email: "test@example.com",
 		Token: "undefined",
 	}
-	if err := ExecuteTemplate(templateNewUserEmail, tplData); err != nil {
+	if err := ExecuteTemplate(templateRegisterEmail, newUserTplData); err != nil {
+		return nil, nil, err
+	}
+
+	newIdentityTplData := NewIdentityEmailTemplateData{
+		Email:     "test@example.com",
+		Token:     "undefined",
+		PublicKey: "public_key",
+	}
+	if err = ExecuteTemplate(templateNewIdentityEmail, newIdentityTplData); err != nil {
 		return nil, nil, err
 	}
 

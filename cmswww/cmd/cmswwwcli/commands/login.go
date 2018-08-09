@@ -15,47 +15,38 @@ type LoginCmd struct {
 }
 
 func (cmd *LoginCmd) Execute(args []string) error {
+	err := InitialVersionRequest()
+	if err != nil {
+		return err
+	}
+
 	l := v1.Login{
 		Email:    cmd.Args.Email,
 		Password: cmd.Args.Password,
 	}
 
 	var lr v1.LoginReply
-	err := Ctx.Post(v1.RouteLogin, l, &lr)
+	err = Ctx.Post(v1.RouteLogin, l, &lr)
 	if err != nil {
 		return err
 	}
 
 	config.LoggedInUser = &lr
-	if !config.JSONOut {
-		fmt.Printf("\nYou are now logged in as %v\n", lr.Username)
+	if !config.JSONOutput {
+		fmt.Printf("You are now logged in as %v\n", lr.Username)
 	}
 
 	// Load identity, if available.
 	_, err = config.LoadUserIdentity(cmd.Args.Email)
-	if err != nil && !config.JSONOut {
+	if err != nil && !config.JSONOutput {
 		fmt.Printf("WARNING: Your identity could not be loaded, please generate" +
 			" a new one using the newidentity command\n")
 	}
 
-	fmt.Println()
-	/*
-		   is this necessary?!
-
-		   	// persist CSRF header token
-		   	err = config.SaveCsrf(Ctx.Csrf)
-		   	if err != nil {
-		   		return err
-		   	}
-
-		// persist session cookie
-		ck, err := Ctx.Cookies(Ctx.Config.Host)
-		if err != nil {
-			return err
-		}
-		err = config.SaveCookies(ck)
+	// persist session cookie
+	ck, err := Ctx.Cookies(config.Host)
+	if err != nil {
 		return err
-	*/
-
-	return nil
+	}
+	return config.SaveCookies(ck)
 }

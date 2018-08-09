@@ -19,8 +19,8 @@ func convertWWWUserFromDatabaseUser(user *database.User) v1.User {
 		Email:    user.Email,
 		Username: user.Username,
 		Admin:    user.Admin,
-		NewUserVerificationToken:  user.NewUserVerificationToken,
-		NewUserVerificationExpiry: user.NewUserVerificationExpiry,
+		RegisterVerificationToken:  user.RegisterVerificationToken,
+		RegisterVerificationExpiry: user.RegisterVerificationExpiry,
 		LastLogin:                 user.LastLogin,
 		FailedLoginAttempts:       user.FailedLoginAttempts,
 		Locked:                    IsUserLocked(user.FailedLoginAttempts),
@@ -159,8 +159,8 @@ func (c *cmswww) ProcessEditUser(eu *v1.EditUser, adminUser *database.User) (*v1
 	expiredTime := time.Now().Add(-168 * time.Hour).Unix()
 
 	switch eu.Action {
-	case v1.UserEditRegenerateNewUserVerification:
-		user.NewUserVerificationExpiry = expiredTime
+	case v1.UserEditRegenerateRegisterVerification:
+		user.RegisterVerificationExpiry = expiredTime
 	case v1.UserEditUnlock:
 		user.FailedLoginAttempts = 0
 	default:

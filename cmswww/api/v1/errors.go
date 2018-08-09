@@ -42,9 +42,9 @@ const (
 	InvoiceStatusApproved    InvoiceStatusT = 4 // Invoice has been approved
 
 	// User edit actions
-	UserEditInvalid                       UserEditActionT = 0 // Invalid action type
-	UserEditRegenerateNewUserVerification UserEditActionT = 1
-	UserEditUnlock                        UserEditActionT = 2
+	UserEditInvalid                        UserEditActionT = 0 // Invalid action type
+	UserEditRegenerateRegisterVerification UserEditActionT = 1
+	UserEditUnlock                         UserEditActionT = 2
 )
 
 var (
@@ -89,8 +89,8 @@ var (
 
 	// UserEditAction converts user edit actions to human readable text
 	UserEditAction = map[UserEditActionT]string{
-		UserEditInvalid:                       "invalid action",
-		UserEditRegenerateNewUserVerification: "regenerate new user verification",
-		UserEditUnlock:                        "unlock user",
+		UserEditInvalid:                        "invalid action",
+		UserEditRegenerateRegisterVerification: "regenerate new user verification",
+		UserEditUnlock:                         "unlock user",
 	}
 )

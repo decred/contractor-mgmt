@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
@@ -85,15 +83,20 @@ func (c *cmswww) logAdminAction(adminUser *database.User, content string) error 
 // logAdminUserAction logs an admin action on a specific user.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) logAdminUserAction(adminUser, user *database.User, action v1.UserEditActionT, reasonForAction string) error {
+func (c *cmswww) logAdminUserAction(adminUser, user *database.User, action string, reasonForAction string) error {
+	userStr := user.Username
+	if userStr == "" {
+		userStr = user.Email
+	}
+
 	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v,%v,%v",
-		v1.UserEditAction[action], user.ID, user.Username, reasonForAction))
+		action, user.ID, userStr, reasonForAction))
 }
 
 // logAdminUserAction logs an admin action on a specific user.
 //
 // This function must be called WITHOUT the mutex held.
-func (c *cmswww) logAdminUserActionLock(adminUser, user *database.User, action v1.UserEditActionT, reasonForAction string) error {
+func (c *cmswww) logAdminUserActionLock(adminUser, user *database.User, action string, reasonForAction string) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -107,6 +110,79 @@ func (c *cmswww) logAdminInvoiceAction(adminUser *database.User, token, action s
 	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v", action, token))
 }
 
+// HandleInviteNewUser creates a new user in the db if it doesn't already
+// exist and sets a verification token and expiry; the token must be
+// verified before it expires.
+func (c *cmswww) HandleInviteNewUser(
+	req interface{},
+	adminUser *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	inu := req.(*v1.InviteNewUser)
+	var (
+		inur   v1.InviteNewUserReply
+		token  []byte
+		expiry int64
+	)
+
+	existingUser, err := c.db.UserGet(inu.Email)
+	if err == nil {
+		// Check if the user is already verified.
+		if existingUser.RegisterVerificationToken == nil {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusUserAlreadyExists,
+			}
+		}
+
+		// Check if the verification token hasn't expired yet.
+		if existingUser.RegisterVerificationExpiry > time.Now().Unix() {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusVerificationTokenUnexpired,
+			}
+		}
+	}
+
+	// Generate the verification token and expiry.
+	token, expiry, err = c.generateVerificationTokenAndExpiry()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new database user with the provided information.
+	newUser := &database.User{
+		Email: strings.ToLower(inu.Email),
+		Admin: false,
+		RegisterVerificationToken:  token,
+		RegisterVerificationExpiry: expiry,
+	}
+
+	// Try to email the verification link first; if it fails, then
+	// the new user won't be created.
+	err = c.emailRegisterVerificationLink(inu.Email, hex.EncodeToString(token))
+	if err != nil {
+		return nil, err
+	}
+
+	// Save the new user in the db.
+	err = c.db.UserNew(newUser)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.logAdminUserActionLock(adminUser, newUser, "new user invite", "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Only set the token if email verification is disabled.
+	if c.cfg.SMTP == nil {
+		inur.VerificationToken = hex.EncodeToString(token)
+	}
+	return &inur, nil
+}
+
+/*
 func (c *cmswww) SetUserDetailsPathParams(
 	req interface{},
 	w http.ResponseWriter,
@@ -118,7 +194,7 @@ func (c *cmswww) SetUserDetailsPathParams(
 	ud.UserID = pathParams["userid"]
 	return nil
 }
-
+*/
 func (c *cmswww) HandleUserDetails(
 	req interface{},
 	user *database.User,
@@ -128,18 +204,18 @@ func (c *cmswww) HandleUserDetails(
 	ud := req.(*v1.UserDetails)
 
 	// Fetch the database user.
-	user, err := c.getUserByIDStr(ud.UserID)
+	targetUser, err := c.findUser(ud.UserID, ud.Email, ud.Username, user.Admin)
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert the database user into a proper response.
 	var udr v1.UserDetailsReply
-	udr.User = convertWWWUserFromDatabaseUser(user)
+	udr.User = convertWWWUserFromDatabaseUser(targetUser)
 	/*
 		// Fetch the first page of the user's invoices.
 		up := v1.UserInvoices{
-			UserId: ud.UserID,
+			UserID: ud.UserID,
 		}
 		upr, err := c.ProcessUserInvoices(&up, false, true)
 		if err != nil {
@@ -158,9 +234,10 @@ func (c *cmswww) HandleEditUser(
 	r *http.Request,
 ) (interface{}, error) {
 	eu := req.(*v1.EditUser)
+	var eur v1.EditUserReply
 
 	// Fetch the database user.
-	targetUser, err := c.getUserByIDStr(eu.UserID)
+	targetUser, err := c.findUser(eu.UserID, eu.Email, eu.Username, adminUser.Admin)
 	if err != nil {
 		return nil, err
 	}
@@ -172,30 +249,28 @@ func (c *cmswww) HandleEditUser(
 		}
 	}
 
-	// Validate that the reason is supplied.
+	// Validate that the reason is supplied for certain actions.
 	if eu.Action == v1.UserEditLock {
 		eu.Reason = strings.TrimSpace(eu.Reason)
 		if len(eu.Reason) == 0 {
 			return nil, v1.UserError{
-				ErrorCode: v1.ErrorStatusInvalidInput,
+				ErrorCode: v1.ErrorStatusReasonNotProvided,
 			}
 		}
 	}
 
-	// Append this action to the admin log file.
-	err = c.logAdminUserActionLock(adminUser, targetUser, eu.Action, eu.Reason)
-	if err != nil {
-		return nil, err
-	}
-
-	// -168 hours is 7 days in the past
-	expiredTime := time.Now().Add(-168 * time.Hour).Unix()
-
 	switch eu.Action {
 	case v1.UserEditResendInvite:
-		// TODO
-		targetUser.RegisterVerificationExpiry = expiredTime
+		token, err := c.resendInvite(adminUser, targetUser)
+		if err != nil {
+			return nil, err
+		}
+
+		eur.VerificationToken = &token
 	case v1.UserEditRegenerateUpdateIdentityVerification:
+		// -168 hours is 7 days in the past
+		expiredTime := time.Now().Add(-168 * time.Hour).Unix()
+
 		targetUser.UpdateIdentityVerificationExpiry = expiredTime
 	case v1.UserEditUnlock:
 		targetUser.FailedLoginAttempts = 0
@@ -207,6 +282,56 @@ func (c *cmswww) HandleEditUser(
 	}
 
 	// Update the user in the database.
-	err = c.db.UserUpdate(*targetUser)
-	return &v1.EditUserReply{}, err
+	err = c.db.UserUpdate(targetUser)
+	if err != nil {
+		return nil, err
+	}
+
+	// Append this action to the admin log file.
+	err = c.logAdminUserActionLock(adminUser, targetUser,
+		v1.UserEditAction[eu.Action], eu.Reason)
+	if err != nil {
+		return nil, err
+	}
+
+	return &eur, nil
+}
+
+// resendInvite sets a new verification token and expiry for a new user;
+// the token must be verified before it expires.
+func (c *cmswww) resendInvite(adminUser, targetUser *database.User) (string, error) {
+	// Check if the user is already verified.
+	if targetUser.RegisterVerificationToken == nil {
+		return "", v1.UserError{
+			ErrorCode: v1.ErrorStatusUserAlreadyExists,
+		}
+	}
+
+	// Generate the verification token and expiry.
+	token, expiry, err := c.generateVerificationTokenAndExpiry()
+	if err != nil {
+		return "", err
+	}
+	encodedToken := hex.EncodeToString(token)
+
+	// Try to email the verification link.
+	err = c.emailRegisterVerificationLink(targetUser.Email, encodedToken)
+	if err != nil {
+		return "", err
+	}
+
+	targetUser.RegisterVerificationToken = token
+	targetUser.RegisterVerificationExpiry = expiry
+
+	// Save the new user in the db.
+	err = c.db.UserUpdate(targetUser)
+	if err != nil {
+		return "", err
+	}
+
+	// Only set the token if email verification is disabled.
+	if c.cfg.SMTP == nil {
+		return encodedToken, nil
+	}
+	return "", nil
 }

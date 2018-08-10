@@ -23,8 +23,8 @@ type Options struct {
 	Policy            PolicyCmd         `command:"policy" description:"Fetch server policy. Parameters: none\n  --------------------------------------"`
 	Version           VersionCmd        `command:"version" description:"Fetch server info and CSRF token. Parameters: none\n  --------------------------------------"`
 	InviteNewUser     InviteNewUserCmd  `command:"invite" description:"Send a new contractor invitation.\n\n           Parameters: <email>\n  --------------------------------------"`
-	UserDetails       UserDetailsCmd    `command:"user" description:"Fetch a user's details given the user id.\n\n           Parameters: <user id>\n  --------------------------------------"`
-	EditUser          EditUserCmd       `command:"edituser" description:"Edit a user by user id.\n\n           Parameters: <user id> <action> <reason>\n    Available actions: resendinvite, resendidentitytoken, lock, unlock\n  --------------------------------------"`
+	UserDetails       UserDetailsCmd    `command:"user" description:"Fetch a user's details given the user id.\n\n           Parameters: <user id/email/username>\n  --------------------------------------"`
+	EditUser          EditUserCmd       `command:"edituser" description:"Edit a user by user id.\n\n           Parameters: <user id/email/username> <action> <reason>\n    Available actions: resendinvite, resendidentitytoken, lock, unlock\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

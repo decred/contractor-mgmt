@@ -68,7 +68,7 @@ func createAdminUserAction() error {
 		return err
 	}
 
-	user := database.User{
+	user := &database.User{
 		Email:          args[0],
 		Username:       args[1],
 		HashedPassword: hashedPassword,

@@ -107,7 +107,12 @@ func createContractorUser(
 		return err
 	}
 
-	token, err := c.InviteUser(contractorEmail)
+	_, err := c.InviteUser(contractorEmail)
+	if err != nil {
+		return err
+	}
+
+	token, err := c.ResendInvite(contractorEmail)
 	if err != nil {
 		return err
 	}

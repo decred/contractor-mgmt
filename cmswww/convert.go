@@ -122,7 +122,7 @@ func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[strin
 
 	// Set the user id.
 	var ok bool
-	invoice.UserId, ok = userPubkeys[invoice.PublicKey]
+	invoice.UserID, ok = userPubkeys[invoice.PublicKey]
 	if !ok {
 		log.Errorf("user not found for public key %v, for invoice %v",
 			invoice.PublicKey, invoice.CensorshipRecord.Token)

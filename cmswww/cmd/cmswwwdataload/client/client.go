@@ -188,6 +188,27 @@ func (c *Client) InviteUser(email string) (string, error) {
 	return inur.VerificationToken, err
 }
 
+func (c *Client) ResendInvite(email string) (string, error) {
+	fmt.Printf("Re-inviting user: %v\n", email)
+
+	var eur v1.EditUserReply
+	err := c.ExecuteCliCommand(
+		&eur,
+		func() bool {
+			return eur.VerificationToken != nil && *eur.VerificationToken != ""
+		},
+		"edituser",
+		email,
+		"resendinvite",
+		"automatically sent by dataload util",
+	)
+
+	if eur.VerificationToken == nil {
+		return "", err
+	}
+	return *eur.VerificationToken, err
+}
+
 func (c *Client) RegisterUser(email, username, password, token string) error {
 	fmt.Printf("Registering user: %v\n", email)
 

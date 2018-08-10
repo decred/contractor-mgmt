@@ -7,7 +7,7 @@ import (
 
 type EditUserCmd struct {
 	Args struct {
-		UserID string `positional-arg-name:"userid"`
+		User   string `positional-arg-name:"user"`
 		Action string `positional-arg-name:"action"`
 		Reason string `positional-arg-name:"reason"`
 	} `positional-args:"true" required:"true"`
@@ -34,9 +34,11 @@ func (cmd *EditUserCmd) Execute(args []string) error {
 	}
 
 	eu := v1.EditUser{
-		UserID: cmd.Args.UserID,
-		Action: action,
-		Reason: cmd.Args.Reason,
+		UserID:   cmd.Args.User,
+		Email:    cmd.Args.User,
+		Username: cmd.Args.User,
+		Action:   action,
+		Reason:   cmd.Args.Reason,
 	}
 
 	var eur v1.EditUserReply

@@ -6,7 +6,6 @@ import (
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/decred/politeia/util"
@@ -56,73 +55,45 @@ func (c *cmswww) getUsernameByID(idStr string) string {
 	return user.Username
 }
 
-// HandleInviteNewUser creates a new user in the db if it doesn't already
-// exist and sets a verification token and expiry; the token must be
-// verified before it expires.
-func (c *cmswww) HandleInviteNewUser(
-	req interface{},
-	user *database.User,
-	w http.ResponseWriter,
-	r *http.Request,
-) (interface{}, error) {
-	gnu := req.(*v1.InviteNewUser)
+// Performs a user lookup using id, email, or username (in that order). Email
+// lookup is only possible if the user requesting the information is an admin.
+func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (*database.User, error) {
 	var (
-		gnur   v1.InviteNewUserReply
-		token  []byte
-		expiry int64
+		user *database.User
+		err  error
 	)
 
-	existingUser, err := c.db.UserGet(gnu.Email)
-	if err == nil {
-		// Check if the user is already verified.
-		if existingUser.RegisterVerificationToken == nil {
-			return nil, v1.UserError{
-				ErrorCode: v1.ErrorStatusUserAlreadyExists,
-			}
-		}
-
-		// Check if the verification token hasn't expired yet.
-		if existingUser.RegisterVerificationExpiry > time.Now().Unix() {
-			return nil, v1.UserError{
-				ErrorCode: v1.ErrorStatusVerificationTokenUnexpired,
+	if idStr != "" {
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err == nil {
+			user, err = c.db.UserGetById(id)
+			if err != nil && err != database.ErrUserNotFound {
+				return nil, err
 			}
 		}
 	}
 
-	// Generate the verification token and expiry.
-	token, expiry, err = c.generateVerificationTokenAndExpiry()
-	if err != nil {
-		return nil, err
+	if user == nil && isAdmin && email != "" {
+		user, err = c.db.UserGet(email)
+		if err != nil && err != database.ErrUserNotFound {
+			return nil, err
+		}
 	}
 
-	// Create a new database user with the provided information.
-	newUser := database.User{
-		Email: strings.ToLower(gnu.Email),
-		Admin: false,
-		RegisterVerificationToken:  token,
-		RegisterVerificationExpiry: expiry,
+	if user == nil && username != "" {
+		user, err = c.db.UserGetByUsername(username)
+		if err != nil && err != database.ErrUserNotFound {
+			return nil, err
+		}
 	}
 
-	// Try to email the verification link first; if it fails, then
-	// the new user won't be created.
-	//
-	// This is conditional on the email server being setup.
-	err = c.emailRegisterVerificationLink(gnu.Email, hex.EncodeToString(token))
-	if err != nil {
-		return nil, err
+	if user != nil {
+		return user, nil
 	}
 
-	// Save the new user in the db.
-	err = c.db.UserNew(newUser)
-	if err != nil {
-		return nil, err
+	return nil, v1.UserError{
+		ErrorCode: v1.ErrorStatusUserNotFound,
 	}
-
-	// Only set the token if email verification is disabled.
-	if c.cfg.SMTP == nil {
-		gnur.VerificationToken = hex.EncodeToString(token)
-	}
-	return &gnur, nil
 }
 
 // HandleRegister verifies the token generated for a recently created
@@ -231,7 +202,7 @@ func (c *cmswww) HandleRegister(
 	}}
 	copy(user.Identities[0].Key[:], pk)
 
-	err = c.db.UserUpdate(*user)
+	err = c.db.UserUpdate(user)
 	return &v1.RegisterReply{}, err
 }
 
@@ -284,7 +255,7 @@ func (c *cmswww) HandleNewIdentity(
 	copy(identity.Key[:], pk)
 	user.Identities = append(user.Identities, identity)
 
-	err = c.db.UserUpdate(*user)
+	err = c.db.UserUpdate(user)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +342,7 @@ func (c *cmswww) HandleVerifyNewIdentity(
 	}
 	user.Identities[len(user.Identities)-1].Activated = t
 	user.Identities[len(user.Identities)-1].Deactivated = 0
-	err = c.db.UserUpdate(*user)
+	err = c.db.UserUpdate(user)
 
 	return &v1.VerifyNewIdentityReply{}, err
 }
@@ -383,7 +354,7 @@ func (c *cmswww) ProcessUserInvoices(up *v1.UserInvoices, isCurrentUser, isAdmin
 		Invoices: b.getInvoices(invoicesRequest{
 			After:  up.After,
 			Before: up.Before,
-			UserId: up.UserId,
+			UserID: up.UserID,
 			StatusMap: map[v1.InvoiceStatusT]bool{
 				v1.InvoiceStatusNotReviewed: isCurrentUser || isAdminUser,
 				v1.InvoiceStatusRejected:    isCurrentUser || isAdminUser,
@@ -408,7 +379,7 @@ func (c *cmswww) handleUserInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userId, err := strconv.ParseUint(up.UserId, 10, 64)
+	userID, err := strconv.ParseUint(up.UserID, 10, 64)
 	if err != nil {
 		RespondWithError(w, r, 0, "handleUserInvoices: ParseUint",
 			v1.UserError{
@@ -426,7 +397,7 @@ func (c *cmswww) handleUserInvoices(w http.ResponseWriter, r *http.Request) {
 
 	upr, err := p.backend.ProcessUserInvoices(
 		&up,
-		user != nil && user.ID == userId,
+		user != nil && user.ID == userID,
 		user != nil && user.Admin)
 	if err != nil {
 		RespondWithError(w, r, 0,

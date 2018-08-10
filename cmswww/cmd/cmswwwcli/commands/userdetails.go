@@ -8,7 +8,7 @@ import (
 )
 
 type UserDetailsArgs struct {
-	UserID string `positional-arg-name:"userid"`
+	User string `positional-arg-name:"user"`
 }
 
 type UserDetailsCmd struct {
@@ -21,8 +21,14 @@ func (cmd *UserDetailsCmd) Execute(args []string) error {
 		return err
 	}
 
+	ud := v1.UserDetails{
+		UserID:   cmd.Args.User,
+		Email:    cmd.Args.User,
+		Username: cmd.Args.User,
+	}
+
 	var udr v1.UserDetailsReply
-	err = Ctx.Get(fmt.Sprintf("/user/%v", cmd.Args.UserID), nil, &udr)
+	err = Ctx.Get(v1.RouteUserDetails, ud, &udr)
 	if err != nil {
 		return err
 	}

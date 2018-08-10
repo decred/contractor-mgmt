@@ -166,7 +166,7 @@ func (c *cmswww) ProcessSetInvoiceStatus(sps v1.SetInvoiceStatus, user *database
 			if err != nil {
 				return nil, err
 			}
-			if pr.UserId == strconv.FormatUint(user.ID, 10) {
+			if pr.UserID == strconv.FormatUint(user.ID, 10) {
 				return nil, v1.UserError{
 					ErrorCode: v1.ErrorStatusReviewerAdminEqualsAuthor,
 				}
@@ -289,17 +289,17 @@ func (c *cmswww) ProcessInvoiceDetails(propDetails v1.InvoiceDetails, user *data
 			Signature:        cachedInvoice.Signature,
 			CensorshipRecord: cachedInvoice.CensorshipRecord,
 			NumComments:      cachedInvoice.NumComments,
-			UserId:           cachedInvoice.UserId,
-			Username:         c.getUsernameByID(cachedInvoice.UserId),
+			UserID:           cachedInvoice.UserID,
+			Username:         c.getUsernameByID(cachedInvoice.UserID),
 		}
 
 		if user != nil {
-			authorId, err := strconv.ParseUint(cachedInvoice.UserId, 10, 64)
+			authorID, err := strconv.ParseUint(cachedInvoice.UserID, 10, 64)
 			if err != nil {
 				return nil, err
 			}
 
-			if user.ID == authorId {
+			if user.ID == authorID {
 				reply.Invoice.Name = cachedInvoice.Name
 			}
 		}
@@ -352,7 +352,7 @@ func (c *cmswww) ProcessInvoiceDetails(propDetails v1.InvoiceDetails, user *data
 		record:  fullRecord,
 		changes: p.changes,
 	}, c.userPubkeys)
-	reply.Invoice.Username = c.getUsernameByID(reply.Invoice.UserId)
+	reply.Invoice.Username = c.getUsernameByID(reply.Invoice.UserID)
 	return &reply, nil
 }
 

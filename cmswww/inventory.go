@@ -28,7 +28,7 @@ type inventoryRecord struct {
 type invoicesRequest struct {
 	After     string
 	Before    string
-	UserId    string
+	UserID    string
 	Month     uint
 	StatusMap map[www.InvoiceStatusT]bool
 }
@@ -186,9 +186,9 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 
 		// Look up and set the user id and username.
 		var ok bool
-		v.UserId, ok = c.userPubkeys[v.PublicKey]
+		v.UserID, ok = c.userPubkeys[v.PublicKey]
 		if ok {
-			v.Username = c.getUsernameByID(v.UserId)
+			v.Username = c.getUsernameByID(v.UserID)
 		} else {
 			log.Infof("%v", spew.Sdump(c.userPubkeys))
 			log.Errorf("user not found for public key %v, for invoice %v",
@@ -226,7 +226,7 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 		invoice := allInvoices[i]
 
 		// Filter by user if it's provided.
-		if pr.UserId != "" && pr.UserId != invoice.UserId {
+		if pr.UserID != "" && pr.UserID != invoice.UserID {
 			continue
 		}
 
@@ -260,7 +260,7 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 	if beforeIdx >= 0 {
 		for _, invoice := range allInvoices[beforeIdx+1:] {
 			// Filter by user if it's provided.
-			if pr.UserId != "" && pr.UserId != invoice.UserId {
+			if pr.UserID != "" && pr.UserID != invoice.UserID {
 				continue
 			}
 

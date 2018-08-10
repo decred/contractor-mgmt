@@ -13,7 +13,7 @@ import (
 
 const (
 	UserdbPath    = "users"
-	LastUserIdKey = "lastuserid"
+	LastUserIDKey = "lastuserid"
 
 	UserVersion    uint32 = 1
 	UserVersionKey        = "userversion"
@@ -41,13 +41,13 @@ type Version struct {
 // and false otherwise. This is helpful when iterating the user records
 // because the DB contains some non-user records.
 func isUserRecord(key string) bool {
-	return key != UserVersionKey && key != LastUserIdKey
+	return key != UserVersionKey && key != LastUserIDKey
 }
 
 // Store new user.
 //
 // UserNew satisfies the backend interface.
-func (l *localdb) UserNew(u database.User) error {
+func (l *localdb) UserNew(u *database.User) error {
 	l.Lock()
 	defer l.Unlock()
 
@@ -70,28 +70,28 @@ func (l *localdb) UserNew(u database.User) error {
 	}
 
 	// Fetch the next unique ID for the user.
-	var lastUserId uint64
-	b, err := l.userdb.Get([]byte(LastUserIdKey), nil)
+	var lastUserID uint64
+	b, err := l.userdb.Get([]byte(LastUserIDKey), nil)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
 			return err
 		}
 	} else {
-		lastUserId = binary.LittleEndian.Uint64(b) + 1
+		lastUserID = binary.LittleEndian.Uint64(b) + 1
 	}
 
 	// Set the new id on the user.
-	u.ID = lastUserId
+	u.ID = lastUserID
 
 	// Write the new id back to the db.
 	b = make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, lastUserId)
-	err = l.userdb.Put([]byte(LastUserIdKey), b, nil)
+	binary.LittleEndian.PutUint64(b, lastUserID)
+	err = l.userdb.Put([]byte(LastUserIDKey), b, nil)
 	if err != nil {
 		return err
 	}
 
-	payload, err := EncodeUser(u)
+	payload, err := EncodeUser(*u)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (l *localdb) UserGetById(id uint64) (*database.User, error) {
 // Update existing user.
 //
 // UserUpdate satisfies the backend interface.
-func (l *localdb) UserUpdate(u database.User) error {
+func (l *localdb) UserUpdate(u *database.User) error {
 	l.Lock()
 	defer l.Unlock()
 
@@ -218,7 +218,7 @@ func (l *localdb) UserUpdate(u database.User) error {
 		return database.ErrUserNotFound
 	}
 
-	payload, err := EncodeUser(u)
+	payload, err := EncodeUser(*u)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func (l *localdb) UserUpdate(u database.User) error {
 
 // Update existing user.
 //
-// UserUpdate satisfies the backend interface.
+// AllUsers satisfies the backend interface.
 func (l *localdb) AllUsers(callbackFn func(u *database.User)) error {
 	l.Lock()
 	defer l.Unlock()

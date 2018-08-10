@@ -11,7 +11,7 @@ const (
 	RouteNewIdentity       = "/user/identity"
 	RouteVerifyNewIdentity = "/user/identity/verify"
 	RouteUserInvoices      = "/user/invoices"
-	RouteUserDetails       = "/user/{userid:[0-9]+}"
+	RouteUserDetails       = "/user"
 	RouteEditUser          = "/user/edit"
 	RouteLogin             = "/login"
 	RouteLogout            = "/logout"
@@ -57,7 +57,7 @@ type CensorshipRecord struct {
 type InvoiceRecord struct {
 	Status    InvoiceStatusT `json:"status"`    // Current status of invoice
 	Timestamp int64          `json:"timestamp"` // Last update of invoice
-	UserId    string         `json:"userid"`    // ID of user who submitted invoice
+	UserID    string         `json:"userid"`    // ID of user who submitted invoice
 	Username  string         `json:"username"`  // Username of user who submitted invoice
 	PublicKey string         `json:"publickey"` // User's public key, used to verify signature.
 	Signature string         `json:"signature"` // Signature of file digest
@@ -123,7 +123,7 @@ type VersionReply struct {
 	User      *LoginReply `json:"user,omitempty"` // Currently logged in user
 }
 
-// InviteNewUser is used to request that a new user be created within the db.
+// InviteNewUser is used to request that a new user invitation be sent via email.
 // If successful, the user will require verification before being able to login.
 type InviteNewUser struct {
 	Email string `json:"email"`
@@ -170,7 +170,7 @@ type VerifyNewIdentityReply struct{}
 // UserInvoices is used to request a list of invoices that the
 // user has submitted.
 type UserInvoices struct {
-	UserId string `schema:"userid"`
+	UserID string `schema:"userid"`
 }
 
 // UserInvoicesReply replies to the UserInvoices command with
@@ -264,9 +264,11 @@ type PolicyReply struct {
 	ValidMIMETypes         []string `json:"validmimetypes"`
 }
 
-// UserDetails fetches a user's details by their id.
+// UserDetails fetches a user's details by their id, email, or username.
 type UserDetails struct {
-	UserID string `json:"userid"` // User id
+	UserID   string `json:"userid"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 // UserDetailsReply returns a user's details.
@@ -274,15 +276,19 @@ type UserDetailsReply struct {
 	User User `json:"user"`
 }
 
-// EditUser performs the given action on a user.
+// EditUser performs the given action on a user given their id, email or username.
 type EditUser struct {
-	UserID string          `json:"userid"` // User id
-	Action UserEditActionT `json:"action"` // Action
-	Reason string          `json:"reason"` // Admin reason for action
+	UserID   string          `json:"userid"`
+	Email    string          `json:"email"`
+	Username string          `json:"username"`
+	Action   UserEditActionT `json:"action"` // Action
+	Reason   string          `json:"reason"` // Admin reason for action
 }
 
 // EditUserReply is the reply for the EditUserReply command.
-type EditUserReply struct{}
+type EditUserReply struct {
+	VerificationToken *string `json:"verificationtoken"` // Only set for certain user edit actions
+}
 
 // User represents an individual user.
 type User struct {

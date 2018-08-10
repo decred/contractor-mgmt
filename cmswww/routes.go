@@ -156,7 +156,7 @@ func (c *cmswww) SetupRoutes() {
 	c.addPostRoute(v1.RouteInviteNewUser, c.HandleInviteNewUser,
 		new(v1.InviteNewUser), permissionAdmin, false)
 	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, new(v1.UserDetails),
-		permissionAdmin, false, c.SetUserDetailsPathParams)
+		permissionAdmin, false, nil)
 	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, new(v1.EditUser),
 		permissionAdmin, false)
 }

@@ -188,7 +188,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	if err != nil {
 		if !IsUserLocked(user.FailedLoginAttempts) {
 			user.FailedLoginAttempts++
-			err := c.db.UserUpdate(*user)
+			err := c.db.UserUpdate(user)
 			if err != nil {
 				return loginReplyWithError{
 					reply: nil,
@@ -230,7 +230,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	lastLogin := user.LastLogin
 	user.FailedLoginAttempts = 0
 	user.LastLogin = time.Now().Unix()
-	err = c.db.UserUpdate(*user)
+	err = c.db.UserUpdate(user)
 	if err != nil {
 		return loginReplyWithError{
 			reply: nil,

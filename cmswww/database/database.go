@@ -84,8 +84,8 @@ type Database interface {
 	UserGet(string) (*User, error)           // Return user record, key is email
 	UserGetByUsername(string) (*User, error) // Return user record given the username
 	UserGetById(uint64) (*User, error)       // Return user record given its id
-	UserNew(User) error                      // Add new user
-	UserUpdate(User) error                   // Update existing user
+	UserNew(*User) error                     // Add new user
+	UserUpdate(*User) error                  // Update existing user
 	AllUsers(callbackFn func(u *User)) error // Iterate all users
 
 	// Close performs cleanup of the backend.

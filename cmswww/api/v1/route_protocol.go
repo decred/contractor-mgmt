@@ -16,7 +16,7 @@ const (
 	RouteLogin             = "/login"
 	RouteLogout            = "/logout"
 	RouteInvoices          = "/invoices"
-	RouteNewInvoice        = "/invoice/new"
+	RouteSubmitInvoice     = "/invoice/submit"
 	RouteInvoiceDetails    = "/invoice/{token:[A-z0-9]{64}}"
 	RouteSetInvoiceStatus  = "/invoice/{token:[A-z0-9]{64}}/status"
 	RoutePolicy            = "/policy"
@@ -202,15 +202,17 @@ type Logout struct{}
 // LogoutReply indicates whether the Logout command was success or not.
 type LogoutReply struct{}
 
-// NewInvoice attempts to submit a new invoice.
-type NewInvoice struct {
+// SubmitInvoice attempts to submit a new invoice.
+type SubmitInvoice struct {
+	Month     uint16 `json:"month"`
+	Year      uint16 `json:"year"`
 	File      File   `json:"file"`      // Invoice file
 	PublicKey string `json:"publickey"` // Key used to verify signature
 	Signature string `json:"signature"` // Signature of file hash
 }
 
-// NewInvoiceReply is used to reply to the NewInvoice command.
-type NewInvoiceReply struct {
+// SubmitInvoiceReply is used to reply to the SubmitInvoice command.
+type SubmitInvoiceReply struct {
 	CensorshipRecord CensorshipRecord `json:"censorshiprecord"`
 }
 

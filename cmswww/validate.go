@@ -89,11 +89,11 @@ func checkSignature(id []byte, signature string, elements ...string) error {
 	return nil
 }
 
-func validateInvoice(np v1.NewInvoice, user *database.User) error {
+func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 	log.Tracef("validateInvoice")
 
 	// Obtain signature
-	sig, err := util.ConvertSignature(np.Signature)
+	sig, err := util.ConvertSignature(ni.Signature)
 	if err != nil {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidSignature,
@@ -101,7 +101,7 @@ func validateInvoice(np v1.NewInvoice, user *database.User) error {
 	}
 
 	// Verify public key
-	id, err := checkPublicKey(user, np.PublicKey)
+	id, err := checkPublicKey(user, ni.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -112,13 +112,13 @@ func validateInvoice(np v1.NewInvoice, user *database.User) error {
 	}
 
 	// Check for the presence of the file.
-	if np.File.Payload == "" {
+	if ni.File.Payload == "" {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidInput,
 		}
 	}
 
-	data, err := base64.StdEncoding.DecodeString(np.File.Payload)
+	data, err := base64.StdEncoding.DecodeString(ni.File.Payload)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,14 @@
 package main
 
 import (
-	//"net/http"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
 
-	//"github.com/decred/politeia/util"
+	pd "github.com/decred/politeia/politeiad/api/v1"
+	"github.com/decred/politeia/util"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
@@ -26,16 +31,16 @@ func (c *cmswww) HandleUnreviewedInvoices(req interface{}, user *database.User) 
 }
 
 /*
-// ProcessNewInvoice tries to submit a new invoice to politeiad.
-func (c *cmswww) ProcessNewInvoice(np v1.NewInvoice, user *database.User) (*v1.NewInvoiceReply, error) {
-	log.Tracef("ProcessNewInvoice")
+// ProcessSubmitInvoice tries to submit a new invoice to politeiad.
+func (c *cmswww) ProcessSubmitInvoice(np v1.SubmitInvoice, user *database.User) (*v1.SubmitInvoiceReply, error) {
+	log.Tracef("ProcessSubmitInvoice")
 
 	err := c.validateInvoice(np, user)
 	if err != nil {
 		return nil, err
 	}
 
-	var reply v1.NewInvoiceReply
+	var reply v1.SubmitInvoiceReply
 	challenge, err := util.Random(pd.ChallengeSize)
 	if err != nil {
 		return nil, err
@@ -100,7 +105,7 @@ func (c *cmswww) ProcessNewInvoice(np v1.NewInvoice, user *database.User) (*v1.N
 
 		err = json.Unmarshal(responseBody, &pdReply)
 		if err != nil {
-			return nil, fmt.Errorf("Unmarshal NewInvoiceReply: %v",
+			return nil, fmt.Errorf("Unmarshal SubmitInvoiceReply: %v",
 				err)
 		}
 
@@ -355,38 +360,85 @@ func (c *cmswww) ProcessInvoiceDetails(propDetails v1.InvoiceDetails, user *data
 	reply.Invoice.Username = c.getUsernameByID(reply.Invoice.UserID)
 	return &reply, nil
 }
+*/
+// HandleSubmitInvoice handles the incoming new invoice command.
+func (c *cmswww) HandleSubmitInvoice(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	ni := req.(*v1.SubmitInvoice)
 
-// handleNewInvoice handles the incoming new invoice command.
-func (c *cmswww) handleNewInvoice(w http.ResponseWriter, r *http.Request) {
-	// Get the new invoice command.
-	log.Tracef("handleNewInvoice")
-	var np v1.NewInvoice
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&np); err != nil {
-		RespondWithError(w, r, 0, "handleNewInvoice: unmarshal", v1.UserError{
-			ErrorCode: v1.ErrorStatusInvalidInput,
-		})
-		return
-	}
-
-	user, err := p.GetSessionUser(r)
+	err := validateInvoice(ni, user)
 	if err != nil {
-		RespondWithError(w, r, 0,
-			"handleNewInvoice: GetSessionUser %v", err)
-		return
+		return nil, err
 	}
 
-	reply, err := p.backend.ProcessNewInvoice(np, user)
+	var nir v1.SubmitInvoiceReply
+	challenge, err := util.Random(pd.ChallengeSize)
 	if err != nil {
-		RespondWithError(w, r, 0,
-			"handleNewInvoice: ProcessNewInvoice %v", err)
-		return
+		return nil, err
 	}
 
-	// Reply with the challenge response and censorship token.
-	util.RespondWithJSON(w, http.StatusOK, reply)
+	// Assemble metdata record
+	ts := time.Now().Unix()
+	md, err := json.Marshal(BackendInvoiceMetadata{
+		Month:     ni.Month,
+		Year:      ni.Year,
+		Version:   BackendInvoiceMetadataVersion,
+		Timestamp: ts,
+		PublicKey: ni.PublicKey,
+		Signature: ni.Signature,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	n := pd.NewRecord{
+		Challenge: hex.EncodeToString(challenge),
+		Metadata: []pd.MetadataStream{{
+			ID:      mdStreamGeneral,
+			Payload: string(md),
+		}},
+		Files: convertInvoiceFileFromWWW(&ni.File),
+	}
+
+	var pdReply pd.NewRecordReply
+	responseBody, err := c.rpc(http.MethodPost,
+		pd.NewRecordRoute, n)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return nil, fmt.Errorf("Unmarshal NewRecordReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the new proposal to the inventory cache.
+	c.Lock()
+	c.newInventoryRecord(pd.Record{
+		Status:           pd.RecordStatusNotReviewed,
+		Timestamp:        ts,
+		CensorshipRecord: pdReply.CensorshipRecord,
+		Metadata:         n.Metadata,
+		Files:            n.Files,
+	})
+	c.Unlock()
+
+	nir.CensorshipRecord = convertInvoiceCensorFromPD(pdReply.CensorshipRecord)
+	return &nir, nil
 }
 
+/*
 // handleSetInvoiceStatus handles the incoming set invoice status command.
 // It's used for either publishing or censoring an invoice.
 func (c *cmswww) handleSetInvoiceStatus(w http.ResponseWriter, r *http.Request) {

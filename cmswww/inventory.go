@@ -90,10 +90,10 @@ func (c *cmswww) loadChanges(token, payload string) error {
 	}
 }
 
-// loadRecord load an entire record into inventory.
+// loadFullRecord load an entire record into inventory.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) loadRecord(v pd.Record) {
+func (c *cmswww) loadFullRecord(v pd.Record) {
 	t := v.CensorshipRecord.Token
 
 	// Fish metadata out as well
@@ -137,7 +137,7 @@ func (c *cmswww) initializeInventory(inv *pd.InventoryReply) error {
 		if err != nil {
 			return err
 		}
-		c.loadRecord(v)
+		c.loadFullRecord(v)
 	}
 
 	return nil

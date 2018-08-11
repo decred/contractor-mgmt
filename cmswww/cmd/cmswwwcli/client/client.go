@@ -24,11 +24,6 @@ type Ctx struct {
 	LastCommandOutput string
 }
 
-type Attachment struct {
-	Filename string
-	Payload  []byte
-}
-
 func NewClient(skipVerify bool) (*Ctx, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: skipVerify,

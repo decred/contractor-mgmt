@@ -16,6 +16,8 @@ func (cmd *VersionCmd) Execute(args []string) error {
 		return err
 	}
 
+	config.ServerPublicKey = vr.PublicKey
+
 	if vr.User != nil {
 		config.LoggedInUser = vr.User
 		if !config.JSONOutput && !config.SuppressOutput {

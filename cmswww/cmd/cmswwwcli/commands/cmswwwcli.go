@@ -25,6 +25,7 @@ type Options struct {
 	InviteNewUser     InviteNewUserCmd  `command:"invite" description:"Send a new contractor invitation.\n\n           Parameters: <email>\n  --------------------------------------"`
 	UserDetails       UserDetailsCmd    `command:"user" description:"Fetch a user's details given the user id.\n\n           Parameters: <user id/email/username>\n  --------------------------------------"`
 	EditUser          EditUserCmd       `command:"edituser" description:"Edit a user by user id.\n\n           Parameters: <user id/email/username> <action> <reason>\n    Available actions: resendinvite, resendidentitytoken, lock, unlock\n  --------------------------------------"`
+	SubmitInvoice     SubmitInvoiceCmd  `command:"submitinvoice" description:"Submits an invoice for a given month and year.\n\n           Parameters: <month> <year>\n\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

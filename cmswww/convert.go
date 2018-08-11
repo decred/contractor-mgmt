@@ -15,7 +15,9 @@ type MDStreamChanges struct {
 }
 
 type BackendInvoiceMetadata struct {
-	Version   uint64 `json:"version"`   // BackendInvoiceMetadata version
+	Version   uint64 `json:"version"` // BackendInvoiceMetadata version
+	Month     uint16 `json:"month"`
+	Year      uint16 `json:"year"`
 	Timestamp int64  `json:"timestamp"` // Last update of invoice
 	PublicKey string `json:"publickey"` // Key used for signature.
 	Signature string `json:"signature"` // Signature of merkle root
@@ -37,7 +39,7 @@ func convertInvoiceStatusFromWWW(s www.InvoiceStatusT) pd.RecordStatusT {
 
 func convertInvoiceFileFromWWW(f *www.File) []pd.File {
 	return []pd.File{{
-		Name:    f.Name,
+		Name:    "invoice.csv",
 		MIME:    f.MIME,
 		Digest:  f.Digest,
 		Payload: f.Payload,
@@ -97,7 +99,6 @@ func convertInvoiceFileFromPD(files []pd.File) *www.File {
 	}
 
 	return &www.File{
-		Name:    files[0].Name,
 		MIME:    files[0].MIME,
 		Digest:  files[0].Digest,
 		Payload: files[0].Payload,
@@ -137,13 +138,12 @@ func convertInvoiceFromPD(p pd.Record) www.InvoiceRecord {
 		if v.ID != mdStreamGeneral {
 			continue
 		}
-		m, err := decodeBackendInvoiceMetadata([]byte(v.Payload))
+		err := json.Unmarshal([]byte(v.Payload), md)
 		if err != nil {
 			log.Errorf("could not decode metadata '%v' token '%v': %v",
 				p.Metadata, p.CensorshipRecord.Token, err)
 			break
 		}
-		md = m
 	}
 
 	return www.InvoiceRecord{
@@ -177,28 +177,4 @@ func convertErrorStatusFromPD(s int) www.ErrorStatusT {
 		//case pd.ErrorStatusInvalidChallenge
 	}
 	return www.ErrorStatusInvalid
-}
-
-// encodeBackendInvoiceMetadata encodes BackendInvoiceMetadata into a JSON
-// byte slice.
-func encodeBackendInvoiceMetadata(md BackendInvoiceMetadata) ([]byte, error) {
-	b, err := json.Marshal(md)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-// decodeBackendInvoiceMetadata decodes a JSON byte slice into a
-// BackendInvoiceMetadata.
-func decodeBackendInvoiceMetadata(payload []byte) (*BackendInvoiceMetadata, error) {
-	var md BackendInvoiceMetadata
-
-	err := json.Unmarshal(payload, &md)
-	if err != nil {
-		return nil, err
-	}
-
-	return &md, nil
 }

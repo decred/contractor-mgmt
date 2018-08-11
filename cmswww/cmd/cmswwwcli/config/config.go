@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/kennygrant/sanitize"
@@ -25,9 +26,8 @@ const (
 )
 
 var (
-	defaultHomeDir = filepath.Join(sharedconfig.DefaultHomeDir, "cli")
-
-	HomeDir = defaultHomeDir
+	HomeDir     = filepath.Join(sharedconfig.DefaultHomeDir, "cli")
+	InvoicesDir = filepath.Join(HomeDir, "invoices")
 
 	// cli params
 	Host       = defaultHost
@@ -40,6 +40,8 @@ var (
 	CsrfToken            string
 	LoggedInUser         *v1.LoginReply
 	LoggedInUserIdentity *identity.FullIdentity
+
+	ServerPublicKey string
 )
 
 func getUserIdentityFile(email string) string {
@@ -59,6 +61,16 @@ func LoadUserIdentity(email string) (*identity.FullIdentity, error) {
 	id, err := identity.LoadFullIdentity(getUserIdentityFile(email))
 	LoggedInUserIdentity = id
 	return id, err
+}
+
+func GetInvoiceFilename(month, year uint16) string {
+	t := time.Date(int(year), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	return filepath.Join(InvoicesDir, t.Format("2006_01.csv"))
+}
+
+func GetInvoiceSubmissionRecordFilename(month, year uint16) string {
+	t := time.Date(int(year), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	return filepath.Join(InvoicesDir, t.Format("submission_record_2006_01.json"))
 }
 
 // Returns a cookie filename that is unique for each host.  This makes
@@ -87,8 +99,8 @@ func fileExists(name string) bool {
 }
 
 func Load() error {
-	// create home directory if it doesn't already exist
-	if err := os.MkdirAll(HomeDir, 0700); err != nil {
+	// create home and invoices directories if they don't already exist
+	if err := os.MkdirAll(InvoicesDir, 0700); err != nil {
 		return err
 	}
 

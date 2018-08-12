@@ -9,7 +9,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	www "github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	pd "github.com/decred/politeia/politeiad/api/v1"
 )
 
@@ -29,8 +29,9 @@ type invoicesRequest struct {
 	After     string
 	Before    string
 	UserID    string
-	Month     uint
-	StatusMap map[www.InvoiceStatusT]bool
+	Month     uint16
+	Year      uint16
+	StatusMap map[v1.InvoiceStatusT]bool
 }
 
 // updateInventoryRecord updates an existing record.
@@ -164,10 +165,10 @@ func (c *cmswww) getInventoryRecord(token string) (inventoryRecord, error) {
 }
 
 // getInvoice returns a single invoice by its token
-func (c *cmswww) getInvoice(token string) (www.InvoiceRecord, error) {
+func (c *cmswww) getInvoice(token string) (v1.InvoiceRecord, error) {
 	ir, err := c._getInventoryRecord(token)
 	if err != nil {
-		return www.InvoiceRecord{}, err
+		return v1.InvoiceRecord{}, err
 	}
 	pr := convertInvoiceFromInventoryRecord(&ir, c.userPubkeys)
 	return pr, nil
@@ -177,10 +178,10 @@ func (c *cmswww) getInvoice(token string) (www.InvoiceRecord, error) {
 // specified in the provided request.
 //
 // This function must be called WITHOUT the mutex held.
-func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
+func (c *cmswww) getInvoices(pr invoicesRequest) []v1.InvoiceRecord {
 	c.RLock()
 
-	allInvoices := make([]www.InvoiceRecord, 0, len(c.inventory))
+	allInvoices := make([]v1.InvoiceRecord, 0, len(c.inventory))
 	for _, vv := range c.inventory {
 		v := convertInvoiceFromInventoryRecord(vv, c.userPubkeys)
 
@@ -207,7 +208,7 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 		})
 
 		allInvoices = append(allInvoices[:idx],
-			append([]www.InvoiceRecord{v},
+			append([]v1.InvoiceRecord{v},
 				allInvoices[idx:]...)...)
 	}
 
@@ -218,15 +219,22 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 	// supplied, we must find the beginning (or end) of the page first.
 	pageStarted := (pr.After == "" && pr.Before == "")
 	beforeIdx := -1
-	invoices := make([]www.InvoiceRecord, 0)
+	invoices := make([]v1.InvoiceRecord, 0)
 
-	// Iterate in reverse order because they're sorted by oldest timestamp
-	// first.
-	for i := len(allInvoices) - 1; i >= 0; i-- {
+	// Iterate the invoices.
+	for i := 0; i < len(allInvoices); i++ {
 		invoice := allInvoices[i]
 
 		// Filter by user if it's provided.
 		if pr.UserID != "" && pr.UserID != invoice.UserID {
+			continue
+		}
+
+		// Filter by the month and year.
+		if pr.Month != 0 && pr.Month != invoice.Month {
+			continue
+		}
+		if pr.Year != 0 && pr.Year != invoice.Year {
 			continue
 		}
 
@@ -237,7 +245,7 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 
 		if pageStarted {
 			invoices = append(invoices, invoice)
-			if len(invoices) >= www.ListPageSize {
+			if len(invoices) >= v1.ListPageSize {
 				break
 			}
 		} else if pr.After != "" {
@@ -258,7 +266,9 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 	// If beforeIdx is set, the caller is asking for vetted invoices whose
 	// last result is before the provided invoice.
 	if beforeIdx >= 0 {
-		for _, invoice := range allInvoices[beforeIdx+1:] {
+		for j := beforeIdx - 1; j >= 0; j-- {
+			invoice := allInvoices[j]
+
 			// Filter by user if it's provided.
 			if pr.UserID != "" && pr.UserID != invoice.UserID {
 				continue
@@ -269,12 +279,12 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []www.InvoiceRecord {
 				continue
 			}
 
-			// The iteration direction is oldest -> newest,
+			// The iteration direction is newest -> oldest,
 			// so invoices are prepended to the array so
-			// the result will be newest -> oldest.
-			invoices = append([]www.InvoiceRecord{invoice},
+			// the result will be oldest -> newest.
+			invoices = append([]v1.InvoiceRecord{invoice},
 				invoices...)
-			if len(invoices) >= www.ListPageSize {
+			if len(invoices) >= v1.ListPageSize {
 				break
 			}
 		}

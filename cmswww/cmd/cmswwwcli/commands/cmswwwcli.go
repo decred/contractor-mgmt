@@ -26,6 +26,7 @@ type Options struct {
 	UserDetails       UserDetailsCmd    `command:"user" description:"Fetch a user's details given the user id.\n\n           Parameters: <user id/email/username>\n  --------------------------------------"`
 	EditUser          EditUserCmd       `command:"edituser" description:"Edit a user by user id.\n\n           Parameters: <user id/email/username> <action> <reason>\n    Available actions: resendinvite, resendidentitytoken, lock, unlock\n  --------------------------------------"`
 	SubmitInvoice     SubmitInvoiceCmd  `command:"submitinvoice" description:"Submits an invoice for a given month and year.\n\n           Parameters: <month> <year>\n\n  --------------------------------------"`
+	Invoices          InvoicesCmd       `command:"invoices" description:"Lists invoices with a particular status for a given month and year.\n\n           Parameters: <status> <month> <year>Available statuses: unreviewed, rejected, approved, paid\n\n\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

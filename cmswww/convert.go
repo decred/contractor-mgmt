@@ -149,6 +149,8 @@ func convertInvoiceFromPD(p pd.Record) www.InvoiceRecord {
 	return www.InvoiceRecord{
 		Status:           convertInvoiceStatusFromPD(p.Status),
 		Timestamp:        md.Timestamp,
+		Month:            md.Month,
+		Year:             md.Year,
 		PublicKey:        md.PublicKey,
 		Signature:        md.Signature,
 		File:             convertInvoiceFileFromPD(p.Files),

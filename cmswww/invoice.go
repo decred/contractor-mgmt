@@ -16,13 +16,20 @@ import (
 
 // HandleUnreviewedInvoices returns an array of all unvetted invoices in reverse order,
 // because they're sorted by oldest timestamp first.
-func (c *cmswww) HandleUnreviewedInvoices(req interface{}, user *database.User) (interface{}, error) {
-	u := req.(v1.UnreviewedInvoices)
+func (c *cmswww) HandleUnreviewedInvoices(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	ui := req.(*v1.UnreviewedInvoices)
+
 	return &v1.UnreviewedInvoicesReply{
 		Invoices: c.getInvoices(invoicesRequest{
-			//After:  u.After,
-			//Before: u.Before,
-			Month: u.Month,
+			//After:  ui.After,
+			//Before: ui.Before,
+			Month: ui.Month,
+			Year:  ui.Year,
 			StatusMap: map[v1.InvoiceStatusT]bool{
 				v1.InvoiceStatusNotReviewed: true,
 			},

@@ -153,4 +153,6 @@ func (c *cmswww) SetupRoutes() {
 		permissionAdmin, false)
 	c.addGetRoute(v1.RouteInvoices, c.HandleInvoices,
 		new(v1.Invoices), permissionAdmin, true)
+	c.addPostRoute(v1.RouteSetInvoiceStatus, c.HandleSetInvoiceStatus,
+		new(v1.SetInvoiceStatus), permissionAdmin, true)
 }

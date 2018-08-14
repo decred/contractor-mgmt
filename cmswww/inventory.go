@@ -239,8 +239,10 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []v1.InvoiceRecord {
 		}
 
 		// Filter by the status.
-		if val, ok := pr.StatusMap[invoice.Status]; !ok || !val {
-			continue
+		if len(pr.StatusMap) > 0 {
+			if val, ok := pr.StatusMap[invoice.Status]; !ok || !val {
+				continue
+			}
 		}
 
 		if pageStarted {

@@ -11,9 +11,9 @@ import (
 
 type InvoicesCmd struct {
 	Args struct {
-		Status string `positional-arg-name:"status"`
 		Month  string `positional-arg-name:"month"`
 		Year   uint16 `positional-arg-name:"year"`
+		Status string `positional-arg-name:"status"`
 	} `positional-args:"true" optional:"true"`
 }
 
@@ -31,9 +31,13 @@ func (cmd *InvoicesCmd) Execute(args []string) error {
 		return err
 	}
 
-	status, ok := invoiceStatuses[strings.ToLower(cmd.Args.Status)]
-	if !ok {
-		return fmt.Errorf("Invalid status: %v", cmd.Args.Status)
+	var status v1.InvoiceStatusT
+	if cmd.Args.Status != "" {
+		var ok bool
+		status, ok = invoiceStatuses[strings.ToLower(cmd.Args.Status)]
+		if !ok {
+			return fmt.Errorf("Invalid status: %v", cmd.Args.Status)
+		}
 	}
 
 	month, err := parseMonth(cmd.Args.Month)
@@ -60,10 +64,14 @@ func (cmd *InvoicesCmd) Execute(args []string) error {
 		} else {
 			fmt.Println()
 			for _, v := range ir.Invoices {
-				fmt.Printf("  %v %v\n", v.CensorshipRecord.Token[0:7], v.CensorshipRecord.Token)
+				fmt.Printf("  %v\n", v.CensorshipRecord.Token)
 				fmt.Printf("      Submitted by: %v\n", v.Username)
 				fmt.Printf("                at: %v\n",
 					time.Unix(v.Timestamp, 0).String())
+				if cmd.Args.Status == "" {
+					fmt.Printf("            Status: %v\n",
+						v1.InvoiceStatus[v.Status])
+				}
 			}
 		}
 	}

@@ -134,6 +134,21 @@ func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 	return nil
 }
 
+// Invoices should only be viewable by admins and the users who submit them.
+func validateUserCanSeeInvoice(invoice *v1.InvoiceRecord, user *database.User) error {
+	authorID, err := strconv.ParseUint(invoice.UserID, 10, 64)
+	if err != nil {
+		return err
+	}
+	if user == nil || (!user.Admin && user.ID != authorID) {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusInvoiceNotFound,
+		}
+	}
+
+	return nil
+}
+
 func validatePassword(password string) error {
 	if len(password) < v1.PolicyMinPasswordLength {
 		return v1.UserError{

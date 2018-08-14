@@ -14,22 +14,21 @@ import (
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
-// HandleUnreviewedInvoices returns an array of all unvetted invoices in reverse order,
-// because they're sorted by oldest timestamp first.
-func (c *cmswww) HandleUnreviewedInvoices(
+// HandleInvoices returns an array of all invoices.
+func (c *cmswww) HandleInvoices(
 	req interface{},
 	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	ui := req.(*v1.UnreviewedInvoices)
+	i := req.(*v1.Invoices)
 
-	return &v1.UnreviewedInvoicesReply{
+	return &v1.InvoicesReply{
 		Invoices: c.getInvoices(invoicesRequest{
 			//After:  ui.After,
 			//Before: ui.Before,
-			Month: ui.Month,
-			Year:  ui.Year,
+			Month: i.Month,
+			Year:  i.Year,
 			StatusMap: map[v1.InvoiceStatusT]bool{
 				v1.InvoiceStatusNotReviewed: true,
 			},
@@ -246,83 +245,58 @@ func (c *cmswww) ProcessSetInvoiceStatus(sps v1.SetInvoiceStatus, user *database
 
 	return &reply, nil
 }
+*/
+// HandleInvoiceDetails tries to fetch the full details of an invoice from
+// politeiad.
+func (c *cmswww) HandleInvoiceDetails(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	id := req.(*v1.InvoiceDetails)
 
-// ProcessInvoiceDetails tries to fetch the full details of an invoice from politeiad.
-func (c *cmswww) ProcessInvoiceDetails(propDetails v1.InvoiceDetails, user *database.User) (*v1.InvoiceDetailsReply, error) {
-	log.Debugf("ProcessInvoiceDetails")
-
-	var reply v1.InvoiceDetailsReply
+	var idr v1.InvoiceDetailsReply
 	challenge, err := util.Random(pd.ChallengeSize)
 	if err != nil {
 		return nil, err
 	}
 
-	b.RLock()
-	p, ok := b.inventory[propDetails.Token]
+	c.RLock()
+	p, ok := c.inventory[id.Token]
 	if !ok {
-		b.RUnlock()
+		c.RUnlock()
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusInvoiceNotFound,
 		}
 	}
-	b.RUnlock()
+	c.RUnlock()
 	cachedInvoice := convertInvoiceFromInventoryRecord(p, c.userPubkeys)
 
-	var isVettedInvoice bool
-	var requestObject interface{}
-	if cachedInvoice.Status == v1.InvoiceStatusPublic {
+	err = validateUserCanSeeInvoice(&cachedInvoice, user)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		isVettedInvoice bool
+		route           string
+		requestObject   interface{}
+	)
+	if cachedInvoice.Status == v1.InvoiceStatusApproved {
 		isVettedInvoice = true
+		route = pd.GetVettedRoute
 		requestObject = pd.GetVetted{
-			Token:     propDetails.Token,
+			Token:     id.Token,
 			Challenge: hex.EncodeToString(challenge),
 		}
 	} else {
 		isVettedInvoice = false
+		route = pd.GetUnvettedRoute
 		requestObject = pd.GetUnvetted{
-			Token:     propDetails.Token,
+			Token:     id.Token,
 			Challenge: hex.EncodeToString(challenge),
 		}
-	}
-
-	if b.test {
-		reply.Invoice = cachedInvoice
-		return &reply, nil
-	}
-
-	// The title and files for unvetted invoices should not be viewable by
-	// non-admins; only the invoice meta data (status, censorship data, etc)
-	// should be publicly viewable.
-	isUserAdmin := user != nil && user.Admin
-	if !isVettedInvoice && !isUserAdmin {
-		reply.Invoice = v1.InvoiceRecord{
-			Status:           cachedInvoice.Status,
-			Timestamp:        cachedInvoice.Timestamp,
-			PublicKey:        cachedInvoice.PublicKey,
-			Signature:        cachedInvoice.Signature,
-			CensorshipRecord: cachedInvoice.CensorshipRecord,
-			NumComments:      cachedInvoice.NumComments,
-			UserID:           cachedInvoice.UserID,
-			Username:         c.getUsernameByID(cachedInvoice.UserID),
-		}
-
-		if user != nil {
-			authorID, err := strconv.ParseUint(cachedInvoice.UserID, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-
-			if user.ID == authorID {
-				reply.Invoice.Name = cachedInvoice.Name
-			}
-		}
-		return &reply, nil
-	}
-
-	var route string
-	if isVettedInvoice {
-		route = pd.GetVettedRoute
-	} else {
-		route = pd.GetUnvettedRoute
 	}
 
 	responseBody, err := c.rpc(http.MethodPost, route, requestObject)
@@ -360,14 +334,14 @@ func (c *cmswww) ProcessInvoiceDetails(propDetails v1.InvoiceDetails, user *data
 		return nil, err
 	}
 
-	reply.Invoice = convertInvoiceFromInventoryRecord(&inventoryRecord{
+	idr.Invoice = convertInvoiceFromInventoryRecord(&inventoryRecord{
 		record:  fullRecord,
 		changes: p.changes,
 	}, c.userPubkeys)
-	reply.Invoice.Username = c.getUsernameByID(reply.Invoice.UserID)
-	return &reply, nil
+	idr.Invoice.Username = c.getUsernameByID(idr.Invoice.UserID)
+	return &idr, nil
 }
-*/
+
 // HandleSubmitInvoice handles the incoming new invoice command.
 func (c *cmswww) HandleSubmitInvoice(
 	req interface{},

@@ -5,21 +5,21 @@ import (
 )
 
 const (
-	RouteRoot               = "/"
-	RouteInviteNewUser      = "/user/invite"
-	RouteRegister           = "/user/new"
-	RouteNewIdentity        = "/user/identity"
-	RouteVerifyNewIdentity  = "/user/identity/verify"
-	RouteUserInvoices       = "/user/invoices"
-	RouteUserDetails        = "/user"
-	RouteEditUser           = "/user/edit"
-	RouteLogin              = "/login"
-	RouteLogout             = "/logout"
-	RouteUnreviewedInvoices = "/invoices/unreviewed"
-	RouteSubmitInvoice      = "/invoice/submit"
-	RouteInvoiceDetails     = "/invoice/{token:[A-z0-9]{64}}"
-	RouteSetInvoiceStatus   = "/invoice/{token:[A-z0-9]{64}}/status"
-	RoutePolicy             = "/policy"
+	RouteRoot              = "/"
+	RouteInviteNewUser     = "/user/invite"
+	RouteRegister          = "/user/new"
+	RouteNewIdentity       = "/user/identity"
+	RouteVerifyNewIdentity = "/user/identity/verify"
+	RouteUserInvoices      = "/user/invoices"
+	RouteUserDetails       = "/user"
+	RouteEditUser          = "/user/edit"
+	RouteLogin             = "/login"
+	RouteLogout            = "/logout"
+	RouteInvoices          = "/invoices"
+	RouteSubmitInvoice     = "/invoice/submit"
+	RouteInvoiceDetails    = "/invoice"
+	RouteSetInvoiceStatus  = "/invoice/setstatus"
+	RoutePolicy            = "/policy"
 )
 
 var (
@@ -230,10 +230,10 @@ type InvoiceDetailsReply struct {
 
 // SetInvoiceStatus is used to publish or censor an unreviewed invoice.
 type SetInvoiceStatus struct {
-	Token         string         `json:"token"`
-	InvoiceStatus InvoiceStatusT `json:"invoicestatus"`
-	Signature     string         `json:"signature"` // Signature of Token+string(InvoiceStatus)
-	PublicKey     string         `json:"publickey"` // Public key of admin
+	Token     string         `json:"token"`
+	Status    InvoiceStatusT `json:"status"`
+	Signature string         `json:"signature"` // Signature of Token+string(InvoiceStatus)
+	PublicKey string         `json:"publickey"` // Public key of admin
 }
 
 // SetInvoiceStatusReply is used to reply to a SetInvoiceStatus command.
@@ -241,16 +241,17 @@ type SetInvoiceStatusReply struct {
 	Invoice InvoiceRecord `json:"invoice"`
 }
 
-// UnreviewedInvoices retrieves all unreviewed invoices for a given month.
+// Invoices retrieves all invoices with a given status for a given month & year.
 //
 // Note: This call requires admin privileges.
-type UnreviewedInvoices struct {
-	Month uint16 `json:"month"`
-	Year  uint16 `json:"year"`
+type Invoices struct {
+	Status InvoiceStatusT `json:"status"`
+	Month  uint16         `json:"month"`
+	Year   uint16         `json:"year"`
 }
 
-// UnreviewedInvoicesReply is used to reply with a list of all unreviewed invoices.
-type UnreviewedInvoicesReply struct {
+// InvoicesReply is used to reply with a list of invoices.
+type InvoicesReply struct {
 	Invoices []InvoiceRecord `json:"invoices"`
 }
 

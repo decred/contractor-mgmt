@@ -18,12 +18,6 @@ type routeHandlerFunc func(
 	*http.Request,
 ) (interface{}, error)
 
-type pathParamsHandlerFunc func(
-	interface{},
-	http.ResponseWriter,
-	*http.Request,
-) error
-
 // addRoute sets up a handler for a specific method+route.
 func (c *cmswww) addRoute(
 	method string,
@@ -59,7 +53,6 @@ func (c *cmswww) addGetRoute(
 	req interface{},
 	perm permission,
 	requiresInventory bool,
-	pathParamsHandler pathParamsHandlerFunc,
 ) {
 	wrapper := func(w http.ResponseWriter, r *http.Request) {
 		// Get the command.
@@ -70,11 +63,6 @@ func (c *cmswww) addGetRoute(
 					ErrorCode: v1.ErrorStatusInvalidInput,
 				})
 			return
-		}
-
-		// Add in any path params.
-		if pathParamsHandler != nil {
-			pathParamsHandler(req, w, r)
 		}
 
 		user, err := c.GetSessionUser(r)
@@ -138,7 +126,7 @@ func (c *cmswww) SetupRoutes() {
 	c.router.HandleFunc("/", closeBody(logging(c.HandleVersion))).Methods(http.MethodGet)
 	c.router.NotFoundHandler = closeBody(c.HandleNotFound)
 	c.addGetRoute(v1.RoutePolicy, c.HandlePolicy, new(v1.Policy),
-		permissionPublic, false, nil)
+		permissionPublic, false)
 	c.addPostRoute(v1.RouteRegister, c.HandleRegister, new(v1.Register),
 		permissionPublic, false)
 	c.addPostRoute(v1.RouteLogin, c.HandleLogin, new(v1.Login),
@@ -153,14 +141,16 @@ func (c *cmswww) SetupRoutes() {
 		new(v1.VerifyNewIdentity), permissionLogin, false)
 	c.addPostRoute(v1.RouteSubmitInvoice, c.HandleSubmitInvoice,
 		new(v1.SubmitInvoice), permissionLogin, true)
+	c.addGetRoute(v1.RouteInvoiceDetails, c.HandleInvoiceDetails,
+		new(v1.InvoiceDetails), permissionLogin, true)
 
 	// Routes that require being logged in as an admin user.
 	c.addPostRoute(v1.RouteInviteNewUser, c.HandleInviteNewUser,
 		new(v1.InviteNewUser), permissionAdmin, false)
 	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, new(v1.UserDetails),
-		permissionAdmin, false, nil)
+		permissionAdmin, false)
 	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, new(v1.EditUser),
 		permissionAdmin, false)
-	c.addGetRoute(v1.RouteUnreviewedInvoices, c.HandleUnreviewedInvoices,
-		new(v1.UnreviewedInvoices), permissionAdmin, true, nil)
+	c.addGetRoute(v1.RouteInvoices, c.HandleInvoices,
+		new(v1.Invoices), permissionAdmin, true)
 }

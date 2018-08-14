@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 
-	www "github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	pd "github.com/decred/politeia/politeiad/api/v1"
 )
 
@@ -23,21 +23,21 @@ type BackendInvoiceMetadata struct {
 	Signature string `json:"signature"` // Signature of merkle root
 }
 
-func convertInvoiceStatusFromWWW(s www.InvoiceStatusT) pd.RecordStatusT {
+func convertInvoiceStatusFromWWW(s v1.InvoiceStatusT) pd.RecordStatusT {
 	switch s {
-	case www.InvoiceStatusNotFound:
+	case v1.InvoiceStatusNotFound:
 		return pd.RecordStatusNotFound
-	case www.InvoiceStatusNotReviewed:
+	case v1.InvoiceStatusNotReviewed:
 		return pd.RecordStatusNotReviewed
-	case www.InvoiceStatusRejected:
+	case v1.InvoiceStatusRejected:
 		return pd.RecordStatusCensored
-	case www.InvoiceStatusApproved:
+	case v1.InvoiceStatusApproved:
 		return pd.RecordStatusPublic
 	}
 	return pd.RecordStatusInvalid
 }
 
-func convertInvoiceFileFromWWW(f *www.File) []pd.File {
+func convertInvoiceFileFromWWW(f *v1.File) []pd.File {
 	return []pd.File{{
 		Name:    "invoice.csv",
 		MIME:    f.MIME,
@@ -46,7 +46,7 @@ func convertInvoiceFileFromWWW(f *www.File) []pd.File {
 	}}
 }
 
-func convertInvoiceCensorFromWWW(f www.CensorshipRecord) pd.CensorshipRecord {
+func convertInvoiceCensorFromWWW(f v1.CensorshipRecord) pd.CensorshipRecord {
 	return pd.CensorshipRecord{
 		Token:     f.Token,
 		Merkle:    f.Merkle,
@@ -57,7 +57,7 @@ func convertInvoiceCensorFromWWW(f www.CensorshipRecord) pd.CensorshipRecord {
 // convertInvoiceFromWWW converts a www invoice to a politeiad record.  This
 // function should only be used in tests. Note that convertInvoiceFromWWW can not
 // emulate MD properly.
-func convertInvoiceFromWWW(p www.InvoiceRecord) pd.Record {
+func convertInvoiceFromWWW(p v1.InvoiceRecord) pd.Record {
 	return pd.Record{
 		Status:    convertInvoiceStatusFromWWW(p.Status),
 		Timestamp: p.Timestamp,
@@ -70,7 +70,7 @@ func convertInvoiceFromWWW(p www.InvoiceRecord) pd.Record {
 	}
 }
 
-func convertInvoicesFromWWW(p []www.InvoiceRecord) []pd.Record {
+func convertInvoicesFromWWW(p []v1.InvoiceRecord) []pd.Record {
 	pr := make([]pd.Record, 0, len(p))
 	for _, v := range p {
 		pr = append(pr, convertInvoiceFromWWW(v))
@@ -79,41 +79,41 @@ func convertInvoicesFromWWW(p []www.InvoiceRecord) []pd.Record {
 }
 
 ///////////////////////////////
-func convertInvoiceStatusFromPD(s pd.RecordStatusT) www.InvoiceStatusT {
+func convertInvoiceStatusFromPD(s pd.RecordStatusT) v1.InvoiceStatusT {
 	switch s {
 	case pd.RecordStatusNotFound:
-		return www.InvoiceStatusNotFound
+		return v1.InvoiceStatusNotFound
 	case pd.RecordStatusNotReviewed:
-		return www.InvoiceStatusNotReviewed
+		return v1.InvoiceStatusNotReviewed
 	case pd.RecordStatusCensored:
-		return www.InvoiceStatusRejected
+		return v1.InvoiceStatusRejected
 	case pd.RecordStatusPublic:
-		return www.InvoiceStatusApproved
+		return v1.InvoiceStatusApproved
 	}
-	return www.InvoiceStatusInvalid
+	return v1.InvoiceStatusInvalid
 }
 
-func convertInvoiceFileFromPD(files []pd.File) *www.File {
+func convertInvoiceFileFromPD(files []pd.File) *v1.File {
 	if len(files) == 0 {
 		return nil
 	}
 
-	return &www.File{
+	return &v1.File{
 		MIME:    files[0].MIME,
 		Digest:  files[0].Digest,
 		Payload: files[0].Payload,
 	}
 }
 
-func convertInvoiceCensorFromPD(f pd.CensorshipRecord) www.CensorshipRecord {
-	return www.CensorshipRecord{
+func convertInvoiceCensorFromPD(f pd.CensorshipRecord) v1.CensorshipRecord {
+	return v1.CensorshipRecord{
 		Token:     f.Token,
 		Merkle:    f.Merkle,
 		Signature: f.Signature,
 	}
 }
 
-func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[string]string) www.InvoiceRecord {
+func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[string]string) v1.InvoiceRecord {
 	invoice := convertInvoiceFromPD(r.record)
 
 	// Set the most up-to-date status.
@@ -132,7 +132,7 @@ func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[strin
 	return invoice
 }
 
-func convertInvoiceFromPD(p pd.Record) www.InvoiceRecord {
+func convertInvoiceFromPD(p pd.Record) v1.InvoiceRecord {
 	md := &BackendInvoiceMetadata{}
 	for _, v := range p.Metadata {
 		if v.ID != mdStreamGeneral {
@@ -146,7 +146,7 @@ func convertInvoiceFromPD(p pd.Record) www.InvoiceRecord {
 		}
 	}
 
-	return www.InvoiceRecord{
+	return v1.InvoiceRecord{
 		Status:           convertInvoiceStatusFromPD(p.Status),
 		Timestamp:        md.Timestamp,
 		Month:            md.Month,
@@ -158,18 +158,18 @@ func convertInvoiceFromPD(p pd.Record) www.InvoiceRecord {
 	}
 }
 
-func convertErrorStatusFromPD(s int) www.ErrorStatusT {
+func convertErrorStatusFromPD(s int) v1.ErrorStatusT {
 	switch pd.ErrorStatusT(s) {
 	case pd.ErrorStatusInvalidFileDigest:
-		return www.ErrorStatusInvalidFileDigest
+		return v1.ErrorStatusInvalidFileDigest
 	case pd.ErrorStatusInvalidBase64:
-		return www.ErrorStatusInvalidBase64
+		return v1.ErrorStatusInvalidBase64
 	case pd.ErrorStatusInvalidMIMEType:
-		return www.ErrorStatusInvalidMIMEType
+		return v1.ErrorStatusInvalidMIMEType
 	case pd.ErrorStatusUnsupportedMIMEType:
-		return www.ErrorStatusUnsupportedMIMEType
+		return v1.ErrorStatusUnsupportedMIMEType
 	case pd.ErrorStatusInvalidRecordStatusTransition:
-		return www.ErrorStatusInvalidInvoiceStatusTransition
+		return v1.ErrorStatusInvalidInvoiceStatusTransition
 
 		// These cases are intentionally omitted because
 		// they are indicative of some internal server error,
@@ -178,5 +178,5 @@ func convertErrorStatusFromPD(s int) www.ErrorStatusT {
 		//case pd.ErrorStatusInvalidRequestPayload
 		//case pd.ErrorStatusInvalidChallenge
 	}
-	return www.ErrorStatusInvalid
+	return v1.ErrorStatusInvalid
 }

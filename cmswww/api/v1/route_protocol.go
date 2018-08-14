@@ -255,6 +255,16 @@ type InvoicesReply struct {
 	Invoices []InvoiceRecord `json:"invoices"`
 }
 
+// MyInvoices retrieves all invoices with a given status for a user.
+type MyInvoices struct {
+	Status InvoiceStatusT `json:"status"`
+}
+
+// MyInvoicesReply is used to reply with a list of user's invoices.
+type MyInvoicesReply struct {
+	Invoices []InvoiceRecord `json:"invoices"`
+}
+
 // Policy returns a struct with various maxima.  The client shall observe the
 // maxima.
 type Policy struct{}

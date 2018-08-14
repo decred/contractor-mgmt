@@ -27,7 +27,8 @@ type Options struct {
 	EditUser          EditUserCmd         `command:"edituser" description:"Edit a user by user id.\n\n           Parameters: <user id/email/username> <action> <reason>\n    Available actions: resendinvite, resendidentitytoken, lock, unlock\n  --------------------------------------"`
 	SubmitInvoice     SubmitInvoiceCmd    `command:"submitinvoice" description:"Submits an invoice for a given month and year.\n\n           Parameters: <month> <year>\n  --------------------------------------"`
 	InvoiceDetails    InvoiceDetailsCmd   `command:"invoice" description:"Displays an invoice's details.\n\n           Parameters: <token>\n  --------------------------------------"`
-	Invoices          InvoicesCmd         `command:"invoices" description:"Lists invoices with a particular status for a given month and year.\n\n           Parameters: <status> <month> <year>\n   Available statuses: unreviewed, rejected, approved, paid\n  --------------------------------------"`
+	Invoices          InvoicesCmd         `command:"invoices" description:"Lists invoices with a particular status for a given month and year.\n\n           Parameters: <month> <year> [status]\n   Available statuses: unreviewed, rejected, approved, paid\n  --------------------------------------"`
+	MyInvoices        MyInvoicesCmd       `command:"myinvoices" description:"Lists a user's invoices with a particular status.\n\n           Parameters: [status]\n   Available statuses: unreviewed, rejected, approved, paid\n  --------------------------------------"`
 	SetInvoiceStatus  SetInvoiceStatusCmd `command:"setinvoicestatus" description:"Changes an invoice's status.\n\n           Parameters: <token> <status>\n   Available statuses: rejected, approved, paid\n  --------------------------------------"`
 }
 

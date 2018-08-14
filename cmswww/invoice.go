@@ -40,6 +40,30 @@ func (c *cmswww) HandleInvoices(
 	}, nil
 }
 
+// HandleMyInvoices returns an array of user's invoices.
+func (c *cmswww) HandleMyInvoices(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	mi := req.(*v1.MyInvoices)
+
+	statusMap := make(map[v1.InvoiceStatusT]bool)
+	if mi.Status != v1.InvoiceStatusInvalid {
+		statusMap[mi.Status] = true
+	}
+
+	return &v1.InvoicesReply{
+		Invoices: c.getInvoices(invoicesRequest{
+			//After:  ui.After,
+			//Before: ui.Before,
+			UserID:    strconv.FormatUint(user.ID, 10),
+			StatusMap: statusMap,
+		}),
+	}, nil
+}
+
 // HandleSetInvoiceStatus changes the status of an existing invoice
 // from unreviewed to either published or rejected.
 func (c *cmswww) HandleSetInvoiceStatus(

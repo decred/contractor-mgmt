@@ -34,6 +34,14 @@ const (
 	// PolicyMinUsernameLength is the min length of a username
 	PolicyMinUsernameLength = 3
 
+	// PolicyInvoiceCommentChar is the character which, when used as the first
+	// character of a line, denotes that entire line as a comment.
+	PolicyInvoiceCommentChar rune = '#'
+
+	// PolicyInvoiceFieldDelimiterChar is the character that delimits field
+	// values for each line item in the CSV.
+	PolicyInvoiceFieldDelimiterChar rune = ','
+
 	// ListPageSize is the maximum number of entries returned
 	// for the routes that return lists
 	ListPageSize = 25
@@ -42,6 +50,12 @@ const (
 	// login attempts permitted before the system locks the user.
 	LoginAttemptsToLockUser = 5
 )
+
+type InvoiceFieldDetails struct {
+	Name     string            `json:"name"`
+	Type     InvoiceFieldTypeT `json:"type"`
+	Required bool              `json:"required"`
+}
 
 var (
 	// PolicyInvoiceNameSupportedChars is the regular expression of a valid
@@ -55,4 +69,33 @@ var (
 	PolicyUsernameSupportedChars = []string{
 		"A-z", "0-9", ".", ",", ":", ";", "-", " ", "@", "+",
 		"(", ")"}
+
+	// InvoiceFields is the list of fields for each line item in an invoice.
+	InvoiceFields = []InvoiceFieldDetails{
+		{
+			Name:     "Description of work",
+			Type:     InvoiceFieldTypeString,
+			Required: true,
+		},
+		{
+			Name:     "Type of work",
+			Type:     InvoiceFieldTypeString,
+			Required: true,
+		},
+		{
+			Name:     "Subtype of work",
+			Type:     InvoiceFieldTypeString,
+			Required: false,
+		},
+		{
+			Name:     "Hours worked",
+			Type:     InvoiceFieldTypeUint,
+			Required: true,
+		},
+		{
+			Name:     "Total cost",
+			Type:     InvoiceFieldTypeUint,
+			Required: true,
+		},
+	}
 )

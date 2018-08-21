@@ -40,7 +40,7 @@ func (cmd *InvoicesCmd) Execute(args []string) error {
 		}
 	}
 
-	month, err := parseMonth(cmd.Args.Month)
+	month, err := ParseMonth(cmd.Args.Month)
 	if err != nil {
 		return err
 	}

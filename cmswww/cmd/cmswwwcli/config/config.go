@@ -63,14 +63,19 @@ func LoadUserIdentity(email string) (*identity.FullIdentity, error) {
 	return id, err
 }
 
-func GetInvoiceFilename(month, year uint16) string {
+func GetInvoiceMonthStr(month, year uint16) string {
 	t := time.Date(int(year), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	return filepath.Join(InvoicesDir, t.Format("2006_01.csv"))
+	return t.Format("2006-01")
+}
+
+func GetInvoiceFilename(month, year uint16) string {
+	return filepath.Join(InvoicesDir, LoggedInUser.Email,
+		fmt.Sprintf("%v.csv", GetInvoiceMonthStr(month, year)))
 }
 
 func GetInvoiceSubmissionRecordFilename(month, year uint16) string {
-	t := time.Date(int(year), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	return filepath.Join(InvoicesDir, t.Format("submission_record_2006_01.json"))
+	return filepath.Join(InvoicesDir, LoggedInUser.Email,
+		fmt.Sprintf("submission_record_%v.json", GetInvoiceMonthStr(month, year)))
 }
 
 // Returns a cookie filename that is unique for each host.  This makes
@@ -87,8 +92,8 @@ func getCsrfFile() string {
 	return filepath.Join(HomeDir, csrfFilename)
 }
 
-// filesExists reports whether the named file or directory exists.
-func fileExists(name string) bool {
+// FileExists reports whether the named file or directory exists.
+func FileExists(name string) bool {
 	if _, err := os.Stat(name); err != nil {
 		if os.IsNotExist(err) {
 			return false
@@ -126,7 +131,7 @@ func SaveCookies(cookies []*http.Cookie) error {
 }
 
 func LoadCookies() error {
-	if !fileExists(getCookieFile()) {
+	if !FileExists(getCookieFile()) {
 		return nil
 	}
 
@@ -151,7 +156,7 @@ func SaveCsrf(csrf string) error {
 }
 
 func LoadCsrf() error {
-	if !fileExists(getCsrfFile()) {
+	if !FileExists(getCsrfFile()) {
 		return nil
 	}
 

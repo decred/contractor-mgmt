@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 
@@ -19,7 +18,7 @@ func (cmd *NewIdentityCmd) Execute(args []string) error {
 	}
 
 	if config.LoggedInUser == nil {
-		return fmt.Errorf("You must be logged in to perform this action.")
+		return ErrNotLoggedIn
 	}
 
 	// Generate and save the new identity.

@@ -25,7 +25,7 @@ func (cmd *SetInvoiceStatusCmd) Execute(args []string) error {
 
 	id := config.LoggedInUserIdentity
 	if id == nil {
-		return fmt.Errorf("You must be logged in to perform this action.")
+		return ErrNotLoggedIn
 	}
 
 	status, ok := invoiceStatuses[strings.ToLower(cmd.Args.Status)]

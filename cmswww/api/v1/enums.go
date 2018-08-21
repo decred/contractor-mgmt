@@ -3,6 +3,7 @@ package v1
 type ErrorStatusT int
 type InvoiceStatusT int
 type UserEditActionT int
+type InvoiceFieldTypeT int
 
 const (
 	// Error status codes
@@ -48,6 +49,10 @@ const (
 	UserEditRegenerateUpdateIdentityVerification UserEditActionT = 2
 	UserEditUnlock                               UserEditActionT = 3
 	UserEditLock                                 UserEditActionT = 4
+
+	InvoiceFieldTypeInvalid InvoiceFieldTypeT = 0
+	InvoiceFieldTypeString  InvoiceFieldTypeT = 1
+	InvoiceFieldTypeUint    InvoiceFieldTypeT = 2
 )
 
 var (

@@ -272,12 +272,19 @@ type Policy struct{}
 // PolicyReply is used to reply to the policy command. It returns
 // the file upload restrictions set for Politeia.
 type PolicyReply struct {
-	MinPasswordLength      uint     `json:"minpasswordlength"`
-	MinUsernameLength      uint     `json:"minusernamelength"`
-	MaxUsernameLength      uint     `json:"maxusernamelength"`
-	UsernameSupportedChars []string `json:"usernamesupportedchars"`
-	ListPageSize           uint     `json:"listpagesize"`
-	ValidMIMETypes         []string `json:"validmimetypes"`
+	MinPasswordLength      uint          `json:"minpasswordlength"`
+	MinUsernameLength      uint          `json:"minusernamelength"`
+	MaxUsernameLength      uint          `json:"maxusernamelength"`
+	UsernameSupportedChars []string      `json:"usernamesupportedchars"`
+	ListPageSize           uint          `json:"listpagesize"`
+	ValidMIMETypes         []string      `json:"validmimetypes"`
+	Invoice                InvoicePolicy `json:"invoice"`
+}
+
+// InvoicePolicy is the specific policy related to invoice submission.
+type InvoicePolicy struct {
+	FieldDelimiterChar rune `json:"fielddelimiterchar"`
+	CommentChar        rune `json:"commentchar"`
 }
 
 // UserDetails fetches a user's details by their id, email, or username.

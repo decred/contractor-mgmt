@@ -30,6 +30,7 @@ type Options struct {
 	Invoices          InvoicesCmd         `command:"invoices" description:"Lists invoices with a particular status for a given month and year.\n\n           Parameters: <month> <year> [status]\n   Available statuses: unreviewed, rejected, approved, paid\n  --------------------------------------"`
 	MyInvoices        MyInvoicesCmd       `command:"myinvoices" description:"Lists a user's invoices with a particular status.\n\n           Parameters: [status]\n   Available statuses: unreviewed, rejected, approved, paid\n  --------------------------------------"`
 	SetInvoiceStatus  SetInvoiceStatusCmd `command:"setinvoicestatus" description:"Changes an invoice's status.\n\n           Parameters: <token> <status>\n   Available statuses: rejected, approved, paid\n  --------------------------------------"`
+	LogWork           LogWorkCmd          `command:"logwork" description:"Adds a line item to an invoice.\n\n           Parameters: <month> <year>\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

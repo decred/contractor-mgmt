@@ -205,6 +205,10 @@ func (c *cmswww) HandlePolicy(
 		UsernameSupportedChars: v1.PolicyUsernameSupportedChars,
 		ListPageSize:           v1.ListPageSize,
 		ValidMIMETypes:         mime.ValidMimeTypes(),
+		Invoice: v1.InvoicePolicy{
+			FieldDelimiterChar: v1.PolicyInvoiceFieldDelimiterChar,
+			CommentChar:        v1.PolicyInvoiceCommentChar,
+		},
 	}, nil
 }
 

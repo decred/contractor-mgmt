@@ -3,15 +3,12 @@ package commands
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
-	//	"encoding/csv"
+	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"strconv"
-	"strings"
-
-	//	"github.com/decred/politeia/util"
+	"os"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -21,7 +18,7 @@ type SubmitInvoiceCmd struct {
 	Args struct {
 		Month string `positional-arg-name:"month"`
 		Year  uint16 `positional-arg-name:"year"`
-	} `positional-args:"true" optional:"true"`
+	} `positional-args:"true" required:"true"`
 }
 
 // SubmissionRecord is a record of an invoice submission to the server,
@@ -32,42 +29,34 @@ type SubmissionRecord struct {
 	CensorshipRecord v1.CensorshipRecord `json:"censorshiprecord"`
 }
 
-var (
-	monthNames = map[string]uint16{
-		"january":   1,
-		"february":  2,
-		"march":     3,
-		"april":     4,
-		"may":       5,
-		"june":      6,
-		"july":      7,
-		"august":    8,
-		"september": 9,
-		"october":   10,
-		"november":  11,
-		"december":  12,
-	}
-)
-
-func parseMonth(monthStr string) (uint16, error) {
-	parsedMonth, err := strconv.ParseUint(monthStr, 10, 16)
-	if err == nil {
-		return uint16(parsedMonth), nil
+func validateInvoiceFile(filename string) error {
+	// Verify invoice file exists.
+	if !config.FileExists(filename) {
+		return fmt.Errorf("The invoice file (%v) does not exist. Please first"+
+			"create it, either manually or using the logwork command.",
+			filename)
 	}
 
-	monthStr = strings.ToLower(monthStr)
-	month, ok := monthNames[monthStr]
-	if ok {
-		return month, nil
+	// Verify the invoice file is formatted correctly according to policy.
+	policy, err := fetchPolicy()
+	if err != nil {
+		return err
 	}
 
-	for monthName, monthVal := range monthNames {
-		if strings.Index(monthName, monthStr) == 0 {
-			return monthVal, nil
-		}
+	// Verify the invoice file can be read by the CSV parser.
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
 	}
+	defer file.Close()
 
-	return 0, fmt.Errorf("invalid month specified")
+	csvReader := csv.NewReader(file)
+	csvReader.Comma = policy.Invoice.FieldDelimiterChar
+	csvReader.Comment = policy.Invoice.CommentChar
+	csvReader.TrimLeadingSpace = true
+
+	_, err = csvReader.ReadAll()
+	return err
 }
 
 func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
@@ -78,16 +67,22 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 
 	id := config.LoggedInUserIdentity
 	if id == nil {
-		return fmt.Errorf("You must be logged in to perform this action.")
+		return ErrNotLoggedIn
 	}
 
-	month, err := parseMonth(cmd.Args.Month)
+	month, err := ParseMonth(cmd.Args.Month)
 	if err != nil {
 		return err
 	}
 
-	fname := config.GetInvoiceFilename(month, cmd.Args.Year)
-	payload, err := ioutil.ReadFile(fname)
+	filename := config.GetInvoiceFilename(month, cmd.Args.Year)
+
+	err = validateInvoiceFile(filename)
+	if err != nil {
+		return err
+	}
+
+	payload, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -131,15 +126,15 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		return err
 	}
 
-	fname = config.GetInvoiceSubmissionRecordFilename(month, cmd.Args.Year)
-	err = ioutil.WriteFile(fname, data, 0400)
+	filename = config.GetInvoiceSubmissionRecordFilename(month, cmd.Args.Year)
+	err = ioutil.WriteFile(filename, data, 0400)
 	if err != nil {
 		return err
 	}
 
 	if !config.JSONOutput {
 		fmt.Printf("Invoice submitted successfully! The censorship record has"+
-			" been stored in %v for your future reference.", fname)
+			" been stored in %v for your future reference.", filename)
 	}
 
 	return nil

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
@@ -68,14 +70,33 @@ func GetInvoiceMonthStr(month, year uint16) string {
 	return t.Format("2006-01")
 }
 
+func GetInvoiceDirectory() string {
+	return filepath.Join(InvoicesDir, LoggedInUser.Email)
+}
+
 func GetInvoiceFilename(month, year uint16) string {
-	return filepath.Join(InvoicesDir, LoggedInUser.Email,
+	return filepath.Join(GetInvoiceDirectory(),
 		fmt.Sprintf("%v.csv", GetInvoiceMonthStr(month, year)))
 }
 
 func GetInvoiceSubmissionRecordFilename(month, year uint16) string {
-	return filepath.Join(InvoicesDir, LoggedInUser.Email,
+	return filepath.Join(GetInvoiceDirectory(),
 		fmt.Sprintf("submission_record_%v.json", GetInvoiceMonthStr(month, year)))
+}
+
+func GetMonthAndYearFromInvoice(filename string) (uint16, uint16, error) {
+	if !strings.HasSuffix(filename, ".csv") {
+		return 0, 0, fmt.Errorf("not an invoice file")
+	}
+
+	pair := strings.Split(filename[:len(filename)-4], "-")
+	year, err := strconv.ParseUint(pair[0], 10, 16)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	month, err := strconv.ParseUint(pair[1], 10, 16)
+	return uint16(year), uint16(month), err
 }
 
 // Returns a cookie filename that is unique for each host.  This makes

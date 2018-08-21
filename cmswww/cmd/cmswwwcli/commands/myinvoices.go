@@ -1,7 +1,11 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,18 +19,48 @@ type MyInvoicesCmd struct {
 	} `positional-args:"true" optional:"true"`
 }
 
-func (cmd *MyInvoicesCmd) Execute(args []string) error {
-	err := InitialVersionRequest()
-	if err != nil {
-		return err
+type invoices struct {
+	Invoices []invoice `json:"invoices"`
+}
+
+type invoice struct {
+	Token     *string `json:"token"`
+	Timestamp *int64  `json:"timestamp"`
+	Month     uint16  `json:"month"`
+	Year      uint16  `json:"year"`
+	Status    string  `json:"status"`
+}
+
+type sortableInvoices []invoice
+
+func (si sortableInvoices) Len() int {
+	return len(si)
+}
+
+func (si sortableInvoices) Swap(i, j int) {
+	si[i], si[j] = si[j], si[i]
+}
+
+func (si sortableInvoices) Less(i, j int) bool {
+	if si[i].Year > si[j].Year {
+		return true
+	}
+	if si[i].Year == si[j].Year {
+		if si[i].Month > si[j].Month {
+			return true
+		}
 	}
 
+	return false
+}
+
+func fetchSubmittedInvoices(statusStr string) ([]invoice, error) {
 	var status v1.InvoiceStatusT
-	if cmd.Args.Status != "" {
+	if statusStr != "" {
 		var ok bool
-		status, ok = invoiceStatuses[strings.ToLower(cmd.Args.Status)]
+		status, ok = invoiceStatuses[statusStr]
 		if !ok {
-			return fmt.Errorf("Invalid status: %v", cmd.Args.Status)
+			return nil, fmt.Errorf("Invalid status: %v", statusStr)
 		}
 	}
 
@@ -35,29 +69,126 @@ func (cmd *MyInvoicesCmd) Execute(args []string) error {
 	}
 
 	var mir v1.MyInvoicesReply
-	err = Ctx.Get(v1.RouteUserInvoices, mi, &mir)
+	err := Ctx.Get(v1.RouteUserInvoices, mi, &mir)
+	if err != nil {
+		return nil, err
+	}
+
+	invoices := make([]invoice, 0, len(mir.Invoices))
+	for _, v := range mir.Invoices {
+		invoices = append(invoices, invoice{
+			Token:     &v.CensorshipRecord.Token,
+			Month:     v.Month,
+			Year:      v.Year,
+			Status:    v1.InvoiceStatus[v.Status],
+			Timestamp: &v.Timestamp,
+		})
+	}
+
+	return invoices, nil
+}
+
+func fetchUnsubmittedInvoices(submittedInvoices []invoice) ([]invoice, error) {
+	var unsubmittedInvoices []invoice
+	dirpath := config.GetInvoiceDirectory()
+	err := filepath.Walk(dirpath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		filename := info.Name()
+		year, month, err := config.GetMonthAndYearFromInvoice(filename)
+		if err == nil {
+			alreadySubmitted := false
+			for _, v := range submittedInvoices {
+				if v.Month == month && v.Year == year {
+					alreadySubmitted = true
+					break
+				}
+			}
+
+			if alreadySubmitted {
+				return nil
+			}
+
+			unsubmittedInvoices = append(unsubmittedInvoices, invoice{
+				Month:  month,
+				Year:   year,
+				Status: "unsubmitted",
+			})
+		}
+
+		return nil
+	})
+
+	return unsubmittedInvoices, err
+}
+
+func (cmd *MyInvoicesCmd) Execute(args []string) error {
+	err := InitialVersionRequest()
 	if err != nil {
 		return err
 	}
 
-	if !config.JSONOutput {
-		fmt.Printf("Invoices: ")
-		if len(mir.Invoices) == 0 {
-			fmt.Printf("none\n")
-		} else {
+	if config.LoggedInUser == nil {
+		return ErrNotLoggedIn
+	}
+
+	statusStr := strings.ToLower(cmd.Args.Status)
+
+	var submittedInvoices []invoice
+	var unsubmittedInvoices []invoice
+	if statusStr != "unsubmitted" {
+		submittedInvoices, err = fetchSubmittedInvoices(statusStr)
+		if err != nil {
+			return err
+		}
+	}
+	if statusStr == "" || statusStr == "unsubmitted" {
+		unsubmittedInvoices, err = fetchUnsubmittedInvoices(submittedInvoices)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Combine and sort the invoices.
+	allInvoices := append(unsubmittedInvoices, submittedInvoices...)
+	sort.Sort(sortableInvoices(allInvoices))
+
+	if config.JSONOutput {
+		output := invoices{
+			Invoices: allInvoices,
+		}
+		bytes, err := json.Marshal(output)
+		if err != nil {
+			return err
+		}
+		Ctx.LastCommandOutput = string(bytes)
+		return nil
+	}
+
+	fmt.Printf("Invoices: ")
+	if len(allInvoices) == 0 {
+		fmt.Printf("none\n")
+	} else {
+		for _, v := range allInvoices {
 			fmt.Println()
-			for _, v := range mir.Invoices {
-				date := time.Date(int(v.Year), time.Month(v.Month),
-					1, 0, 0, 0, 0, time.UTC)
-				fmt.Printf("  %v\n", v.CensorshipRecord.Token)
-				fmt.Printf("      Submitted at: %v\n",
-					time.Unix(v.Timestamp, 0).String())
-				fmt.Printf("               For: %v\n", date.Format("January 2006"))
-				if cmd.Args.Status == "" {
-					fmt.Printf("            Status: %v\n",
-						v1.InvoiceStatus[v.Status])
-				}
+
+			date := time.Date(int(v.Year), time.Month(v.Month),
+				1, 0, 0, 0, 0, time.UTC)
+			fmt.Printf("  %v • ", date.Format("January 2006"))
+			if v.Token != nil {
+				fmt.Printf("%v\n", *v.Token)
+			} else {
+				fmt.Printf("Draft\n")
 			}
+
+			if v.Timestamp != nil {
+				fmt.Printf("    Submitted: %v\n",
+					time.Unix(*v.Timestamp, 0).String())
+			}
+
+			fmt.Printf("       Status: %v\n", v.Status)
 		}
 	}
 

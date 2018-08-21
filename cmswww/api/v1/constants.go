@@ -67,11 +67,6 @@ var (
 	// InvoiceFields is the list of fields for each line item in an invoice.
 	InvoiceFields = []InvoicePolicyField{
 		{
-			Name:     "Description of work",
-			Type:     InvoiceFieldTypeString,
-			Required: true,
-		},
-		{
 			Name:     "Type of work",
 			Type:     InvoiceFieldTypeString,
 			Required: true,
@@ -80,6 +75,11 @@ var (
 			Name:     "Subtype of work",
 			Type:     InvoiceFieldTypeString,
 			Required: false,
+		},
+		{
+			Name:     "Description of work",
+			Type:     InvoiceFieldTypeString,
+			Required: true,
 		},
 		{
 			Name:     "Hours worked",

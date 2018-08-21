@@ -51,12 +51,6 @@ const (
 	LoginAttemptsToLockUser = 5
 )
 
-type InvoiceFieldDetails struct {
-	Name     string            `json:"name"`
-	Type     InvoiceFieldTypeT `json:"type"`
-	Required bool              `json:"required"`
-}
-
 var (
 	// PolicyInvoiceNameSupportedChars is the regular expression of a valid
 	// invoice name
@@ -71,7 +65,7 @@ var (
 		"(", ")"}
 
 	// InvoiceFields is the list of fields for each line item in an invoice.
-	InvoiceFields = []InvoiceFieldDetails{
+	InvoiceFields = []InvoicePolicyField{
 		{
 			Name:     "Description of work",
 			Type:     InvoiceFieldTypeString,
@@ -93,7 +87,7 @@ var (
 			Required: true,
 		},
 		{
-			Name:     "Total cost",
+			Name:     "Total cost (in USD)",
 			Type:     InvoiceFieldTypeUint,
 			Required: true,
 		},

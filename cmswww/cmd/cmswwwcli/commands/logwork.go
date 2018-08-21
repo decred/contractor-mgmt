@@ -34,8 +34,8 @@ func writeHeader() error {
 		return err
 	}
 
-	invoiceFieldNames := make([]string, 0, len(v1.InvoiceFields))
-	for _, v := range v1.InvoiceFields {
+	invoiceFieldNames := make([]string, 0, len(policy.Invoice.Fields))
+	for _, v := range policy.Invoice.Fields {
 		invoiceFieldNames = append(invoiceFieldNames, v.Name)
 	}
 	_, err = fmt.Fprintf(file, "%v %v\n", string(policy.Invoice.CommentChar),
@@ -46,10 +46,10 @@ func writeHeader() error {
 func promptForFieldValues() ([]string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	invoiceFieldValues := make([]string, 0, len(v1.InvoiceFields))
+	invoiceFieldValues := make([]string, 0, len(policy.Invoice.Fields))
 	idx := 0
-	for idx < len(v1.InvoiceFields) {
-		field := v1.InvoiceFields[idx]
+	for idx < len(policy.Invoice.Fields) {
+		field := policy.Invoice.Fields[idx]
 
 		if !config.JSONOutput {
 			fmt.Printf("%v: ", field.Name)

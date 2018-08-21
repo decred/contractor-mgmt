@@ -208,6 +208,7 @@ func (c *cmswww) HandlePolicy(
 		Invoice: v1.InvoicePolicy{
 			FieldDelimiterChar: v1.PolicyInvoiceFieldDelimiterChar,
 			CommentChar:        v1.PolicyInvoiceCommentChar,
+			Fields:             v1.InvoiceFields,
 		},
 	}, nil
 }

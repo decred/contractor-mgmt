@@ -283,8 +283,15 @@ type PolicyReply struct {
 
 // InvoicePolicy is the specific policy related to invoice submission.
 type InvoicePolicy struct {
-	FieldDelimiterChar rune `json:"fielddelimiterchar"`
-	CommentChar        rune `json:"commentchar"`
+	FieldDelimiterChar rune                 `json:"fielddelimiterchar"`
+	CommentChar        rune                 `json:"commentchar"`
+	Fields             []InvoicePolicyField `json:"fields"`
+}
+
+type InvoicePolicyField struct {
+	Name     string            `json:"name"`
+	Type     InvoiceFieldTypeT `json:"type"`
+	Required bool              `json:"required"`
 }
 
 // UserDetails fetches a user's details by their id, email, or username.

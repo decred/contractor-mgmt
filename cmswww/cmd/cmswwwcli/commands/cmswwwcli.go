@@ -31,6 +31,7 @@ type Options struct {
 	MyInvoices        MyInvoicesCmd       `command:"myinvoices" description:"Lists a user's invoices with a particular status.\n\n           Parameters: [status]\n   Available statuses: unreviewed, rejected, approved, paid\n  --------------------------------------"`
 	SetInvoiceStatus  SetInvoiceStatusCmd `command:"setinvoicestatus" description:"Changes an invoice's status.\n\n           Parameters: <token> <status>\n   Available statuses: rejected, approved, paid\n  --------------------------------------"`
 	LogWork           LogWorkCmd          `command:"logwork" description:"Adds a line item to an invoice.\n\n           Parameters: <month> <year>\n  --------------------------------------"`
+	DCRUSD            DCRUSDCmd           `command:"dcrusd" description:"Calculates the DCR-USD for a given month & year.\n\n           Parameters: <month> <year>\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

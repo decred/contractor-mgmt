@@ -52,11 +52,11 @@ func promptForFieldValues() ([]string, error) {
 		field := policy.Invoice.Fields[idx]
 
 		if !config.JSONOutput {
+			var optionalStr string
 			if !field.Required {
-				fmt.Printf("%v (optional): ", field.Name)
-			} else {
-				fmt.Printf("%v: ", field.Name)
+				optionalStr = " (optional)"
 			}
+			fmt.Printf("%v%v: ", field.Name, optionalStr)
 		}
 		valueStr, err := reader.ReadString('\n')
 		if err != nil {

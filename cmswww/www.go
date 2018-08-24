@@ -27,7 +27,7 @@ import (
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
-	"github.com/decred/contractor-mgmt/cmswww/database/localdb"
+	"github.com/decred/contractor-mgmt/cmswww/database/cockroachdb"
 )
 
 type permission uint
@@ -284,7 +284,8 @@ func _main() error {
 	}
 
 	// Setup database.
-	c.db, err = localdb.New(c.cfg.DataDir)
+	c.db, err = cockroachdb.New(c.cfg.DataDir, c.cfg.CockroachDBName,
+		c.cfg.CockroachDBUsername, c.cfg.CockroachDBHost)
 	if err != nil {
 		return err
 	}

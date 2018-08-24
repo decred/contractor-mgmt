@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -81,7 +81,7 @@ type User struct {
 // Database interface that is required by the web server.
 type Database interface {
 	// User functions
-	UserGet(string) (*User, error)           // Return user record, key is email
+	UserGetByEmail(string) (*User, error)    // Return user record given the email address
 	UserGetByUsername(string) (*User, error) // Return user record given the username
 	UserGetById(uint64) (*User, error)       // Return user record given its id
 	UserNew(*User) error                     // Add new user

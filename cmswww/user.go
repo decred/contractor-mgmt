@@ -74,7 +74,7 @@ func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (*databas
 	}
 
 	if user == nil && isAdmin && email != "" {
-		user, err = c.db.UserGet(email)
+		user, err = c.db.UserGetByEmail(email)
 		if err != nil && err != database.ErrUserNotFound {
 			return nil, err
 		}
@@ -108,7 +108,7 @@ func (c *cmswww) HandleRegister(
 	nu := req.(*v1.Register)
 
 	// Check that the user already exists.
-	user, err := c.db.UserGet(nu.Email)
+	user, err := c.db.UserGetByEmail(nu.Email)
 	if err != nil {
 		if err == database.ErrUserNotFound {
 			return nil, v1.UserError{

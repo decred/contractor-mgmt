@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/decred/contractor-mgmt/cmswww/database/localdb"
+	"github.com/decred/contractor-mgmt/cmswww/database/cockroachdb"
 	"github.com/decred/contractor-mgmt/cmswww/sharedconfig"
 	"github.com/decred/dcrd/chaincfg"
 	"golang.org/x/crypto/bcrypt"
@@ -19,6 +19,9 @@ import (
 var (
 	createAdminUser = flag.Bool("createadmin", false, "Create an admin user. Parameters: <email> <username> <password>")
 	dataDir         = flag.String("datadir", sharedconfig.DefaultDataDir, "Specify the cmswww data directory.")
+	dbName          = flag.String("dbname", sharedconfig.DefaultDBName, "Specify the database name.")
+	dbUsername      = flag.String("dbusername", sharedconfig.DefaultDBUsername, "Specify the database username.")
+	dbHost          = flag.String("dbhost", sharedconfig.DefaultDBHost, "Specify the database host.")
 	dumpDb          = flag.Bool("dump", false, "Dump the entire cmswww database contents or contents for a specific user. Parameters: [email]")
 	testnet         = flag.Bool("testnet", false, "Whether to check the testnet database or not.")
 	dbDir           = ""
@@ -35,7 +38,7 @@ func dumpAction() error {
 	// If email is provided, only dump that user.
 	args := flag.Args()
 	if len(args) == 1 {
-		user, err := db.UserGet(args[0])
+		user, err := db.UserGetByEmail(args[0])
 		if err != nil {
 			if err == database.ErrUserNotFound {
 				return fmt.Errorf("user with email %v not found in the database",
@@ -75,7 +78,7 @@ func createAdminUserAction() error {
 		Admin:          true,
 	}
 
-	_, err = db.UserGet(user.Email)
+	_, err = db.UserGetByEmail(user.Email)
 	if err == nil {
 		return fmt.Errorf("user with email %v already found in the database",
 			user.Email)
@@ -106,7 +109,8 @@ func _main() error {
 	}
 
 	var err error
-	db, err = localdb.New(filepath.Join(*dataDir, netName))
+	db, err = cockroachdb.New(filepath.Join(*dataDir, netName), *dbName,
+		*dbUsername, *dbHost)
 	if err != nil {
 		return err
 	}

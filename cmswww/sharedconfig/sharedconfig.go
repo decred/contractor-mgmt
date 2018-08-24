@@ -9,6 +9,9 @@ import (
 const (
 	DefaultConfigFilename = "cmswww.conf"
 	DefaultDataDirname    = "data"
+	DefaultDBName         = "cmswww"
+	DefaultDBUsername     = "cmswwwuser"
+	DefaultDBHost         = "localhost:26257"
 )
 
 var (

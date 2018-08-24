@@ -66,7 +66,7 @@ func (cmd *DCRUSDCmd) iterateBittrexGetTicksResult(
 	return nil
 }
 
-func (cmd *DCRUSDCmd) getBittrexWeightedAverage(ticker string) (float64, string, error) {
+func (cmd *DCRUSDCmd) getBittrexWeightedAverage(ticker string) ([]float64, string, error) {
 	for idx, tickInterval := range bittrexTickIntervals {
 		startOfMonthUnixMs := cmd.StartOfMonth.Unix() * 1000
 
@@ -79,17 +79,17 @@ func (cmd *DCRUSDCmd) getBittrexWeightedAverage(ticker string) (float64, string,
 		var resp bittrexGetTicksResponse
 		err := cmd.makeRequest(url, &resp)
 		if err != nil {
-			return 0, "", err
+			return nil, "", err
 		}
 
 		if len(resp.Result) == 0 {
-			return 0, "", fmt.Errorf("no results returned")
+			return nil, "", fmt.Errorf("no results returned")
 		}
 
 		firstTickTime, err := time.Parse(bittrexTickTimestampFormat,
 			resp.Result[0].Timestamp)
 		if err != nil {
-			return 0, "", err
+			return nil, "", err
 		}
 		if firstTickTime.After(cmd.StartOfMonth) {
 			if idx < len(bittrexTickIntervals)-1 {
@@ -97,64 +97,64 @@ func (cmd *DCRUSDCmd) getBittrexWeightedAverage(ticker string) (float64, string,
 				continue
 			}
 
-			return 0, "", fmt.Errorf("data returned is not old enough; earliest date"+
+			return nil, "", fmt.Errorf("data returned is not old enough; earliest date"+
 				" is: %v", firstTickTime)
 		}
 
 		lastTickTime, err := time.Parse(bittrexTickTimestampFormat,
 			resp.Result[len(resp.Result)-1].Timestamp)
 		if err != nil {
-			return 0, "", err
+			return nil, "", err
 		}
 		if lastTickTime.Before(cmd.EndOfMonth) {
-			return 0, "", fmt.Errorf("data returned is not old enough; latest date"+
+			return nil, "", fmt.Errorf("data returned is not old enough; latest date"+
 				" is: %v", lastTickTime)
 		}
 
-		var totalVolume float64
+		var prices []float64
 		err = cmd.iterateBittrexGetTicksResult(resp.Result, cmd.StartOfMonth,
 			cmd.EndOfMonth,
 			func(tick bittrexGetTicksResult) error {
-				totalVolume += tick.Volume
+				prices = append(prices, tick.BaseVolume/tick.Volume)
 				return nil
 			})
 		if err != nil {
-			return 0, "", err
+			return nil, "", err
 		}
 
-		var weightedAverage float64
-		err = cmd.iterateBittrexGetTicksResult(resp.Result, cmd.StartOfMonth,
-			cmd.EndOfMonth,
-			func(tick bittrexGetTicksResult) error {
-				/*
-					fmt.Printf("%v\n", tickTime)
-					fmt.Printf("  %v\n", tick.Close)
-					fmt.Printf("  %v\n", tick.Volume/totalVolume)
-				*/
-				weightedAverage += tick.Close * (tick.Volume / totalVolume)
-				return nil
-			})
-
-		return weightedAverage, tickInterval, err
+		return prices, tickInterval, err
 	}
 
-	return 0, "", fmt.Errorf("invalid code path")
+	return nil, "", fmt.Errorf("invalid code path")
 }
 
 func (cmd *DCRUSDCmd) getBittrexValue() (float64, error) {
-	btcDCRVal, btcDCRTickInterval, err := cmd.getBittrexWeightedAverage("BTC-DCR")
+	dcrBTCPrices, btcDCRTickInterval, err := cmd.getBittrexWeightedAverage("BTC-DCR")
 	if err != nil {
 		return 0, err
 	}
 
-	usdBTCVal, usdBTCTickInterval, err := cmd.getBittrexWeightedAverage("USD-BTC")
+	btcUSDPrices, usdBTCTickInterval, err := cmd.getBittrexWeightedAverage("USD-BTC")
 	if err != nil {
 		return 0, err
 	}
+
+	if len(dcrBTCPrices) != len(btcUSDPrices) {
+		return 0, fmt.Errorf("lengths are not equal: %v %v", len(dcrBTCPrices),
+			len(btcUSDPrices))
+	}
+
+	var totalPriceUSD float64
+	for idx, dcrBTCPrice := range dcrBTCPrices {
+		btcUSDPrice := btcUSDPrices[idx]
+		totalPriceUSD += dcrBTCPrice * btcUSDPrice
+	}
+
+	averagePriceUSD := totalPriceUSD / float64(len(dcrBTCPrices))
 
 	if config.Verbose {
 		fmt.Printf("Calculated Bittrex DCR-USD value using DCR-BTC (%v) and"+
 			" BTC-USD (%v)\n", btcDCRTickInterval, usdBTCTickInterval)
 	}
-	return btcDCRVal * usdBTCVal, nil
+	return averagePriceUSD, nil
 }

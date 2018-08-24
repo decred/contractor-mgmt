@@ -60,7 +60,7 @@ func (c *cmswww) GetSessionUser(r *http.Request) (*database.User, error) {
 		return nil, err
 	}
 
-	return c.db.UserGet(email)
+	return c.db.UserGetByEmail(email)
 }
 
 // setSessionUser sets the "email" session key to the provided value.
@@ -156,7 +156,7 @@ func (c *cmswww) isAdmin(r *http.Request) (bool, error) {
 
 func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	// Get user from db.
-	user, err := c.db.UserGet(l.Email)
+	user, err := c.db.UserGetByEmail(l.Email)
 	if err != nil {
 		if err == database.ErrUserNotFound {
 			return loginReplyWithError{

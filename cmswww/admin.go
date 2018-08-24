@@ -126,7 +126,7 @@ func (c *cmswww) HandleInviteNewUser(
 		expiry int64
 	)
 
-	existingUser, err := c.db.UserGet(inu.Email)
+	existingUser, err := c.db.UserGetByEmail(inu.Email)
 	if err == nil {
 		// Check if the user is already verified.
 		if existingUser.RegisterVerificationToken == nil {

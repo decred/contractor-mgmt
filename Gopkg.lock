@@ -187,6 +187,15 @@
   version = "v1.2.4"
 
 [[projects]]
+  name = "github.com/lib/pq"
+  packages = [
+    ".",
+    "oid"
+  ]
+  revision = "4ded0e9383f75c197b3a2aaa6d590ac52df6fd79"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -262,6 +271,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a0c6971d880cafc677842008ec8167ed9b16e4808525d4efe02a9cf0ec050545"
+  inputs-digest = "e4b5bb3d1f2cf725d981f842941671d96ec399d7e3a28c5095437d096fe81b5c"
   solver-name = "gps-cdcl"
   solver-version = 1

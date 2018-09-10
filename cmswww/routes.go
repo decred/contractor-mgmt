@@ -13,7 +13,7 @@ import (
 
 type routeHandlerFunc func(
 	interface{},
-	*database.User,
+	database.User,
 	http.ResponseWriter,
 	*http.Request,
 ) (interface{}, error)

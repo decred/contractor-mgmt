@@ -3,16 +3,17 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/decred/politeia/util"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
+	"github.com/decred/contractor-mgmt/cmswww/database/cockroachdb"
 )
 
 // IsUserLocked returns true if the number of failed login attempts exceeds
@@ -47,26 +48,26 @@ func (c *cmswww) getUsernameByID(idStr string) string {
 		return ""
 	}
 
-	user, err := c.db.UserGetById(id)
+	user, err := c.db.GetUserById(id)
 	if err != nil {
 		return ""
 	}
 
-	return user.Username
+	return user.Username()
 }
 
 // Performs a user lookup using id, email, or username (in that order). Email
 // lookup is only possible if the user requesting the information is an admin.
-func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (*database.User, error) {
+func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (database.User, error) {
 	var (
-		user *database.User
+		user database.User
 		err  error
 	)
 
 	if idStr != "" {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err == nil {
-			user, err = c.db.UserGetById(id)
+			user, err = c.db.GetUserById(id)
 			if err != nil && err != database.ErrUserNotFound {
 				return nil, err
 			}
@@ -74,14 +75,14 @@ func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (*databas
 	}
 
 	if user == nil && isAdmin && email != "" {
-		user, err = c.db.UserGetByEmail(email)
+		user, err = c.db.GetUserByEmail(email)
 		if err != nil && err != database.ErrUserNotFound {
 			return nil, err
 		}
 	}
 
 	if user == nil && username != "" {
-		user, err = c.db.UserGetByUsername(username)
+		user, err = c.db.GetUserByUsername(username)
 		if err != nil && err != database.ErrUserNotFound {
 			return nil, err
 		}
@@ -101,14 +102,14 @@ func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (*databas
 // hasn't expired.  On success it returns database user record.
 func (c *cmswww) HandleRegister(
 	req interface{},
-	user *database.User,
+	user database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
 	nu := req.(*v1.Register)
 
 	// Check that the user already exists.
-	user, err := c.db.UserGetByEmail(nu.Email)
+	user, err := c.db.GetUserByEmail(nu.Email)
 	if err != nil {
 		if err == database.ErrUserNotFound {
 			return nil, v1.UserError{
@@ -127,14 +128,14 @@ func (c *cmswww) HandleRegister(
 	}
 
 	// Check that the verification token matches.
-	if !bytes.Equal(token, user.RegisterVerificationToken) {
+	if !bytes.Equal(token, user.RegisterVerificationToken()) {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
 		}
 	}
 
 	// Check that the token hasn't expired.
-	if time.Now().Unix() > user.RegisterVerificationExpiry {
+	if time.Now().Unix() > user.RegisterVerificationExpiry() {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
 		}
@@ -193,22 +194,24 @@ func (c *cmswww) HandleRegister(
 	c.SetUserPubkeyAssociaton(user, nu.PublicKey)
 
 	// Update the user in the db.
-	user.RegisterVerificationToken = nil
-	user.RegisterVerificationExpiry = 0
-	user.HashedPassword = hashedPassword
-	user.Username = nu.Username
-	user.Identities = []database.Identity{{
-		Activated: time.Now().Unix(),
-	}}
-	copy(user.Identities[0].Key[:], pk)
+	user.SetRegisterVerificationTokenAndExpiry(nil, 0)
+	user.SetHashedPassword(hashedPassword)
+	user.SetUsername(nu.Username)
 
-	err = c.db.UserUpdate(user)
+	id := &cockroachdb.Identity{}
+	id.SetActivated(time.Now().Unix())
+	key := [identity.PublicKeySize]byte{}
+	copy(key[:], pk)
+	id.SetKey(key)
+	user.AddIdentity(id)
+
+	err = c.db.UpdateUser(user)
 	return &v1.RegisterReply{}, err
 }
 
 func (c *cmswww) HandleNewIdentity(
 	req interface{},
-	user *database.User,
+	user database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -230,12 +233,13 @@ func (c *cmswww) HandleNewIdentity(
 	}
 
 	// Check if the verification token hasn't expired yet.
-	if user.UpdateIdentityVerificationToken != nil {
-		if user.UpdateIdentityVerificationExpiry > time.Now().Unix() {
+	if user.UpdateIdentityVerificationToken() != nil {
+		if user.UpdateIdentityVerificationExpiry() > time.Now().Unix() {
 			return nil, v1.UserError{
 				ErrorCode: v1.ErrorStatusVerificationTokenUnexpired,
 				ErrorContext: []string{
-					strconv.FormatInt(user.UpdateIdentityVerificationExpiry, 10),
+					strconv.FormatInt(user.UpdateIdentityVerificationExpiry(),
+						10),
 				},
 			}
 		}
@@ -248,20 +252,21 @@ func (c *cmswww) HandleNewIdentity(
 	}
 
 	// Add the updated user information to the db.
-	user.UpdateIdentityVerificationToken = token
-	user.UpdateIdentityVerificationExpiry = expiry
+	user.SetUpdateIdentityVerificationTokenAndExpiry(token, expiry)
 
-	identity := database.Identity{}
-	copy(identity.Key[:], pk)
-	user.Identities = append(user.Identities, identity)
+	id := &cockroachdb.Identity{}
+	key := [identity.PublicKeySize]byte{}
+	copy(key[:], pk)
+	id.SetKey(key)
+	user.AddIdentity(id)
 
-	err = c.db.UserUpdate(user)
+	err = c.db.UpdateUser(user)
 	if err != nil {
 		return nil, err
 	}
 
 	// This is conditional on the email server being setup.
-	err = c.emailUpdateIdentityVerificationLink(user.Email, ni.PublicKey,
+	err = c.emailUpdateIdentityVerificationLink(user.Email(), ni.PublicKey,
 		hex.EncodeToString(token))
 	if err != nil {
 		return nil, err
@@ -277,7 +282,7 @@ func (c *cmswww) HandleNewIdentity(
 
 func (c *cmswww) HandleVerifyNewIdentity(
 	req interface{},
-	user *database.User,
+	user database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -292,14 +297,14 @@ func (c *cmswww) HandleVerifyNewIdentity(
 	}
 
 	// Check that the verification token matches.
-	if !bytes.Equal(token, user.UpdateIdentityVerificationToken) {
+	if !bytes.Equal(token, user.UpdateIdentityVerificationToken()) {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
 		}
 	}
 
 	// Check that the token hasn't expired.
-	if user.UpdateIdentityVerificationExpiry < time.Now().Unix() {
+	if user.UpdateIdentityVerificationExpiry() < time.Now().Unix() {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
 		}
@@ -313,8 +318,9 @@ func (c *cmswww) HandleVerifyNewIdentity(
 		}
 	}
 
-	id := user.Identities[len(user.Identities)-1]
-	pi, err := identity.PublicIdentityFromBytes(id.Key[:])
+	id := user.MostRecentIdentity()
+	key := id.Key()
+	pi, err := identity.PublicIdentityFromBytes(key[:])
 	if err != nil {
 		return nil, err
 	}
@@ -330,19 +336,18 @@ func (c *cmswww) HandleVerifyNewIdentity(
 
 	// Clear out the verification token fields in the db and activate
 	// the key and deactivate the one it's replacing.
-	user.UpdateIdentityVerificationToken = nil
-	user.UpdateIdentityVerificationExpiry = 0
+	user.SetUpdateIdentityVerificationTokenAndExpiry(nil, 0)
 
 	t := time.Now().Unix()
-	for k, v := range user.Identities {
-		if v.Deactivated == 0 {
-			user.Identities[k].Deactivated = t
+	for _, v := range user.Identities() {
+		if v.Deactivated() == 0 {
+			v.SetDeactivated(t)
 			break
 		}
 	}
-	user.Identities[len(user.Identities)-1].Activated = t
-	user.Identities[len(user.Identities)-1].Deactivated = 0
-	err = c.db.UserUpdate(user)
+	user.MostRecentIdentity().SetActivated(t)
+	user.MostRecentIdentity().SetDeactivated(0)
+	err = c.db.UpdateUser(user)
 
 	return &v1.VerifyNewIdentityReply{}, err
 }

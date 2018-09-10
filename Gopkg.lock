@@ -3,12 +3,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/aead/siphash"
-  packages = ["."]
-  revision = "e404fcfc888570cadd1610538e2dbc89f66af814"
-
-[[projects]]
-  branch = "master"
   name = "github.com/agl/ed25519"
   packages = [
     ".",
@@ -47,6 +41,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/dchest/siphash"
+  packages = ["."]
+  revision = "ca249f45189071f5d44dc6401334e3572037b9cb"
+  version = "v1.2.0"
+
+[[projects]]
   name = "github.com/decred/base58"
   packages = ["."]
   revision = "56c501706f00d9e1cfacee19a27117e12da24734"
@@ -80,7 +80,7 @@
     "txscript",
     "wire"
   ]
-  revision = "0761de12916497978979be6370d794625b518dfc"
+  revision = "2a18beb4d56fe59d614a7309308d84891a0cba96"
 
 [[projects]]
   branch = "master"
@@ -106,7 +106,7 @@
     "wallet/txrules",
     "wallet/udb"
   ]
-  revision = "30d1c0259fc7d6dce966ad5a1430061d99df6776"
+  revision = "1e222370caf1ace11dff37b5a426b409d7e4d971"
 
 [[projects]]
   branch = "master"
@@ -118,19 +118,13 @@
     "politeiawww/api/v1",
     "util"
   ]
-  revision = "09f4d067e6712d7a167594771495017b6a347926"
+  revision = "a6670587bec450f0d80ea713df1d05d1aa9ceb62"
 
 [[projects]]
   name = "github.com/decred/slog"
   packages = ["."]
   revision = "fbd821ef791ba2b8ae945f5d44f4e49396d230c5"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/golang/snappy"
-  packages = ["."]
-  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
   name = "github.com/gorilla/context"
@@ -203,25 +197,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/syndtr/goleveldb"
-  packages = [
-    "leveldb",
-    "leveldb/cache",
-    "leveldb/comparer",
-    "leveldb/errors",
-    "leveldb/filter",
-    "leveldb/iterator",
-    "leveldb/journal",
-    "leveldb/memdb",
-    "leveldb/opt",
-    "leveldb/storage",
-    "leveldb/table",
-    "leveldb/util"
-  ]
-  revision = "c4c61651e9e37fa117f53c5a906d3b63090d8445"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
@@ -271,6 +246,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e4b5bb3d1f2cf725d981f842941671d96ec399d7e3a28c5095437d096fe81b5c"
+  inputs-digest = "fd43af79fd065860bb49cf37f5e9b16938156f317cb4fb62c82ce60598beeeca"
   solver-name = "gps-cdcl"
   solver-version = 1

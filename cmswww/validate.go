@@ -37,7 +37,7 @@ func createUsernameRegex() string {
 }
 
 // checkPublicKeyAndSignature validates the public key and signature.
-func checkPublicKeyAndSignature(user *database.User, publicKey string, signature string, elements ...string) error {
+func checkPublicKeyAndSignature(user database.User, publicKey string, signature string, elements ...string) error {
 	id, err := checkPublicKey(user, publicKey)
 	if err != nil {
 		return err
@@ -48,8 +48,8 @@ func checkPublicKeyAndSignature(user *database.User, publicKey string, signature
 
 // checkPublicKey compares the supplied public key against the one stored in
 // the user database. It will return the active identity if there are no errors.
-func checkPublicKey(user *database.User, pk string) ([]byte, error) {
-	id, ok := database.ActiveIdentity(user.Identities)
+func checkPublicKey(user database.User, pk string) ([]byte, error) {
+	id, ok := database.ActiveIdentity(user.Identities())
 	if !ok {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusNoPublicKey,
@@ -89,7 +89,7 @@ func checkSignature(id []byte, signature string, elements ...string) error {
 	return nil
 }
 
-func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
+func validateInvoice(ni *v1.SubmitInvoice, user database.User) error {
 	log.Tracef("validateInvoice")
 
 	// Obtain signature
@@ -135,12 +135,12 @@ func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 }
 
 // Invoices should only be viewable by admins and the users who submit them.
-func validateUserCanSeeInvoice(invoice *v1.InvoiceRecord, user *database.User) error {
+func validateUserCanSeeInvoice(invoice *v1.InvoiceRecord, user database.User) error {
 	authorID, err := strconv.ParseUint(invoice.UserID, 10, 64)
 	if err != nil {
 		return err
 	}
-	if user == nil || (!user.Admin && user.ID != authorID) {
+	if user == nil || (!user.Admin() && user.ID() != authorID) {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvoiceNotFound,
 		}
@@ -178,7 +178,7 @@ func validatePubkey(publicKey string) ([]byte, error) {
 	return pk, nil
 }
 
-func (c *cmswww) validateUsername(username string, userToMatch *database.User) error {
+func (c *cmswww) validateUsername(username string, userToMatch database.User) error {
 	if len(username) < v1.PolicyMinUsernameLength ||
 		len(username) > v1.PolicyMaxUsernameLength {
 		log.Tracef("Username not within bounds: %s", username)
@@ -194,12 +194,12 @@ func (c *cmswww) validateUsername(username string, userToMatch *database.User) e
 		}
 	}
 
-	user, err := c.db.UserGetByUsername(username)
-	if err != nil {
+	user, err := c.db.GetUserByUsername(username)
+	if err != nil && err != database.ErrUserNotFound {
 		return err
 	}
 	if user != nil {
-		if userToMatch == nil || user.ID != userToMatch.ID {
+		if userToMatch == nil || user.ID() != userToMatch.ID() {
 			return v1.UserError{
 				ErrorCode: v1.ErrorStatusDuplicateUsername,
 			}
@@ -209,7 +209,7 @@ func (c *cmswww) validateUsername(username string, userToMatch *database.User) e
 	return nil
 }
 
-func (c *cmswww) validatePubkeyIsUnique(publicKey string, user *database.User) error {
+func (c *cmswww) validatePubkeyIsUnique(publicKey string, user database.User) error {
 	c.RLock()
 	userIDStr, ok := c.userPubkeys[publicKey]
 	c.RUnlock()
@@ -223,7 +223,7 @@ func (c *cmswww) validatePubkeyIsUnique(publicKey string, user *database.User) e
 		return err
 	}
 
-	if user != nil && user.ID == userID {
+	if user != nil && user.ID() == userID {
 		return nil
 	}
 

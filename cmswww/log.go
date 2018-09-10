@@ -41,14 +41,14 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	log        = backendLog.Logger("CWWW")
-	localdbLog = backendLog.Logger("LODB")
+	log            = backendLog.Logger("CWWW")
+	cockroachdbLog = backendLog.Logger("CRDB")
 )
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]slog.Logger{
 	"CWWW": log,
-	"LODB": localdbLog,
+	"CRDB": cockroachdbLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

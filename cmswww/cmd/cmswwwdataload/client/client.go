@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -37,11 +38,50 @@ func (c *Client) ExecuteCommand(args ...string) *exec.Cmd {
 	return exec.Command(args[0], args[1:]...)
 }
 
+func (c *Client) PerformErrorHandling(cmd *exec.Cmd, stderr io.ReadCloser) error {
+	errBytes, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return err
+	}
+
+	if len(errBytes) > 0 {
+		return fmt.Errorf("unexpected error output: %v",
+			strings.TrimSpace(string(errBytes)))
+	}
+
+	return nil
+}
+
+func (c *Client) ExecuteCommandWithErrorHandling(args ...string) (*exec.Cmd, error) {
+	cmd := c.ExecuteCommand(args...)
+
+	stderr, _ := cmd.StderrPipe()
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	defer cmd.Wait()
+
+	err := c.PerformErrorHandling(cmd, stderr)
+	if err != nil {
+		return nil, err
+	}
+
+	return cmd, nil
+}
+
 func (c *Client) ExecuteCommandAndWait(args ...string) error {
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := c.ExecuteCommand(args...)
+
+	stderr, _ := cmd.StderrPipe()
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+
+	err := c.PerformErrorHandling(cmd, stderr)
+	if err != nil {
+		return err
+	}
+
 	return cmd.Wait()
 }
 
@@ -228,7 +268,7 @@ func (c *Client) RegisterUser(email, username, password, token string) error {
 
 func (c *Client) CreateAdminUser(email, username, password string) error {
 	fmt.Printf("Creating admin user: %v\n", c.cfg.AdminEmail)
-	return c.ExecuteCommandAndWait(
+	_, err := c.ExecuteCommandWithErrorHandling(
 		dbutil,
 		"-testnet",
 		"-createadmin",
@@ -236,4 +276,15 @@ func (c *Client) CreateAdminUser(email, username, password string) error {
 		username,
 		password,
 	)
+	return err
+}
+
+func (c *Client) DeleteAllData() error {
+	_, err := c.ExecuteCommandWithErrorHandling(
+		dbutil,
+		"-testnet",
+		"-deletedata",
+		"i-understand-the-risks-of-this-action",
+	)
+	return err
 }

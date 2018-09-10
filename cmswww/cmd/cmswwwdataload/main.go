@@ -11,6 +11,7 @@ import (
 
 	cliconfig "github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 	wwwconfig "github.com/decred/contractor-mgmt/cmswww/sharedconfig"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwdataload/client"
@@ -41,7 +42,8 @@ func waitForStartOfDay(out io.Reader) {
 func startCmswww() error {
 	fmt.Printf("Starting cmswww\n")
 	cmswwwCmd = c.CreateCmswwwCmd()
-	out, _ := cmswwwCmd.StdoutPipe()
+
+	stdout, _ := cmswwwCmd.StdoutPipe()
 	if err := cmswwwCmd.Start(); err != nil {
 		cmswwwCmd = nil
 		return err
@@ -52,9 +54,9 @@ func startCmswww() error {
 		return err
 	}
 
-	reader := io.TeeReader(out, logFile)
+	reader := io.TeeReader(stdout, logFile)
 	waitForStartOfDay(reader)
-	go io.Copy(logFile, out)
+	go io.Copy(logFile, stdout)
 
 	// Get the version for the csrf
 	return c.Version()
@@ -134,12 +136,19 @@ func deleteExistingData() error {
 	}
 
 	// cmswww data dir
-	if err := os.RemoveAll(wwwconfig.DefaultDataDir); err != nil {
+	testnetDataDir := filepath.Join(wwwconfig.DefaultDataDir,
+		chaincfg.TestNet3Params.Name)
+	os.RemoveAll(filepath.Join(testnetDataDir, "sessions"))
+	os.Remove(filepath.Join(testnetDataDir, "csrf.key"))
+
+	// cmswww db
+	if err := c.DeleteAllData(); err != nil {
 		return err
 	}
 
 	// cmswww cli dir
-	return os.RemoveAll(cliconfig.HomeDir)
+	os.RemoveAll(cliconfig.HomeDir)
+	return nil
 }
 
 func stopPoliteiad() {

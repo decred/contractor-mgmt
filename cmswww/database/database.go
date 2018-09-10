@@ -26,25 +26,75 @@ var (
 	ErrShutdown = errors.New("database is shutting down")
 )
 
-// Identity wraps an ed25519 public key and timestamps to indicate if it is
-// active.  If deactivated != 0 then the key is no longer valid.
-type Identity struct {
-	Key         [identity.PublicKeySize]byte // ed25519 public key
-	Activated   int64                        // Time key as activated for use
-	Deactivated int64                        // Time key was deactivated
+// Database interface that is required by the web server.
+type Database interface {
+	// User functions
+	GetUserByEmail(string) (User, error)    // Return user record given the email address
+	GetUserByUsername(string) (User, error) // Return user record given the username
+	GetUserById(uint64) (User, error)       // Return user record given its id
+	NewUser(User) error                     // Add new user
+	UpdateUser(User) error                  // Update existing user
+	AllUsers(callbackFn func(u User)) error // Iterate all users
+	DeleteAllData() error                   // Delete all data from all tables
+
+	// Close performs cleanup of the backend.
+	Close() error
 }
 
-// IsIdentityActive returns true if the identity is active, false otherwise
-func IsIdentityActive(id Identity) bool {
-	return id.Activated != 0 && id.Deactivated == 0
+// User record.
+type User interface {
+	ID() uint64
+	SetID(uint64)
+	Email() string
+	SetEmail(string)
+	Username() string
+	SetUsername(string)
+	HashedPassword() []byte
+	SetHashedPassword([]byte)
+	Admin() bool
+	SetAdmin(bool)
+
+	// Register Verification Token & Expiry
+	RegisterVerificationToken() []byte
+	RegisterVerificationExpiry() int64
+	SetRegisterVerificationTokenAndExpiry([]byte, int64)
+
+	// Update Identity Verification Token & Expiry
+	UpdateIdentityVerificationToken() []byte
+	UpdateIdentityVerificationExpiry() int64
+	SetUpdateIdentityVerificationTokenAndExpiry([]byte, int64)
+
+	LastLogin() int64
+	SetLastLogin(int64)
+	FailedLoginAttempts() uint64
+	SetFailedLoginAttempts(uint64)
+
+	AddIdentity(Identity)
+	RemoveIdentity(Identity)
+	Identities() []Identity
+	MostRecentIdentity() Identity
+}
+
+// Identity wraps an ed25519 public key and timestamps to indicate if it is
+// active.  If deactivated != 0 then the key is no longer valid.
+type Identity interface {
+	Key() [identity.PublicKeySize]byte // ed25519 public key
+	SetKey([identity.PublicKeySize]byte)
+	Activated() int64 // Time key as activated for use
+	SetActivated(int64)
+	Deactivated() int64 // Time key was deactivated
+	SetDeactivated(int64)
+
+	IsActive() bool
+	EncodedKey() string
 }
 
 // ActiveIdentity returns a the current active key.  If there is no active
 // valid key the call returns all 0s and false.
 func ActiveIdentity(i []Identity) ([identity.PublicKeySize]byte, bool) {
 	for _, v := range i {
-		if IsIdentityActive(v) {
-			return v.Key, true
+		if v.IsActive() {
+			return v.Key(), true
 		}
 	}
 
@@ -56,38 +106,4 @@ func ActiveIdentity(i []Identity) ([identity.PublicKeySize]byte, bool) {
 func ActiveIdentityString(i []Identity) (string, bool) {
 	key, ok := ActiveIdentity(i)
 	return hex.EncodeToString(key[:]), ok
-}
-
-// User record.
-type User struct {
-	ID                               uint64 // Unique id
-	Email                            string // Email address + lookup key.
-	Username                         string // Unique username
-	HashedPassword                   []byte // Blowfish hash
-	Admin                            bool   // Is user an admin
-	RegisterVerificationToken        []byte // Verification token during signup
-	RegisterVerificationExpiry       int64  // Verification expiration
-	UpdateIdentityVerificationToken  []byte // Verification token when creating a new identity
-	UpdateIdentityVerificationExpiry int64  // Verification expiration
-	LastLogin                        int64  // Unix timestamp of when the user last logged in
-	FailedLoginAttempts              uint64 // Number of failed login a user has made in a row
-
-	// All identities the user has ever used.  User should only have one
-	// active key at a time.  We allow multiples in order to deal with key
-	// loss.
-	Identities []Identity
-}
-
-// Database interface that is required by the web server.
-type Database interface {
-	// User functions
-	UserGetByEmail(string) (*User, error)    // Return user record given the email address
-	UserGetByUsername(string) (*User, error) // Return user record given the username
-	UserGetById(uint64) (*User, error)       // Return user record given its id
-	UserNew(*User) error                     // Add new user
-	UserUpdate(*User) error                  // Update existing user
-	AllUsers(callbackFn func(u *User)) error // Iterate all users
-
-	// Close performs cleanup of the backend.
-	Close() error
 }

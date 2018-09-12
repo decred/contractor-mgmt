@@ -169,6 +169,21 @@
   version = "v1.4.0"
 
 [[projects]]
+  name = "github.com/jinzhu/gorm"
+  packages = [
+    ".",
+    "dialects/postgres"
+  ]
+  revision = "6ed508ec6a4ecb3531899a69cbc746ccf65a4166"
+  version = "v1.9.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jinzhu/inflection"
+  packages = ["."]
+  revision = "04140366298a54a039076d798123ffa108fff46c"
+
+[[projects]]
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
@@ -184,6 +199,7 @@
   name = "github.com/lib/pq"
   packages = [
     ".",
+    "hstore",
     "oid"
   ]
   revision = "4ded0e9383f75c197b3a2aaa6d590ac52df6fd79"
@@ -246,6 +262,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fd43af79fd065860bb49cf37f5e9b16938156f317cb4fb62c82ce60598beeeca"
+  inputs-digest = "fd1a79b136e5abd6413da6a6097b19931b4c45e4088d32d96ca5b1c1dbc6f5b7"
   solver-name = "gps-cdcl"
   solver-version = 1

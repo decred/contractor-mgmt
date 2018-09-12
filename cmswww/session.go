@@ -53,7 +53,7 @@ func (c *cmswww) GetSessionEmail(r *http.Request) (string, error) {
 }
 
 // GetSessionUser retrieves the current session user from the database.
-func (c *cmswww) GetSessionUser(r *http.Request) (database.User, error) {
+func (c *cmswww) GetSessionUser(r *http.Request) (*database.User, error) {
 	log.Tracef("GetSessionUser")
 	email, err := c.GetSessionEmail(r)
 	if err != nil {
@@ -154,7 +154,7 @@ func (c *cmswww) isAdmin(r *http.Request) (bool, error) {
 		return false, err
 	}
 
-	return user.Admin(), nil
+	return user.Admin, nil
 }
 
 func (c *cmswww) login(l *v1.Login) loginReplyWithError {
@@ -176,7 +176,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	}
 
 	// Check that the user is verified.
-	if user.RegisterVerificationToken() != nil {
+	if user.RegisterVerificationToken != nil {
 		return loginReplyWithError{
 			reply: nil,
 			err: v1.UserError{
@@ -186,11 +186,11 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	}
 
 	// Check the user's password.
-	err = bcrypt.CompareHashAndPassword(user.HashedPassword(),
+	err = bcrypt.CompareHashAndPassword(user.HashedPassword,
 		[]byte(l.Password))
 	if err != nil {
-		if !IsUserLocked(user.FailedLoginAttempts()) {
-			user.SetFailedLoginAttempts(user.FailedLoginAttempts() + 1)
+		if !IsUserLocked(user.FailedLoginAttempts) {
+			user.FailedLoginAttempts = user.FailedLoginAttempts + 1
 			err := c.db.UpdateUser(user)
 			if err != nil {
 				return loginReplyWithError{
@@ -200,9 +200,9 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 			}
 
 			// Check if the user is locked again so we can send an email.
-			if IsUserLocked(user.FailedLoginAttempts()) {
+			if IsUserLocked(user.FailedLoginAttempts) {
 				// This is conditional on the email server being setup.
-				err := c.emailUserLocked(user.Email())
+				err := c.emailUserLocked(user.Email)
 				if err != nil {
 					return loginReplyWithError{
 						reply: nil,
@@ -221,7 +221,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	}
 
 	// Check if user is locked due to too many login attempts
-	if IsUserLocked(user.FailedLoginAttempts()) {
+	if IsUserLocked(user.FailedLoginAttempts) {
 		return loginReplyWithError{
 			reply: nil,
 			err: v1.UserError{
@@ -230,9 +230,9 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 		}
 	}
 
-	lastLogin := user.LastLogin()
-	user.SetFailedLoginAttempts(0)
-	user.SetLastLogin(time.Now().Unix())
+	lastLogin := user.LastLogin
+	user.FailedLoginAttempts = 0
+	user.LastLogin = time.Now().Unix()
 	err = c.db.UpdateUser(user)
 	if err != nil {
 		return loginReplyWithError{
@@ -252,7 +252,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 // the correct password.
 func (c *cmswww) HandleLogin(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -294,17 +294,17 @@ func (c *cmswww) HandleLogin(
 	return loginReply.reply, loginReply.err
 }
 
-func (c *cmswww) CreateLoginReply(user database.User, lastLogin int64) (*v1.LoginReply, error) {
-	activeIdentity, ok := database.ActiveIdentityString(user.Identities())
+func (c *cmswww) CreateLoginReply(user *database.User, lastLogin int64) (*v1.LoginReply, error) {
+	activeIdentity, ok := database.ActiveIdentityString(user.Identities)
 	if !ok {
 		activeIdentity = ""
 	}
 
 	reply := v1.LoginReply{
-		IsAdmin:   user.Admin(),
-		UserID:    strconv.FormatUint(user.ID(), 10),
-		Email:     user.Email(),
-		Username:  user.Username(),
+		IsAdmin:   user.Admin,
+		UserID:    strconv.FormatUint(user.ID, 10),
+		Email:     user.Email,
+		Username:  user.Username,
 		PublicKey: activeIdentity,
 		LastLogin: lastLogin,
 	}

@@ -20,10 +20,10 @@ func (c *cmswww) InitUserPubkeys() error {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.db.AllUsers(func(u database.User) {
-		id := strconv.FormatUint(u.ID(), 10)
-		for _, v := range u.Identities() {
-			key := v.Key()
+	return c.db.AllUsers(func(u *database.User) {
+		id := strconv.FormatUint(u.ID, 10)
+		for _, v := range u.Identities {
+			key := v.Key
 			encodedKey := hex.EncodeToString(key[:])
 			c.userPubkeys[encodedKey] = id
 		}
@@ -72,18 +72,18 @@ func (c *cmswww) RemoteIdentity() error {
 // the userPubkeys cache.
 //
 // This function must be called WITHOUT the lock held.
-func (c *cmswww) SetUserPubkeyAssociaton(user database.User, publicKey string) {
+func (c *cmswww) SetUserPubkeyAssociaton(user *database.User, publicKey string) {
 	c.Lock()
 	defer c.Unlock()
 
-	c.userPubkeys[publicKey] = strconv.FormatUint(user.ID(), 10)
+	c.userPubkeys[publicKey] = strconv.FormatUint(user.ID, 10)
 }
 
 // RemoveUserPubkeyAssociaton removes a public key from the
 // userPubkeys cache.
 //
 // This function must be called WITHOUT the lock held.
-func (c *cmswww) RemoveUserPubkeyAssociaton(user database.User, publicKey string) {
+func (c *cmswww) RemoveUserPubkeyAssociaton(user *database.User, publicKey string) {
 	c.Lock()
 	defer c.Unlock()
 

@@ -18,7 +18,7 @@ import (
 // HandleInvoices returns an array of all invoices.
 func (c *cmswww) HandleInvoices(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -43,7 +43,7 @@ func (c *cmswww) HandleInvoices(
 // HandleMyInvoices returns an array of user's invoices.
 func (c *cmswww) HandleMyInvoices(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -58,7 +58,7 @@ func (c *cmswww) HandleMyInvoices(
 		Invoices: c.getInvoices(invoicesRequest{
 			//After:  ui.After,
 			//Before: ui.Before,
-			UserID:    strconv.FormatUint(user.ID(), 10),
+			UserID:    strconv.FormatUint(user.ID, 10),
 			StatusMap: statusMap,
 		}),
 	}, nil
@@ -68,7 +68,7 @@ func (c *cmswww) HandleMyInvoices(
 // from unreviewed to either published or rejected.
 func (c *cmswww) HandleSetInvoiceStatus(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -102,7 +102,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	}
 
 	var ok bool
-	changes.AdminPublicKey, ok = database.ActiveIdentityString(user.Identities())
+	changes.AdminPublicKey, ok = database.ActiveIdentityString(user.Identities)
 	if !ok {
 		return nil, fmt.Errorf("invalid admin identity: %v",
 			user.ID)
@@ -162,7 +162,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 // politeiad.
 func (c *cmswww) HandleInvoiceDetails(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
@@ -257,7 +257,7 @@ func (c *cmswww) HandleInvoiceDetails(
 // HandleSubmitInvoice handles the incoming new invoice command.
 func (c *cmswww) HandleSubmitInvoice(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {

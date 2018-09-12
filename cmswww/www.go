@@ -158,7 +158,7 @@ func (c *cmswww) HandleVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the session user, if present, and add it to the reply.
-	var user database.User
+	var user *database.User
 	if !replacedSession {
 		user, err = c.GetSessionUser(r)
 		if err != nil && err != database.ErrUserNotFound {
@@ -169,7 +169,7 @@ func (c *cmswww) HandleVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user != nil {
-		vr.User, err = c.CreateLoginReply(user, user.LastLogin())
+		vr.User, err = c.CreateLoginReply(user, user.LastLogin)
 		if err != nil {
 			RespondWithError(w, r, 0,
 				"HandleVersion: CreateLoginReply %v", err)
@@ -194,7 +194,7 @@ func (c *cmswww) HandleVersion(w http.ResponseWriter, r *http.Request) {
 // handlePolicy returns details on how to interact with the server.
 func (c *cmswww) HandlePolicy(
 	req interface{},
-	user database.User,
+	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {

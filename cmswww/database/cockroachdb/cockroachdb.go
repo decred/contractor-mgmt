@@ -1,29 +1,27 @@
 package cockroachdb
 
 import (
-	"database/sql"
 	"fmt"
 	"net/url"
 	"path/filepath"
 	"sync"
 
 	"github.com/badoux/checkmail"
-	_ "github.com/lib/pq"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
 var (
 	_ database.Database = (*cockroachdb)(nil)
-	_ database.User     = (*User)(nil)
-	_ database.Identity = (*Identity)(nil)
 )
 
 // cockroachdb implements the database interface.
 type cockroachdb struct {
 	sync.RWMutex
 	shutdown bool // Backend is shutdown
-	db       *sql.DB
+	db       *gorm.DB
 }
 
 // Version contains the database version.
@@ -32,25 +30,7 @@ type Version struct {
 	Time    int64  `json:"time"`    // Time of record creation
 }
 
-func execute(db *sql.DB, query string, values ...interface{}) (sql.Result, error) {
-	log.Debugf("Exec: %v\nValues: %v", query, values)
-	return db.Exec(query, values...)
-}
-
-func (c *cockroachdb) execute(query string, values ...interface{}) (sql.Result, error) {
-	return execute(c.db, query, values...)
-}
-
-func (c *cockroachdb) query(query string, values ...interface{}) (*sql.Rows, error) {
-	log.Debugf("Query: %v\nValues: %v", query, values)
-	return c.db.Query(query, values...)
-}
-
-func (c *cockroachdb) queryRow(query string, values ...interface{}) *sql.Row {
-	log.Debugf("Query Row: %v\nValues: %v", query, values)
-	return c.db.QueryRow(query, values...)
-}
-
+/*
 func (c *cockroachdb) getUserByQuery(query string, args ...interface{}) (database.User, error) {
 	rows, err := c.query(query, args...)
 	if err != nil {
@@ -90,11 +70,11 @@ func (c *cockroachdb) getUserByQuery(query string, args ...interface{}) (databas
 
 	return dbu, nil
 }
-
+*/
 // Store new user.
 //
 // NewUser satisfies the backend interface.
-func (c *cockroachdb) NewUser(dbu database.User) error {
+func (c *cockroachdb) NewUser(dbUser *database.User) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -102,46 +82,22 @@ func (c *cockroachdb) NewUser(dbu database.User) error {
 		return database.ErrShutdown
 	}
 
-	u, err := databaseUserToUser(dbu)
-	if err != nil {
-		return err
-	}
+	user := EncodeUser(dbUser)
 
-	log.Debugf("NewUser: %v", u.email)
+	log.Debugf("NewUser: %v", user.Email)
 
-	if err := checkmail.ValidateFormat(u.email); err != nil {
+	if err := checkmail.ValidateFormat(user.Email); err != nil {
 		return database.ErrInvalidEmail
 	}
 
-	variablesClause, valuesClause, values, err := EncodeUserForCreate(u)
-	if err != nil {
-		return err
-	}
-
-	query := fmt.Sprintf(templateInsertUser, variablesClause, valuesClause)
-	row := c.queryRow(query, values...)
-	err = row.Scan(&u.id)
-	if err != nil {
-		return err
-	}
-
-	for _, id := range u.identities {
-		variablesClause, valuesClause, values = EncodeIdentityForCreate(u.id, id)
-		query := fmt.Sprintf(templateInsertIdentity, variablesClause, valuesClause)
-		_, err := c.execute(query, values...)
-		if err != nil {
-			return err
-		}
-	}
-
-	u.resetModifiedFlags()
+	c.db.Create(user)
 	return nil
 }
 
 // Update an existing user.
 //
 // UpdateUser satisfies the backend interface.
-func (c *cockroachdb) UpdateUser(dbu database.User) error {
+func (c *cockroachdb) UpdateUser(dbUser *database.User) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -149,77 +105,18 @@ func (c *cockroachdb) UpdateUser(dbu database.User) error {
 		return database.ErrShutdown
 	}
 
-	u, err := databaseUserToUser(dbu)
-	if err != nil {
-		return err
-	}
+	user := EncodeUser(dbUser)
 
-	log.Debugf("UpdateUser: %v", u.email)
+	log.Debugf("UpdateUser: %v", user.Email)
 
-	expressions, whereClause, values, err := EncodeUserForUpdate(u)
-	if err != nil {
-		return err
-	}
-
-	if len(expressions) > 0 {
-		query := fmt.Sprintf(templateUpdateUser, expressions, whereClause)
-		_, err = c.execute(query, values...)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Delete any removed identities.
-	for _, id := range u.identitiesRemoved {
-		// Delete the identity from the database.
-		whereClause, values := EncodeIdentityForDelete(u.id, id)
-		query := fmt.Sprintf(templateDeleteIdentity, whereClause)
-		_, err := c.execute(query, values...)
-		if err != nil {
-			return err
-		}
-
-		// Remove the identity from the in-memory array.
-		idx := getIdentityIdx(id, u.identities)
-		if idx >= 0 {
-			u.identities = remove(u.identities, idx)
-		}
-	}
-
-	// Update any modified identities.
-	for _, id := range u.identities {
-		expressions, whereClause, values := EncodeIdentityForUpdate(u.id, id)
-		if len(expressions) == 0 {
-			continue
-		}
-
-		query := fmt.Sprintf(templateUpdateIdentity, expressions, whereClause)
-		_, err = c.execute(query, values...)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Add any new identities.
-	for _, id := range u.identitiesAdded {
-		variablesClause, valuesClause, values := EncodeIdentityForCreate(u.id, id)
-		query := fmt.Sprintf(templateInsertIdentity, variablesClause, valuesClause)
-		_, err := c.execute(query, values...)
-		if err != nil {
-			return err
-		}
-
-		u.identities = append(u.identities, id)
-	}
-
-	u.resetModifiedFlags()
-	return err
+	c.db.Save(user)
+	return nil
 }
 
 // UserGet returns a user record if found in the database.
 //
 // UserGet satisfies the backend interface.
-func (c *cockroachdb) GetUserByEmail(email string) (database.User, error) {
+func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -227,13 +124,22 @@ func (c *cockroachdb) GetUserByEmail(email string) (database.User, error) {
 		return nil, database.ErrShutdown
 	}
 
-	return c.getUserByQuery(templateGetUserByEmail, email)
+	var user User
+	result := c.db.Where("email = ?", email).Preload("Identities").First(&user)
+	if result.Error != nil {
+		if gorm.IsRecordNotFoundError(result.Error) {
+			return nil, database.ErrUserNotFound
+		}
+		return nil, result.Error
+	}
+
+	return DecodeUser(&user)
 }
 
 // UserGetByUsername returns a user record given its username, if found in the database.
 //
 // UserGetByUsername satisfies the backend interface.
-func (c *cockroachdb) GetUserByUsername(username string) (database.User, error) {
+func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -241,13 +147,22 @@ func (c *cockroachdb) GetUserByUsername(username string) (database.User, error) 
 		return nil, database.ErrShutdown
 	}
 
-	return c.getUserByQuery(templateGetUserByUsername, username)
+	var user User
+	result := c.db.Where("username = ?", username).Preload("Identities").First(&user)
+	if result.Error != nil {
+		if gorm.IsRecordNotFoundError(result.Error) {
+			return nil, database.ErrUserNotFound
+		}
+		return nil, result.Error
+	}
+
+	return DecodeUser(&user)
 }
 
 // UserGetById returns a user record given its id, if found in the database.
 //
 // UserGetById satisfies the backend interface.
-func (c *cockroachdb) GetUserById(id uint64) (database.User, error) {
+func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -255,13 +170,22 @@ func (c *cockroachdb) GetUserById(id uint64) (database.User, error) {
 		return nil, database.ErrShutdown
 	}
 
-	return c.getUserByQuery(templateGetUserByID, id)
+	var user User
+	result := c.db.Preload("Identities").First(&user, id)
+	if result.Error != nil {
+		if gorm.IsRecordNotFoundError(result.Error) {
+			return nil, database.ErrUserNotFound
+		}
+		return nil, result.Error
+	}
+
+	return DecodeUser(&user)
 }
 
 // Executes a callback on every user in the database.
 //
 // AllUsers satisfies the backend interface.
-func (c *cockroachdb) AllUsers(callbackFn func(u database.User)) error {
+func (c *cockroachdb) AllUsers(callbackFn func(u *database.User)) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -271,23 +195,16 @@ func (c *cockroachdb) AllUsers(callbackFn func(u database.User)) error {
 
 	log.Debugf("AllUsers\n")
 
-	rows, err := c.query(templateGetAllUsers)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+	var users []User
+	c.db.Find(&users)
 
-	for {
-		user, err := DecodeUser(rows)
+	for _, user := range users {
+		dbUser, err := DecodeUser(&user)
 		if err != nil {
 			return err
 		}
 
-		if user == nil {
-			break
-		}
-
-		callbackFn(user)
+		callbackFn(dbUser)
 	}
 
 	return nil
@@ -306,9 +223,8 @@ func (c *cockroachdb) DeleteAllData() error {
 
 	log.Debugf("DeleteAllData\n")
 
-	_, err := c.execute(templateDropIdentityTable)
-	_, err = c.execute(templateDropUsersTable)
-	return err
+	c.db.DropTableIfExists(&User{}, &Identity{})
+	return nil
 }
 
 // Close shuts down the database.  All interface functions MUST return with
@@ -321,18 +237,6 @@ func (c *cockroachdb) Close() error {
 
 	c.shutdown = true
 	return c.db.Close()
-}
-
-func createSchema(db *sql.DB) error {
-	if _, err := execute(db, templateCreateUserTable); err != nil {
-		return fmt.Errorf("error connecting to the database: %v", err)
-	}
-
-	if _, err := execute(db, templateCreateIdentityTable); err != nil {
-		return fmt.Errorf("error connecting to the database: %v", err)
-	}
-
-	return nil
 }
 
 // New creates a new cockroachdb instance.
@@ -351,17 +255,15 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 	dataSource := fmt.Sprintf("postgresql://%v@%v/%v?%v", username, host,
 		dbName, v.Encode())
 
-	// TODO: add migration support & versioning?
-	// https://github.com/golang-migrate/migrate#use-in-your-go-project
-	db, err := sql.Open("postgres", dataSource)
+	db, err := gorm.Open("postgres", dataSource)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to the database: %v", err)
 	}
 
-	err = createSchema(db)
-	if err != nil {
-		return nil, err
-	}
+	db.AutoMigrate(
+		&User{},
+		&Identity{},
+	)
 
 	cdb := cockroachdb{
 		db: db,

@@ -31,9 +31,9 @@ var (
 	db                         database.Database
 )
 
-func dumpUser(user database.User) {
-	fmt.Printf("Key    : %v\n", hex.EncodeToString([]byte(user.Email())))
-	fmt.Printf("Record : %v", spew.Sdump(*(user.(*cockroachdb.User))))
+func dumpUser(user *database.User) {
+	fmt.Printf("Key    : %v\n", hex.EncodeToString([]byte(user.Email)))
+	fmt.Printf("Record : %v", spew.Sdump(*user))
 	fmt.Printf("---------------------------------------\n")
 }
 
@@ -56,7 +56,7 @@ func dumpUserAction() error {
 	}
 
 	fmt.Printf("---------------------------------------\n")
-	return db.AllUsers(func(user database.User) {
+	return db.AllUsers(func(user *database.User) {
 		dumpUser(user)
 	})
 }
@@ -89,11 +89,11 @@ func createAdminUserAction() error {
 		return err
 	}
 
-	user := &cockroachdb.User{}
-	user.SetEmail(args[0])
-	user.SetUsername(args[1])
-	user.SetHashedPassword(hashedPassword)
-	user.SetAdmin(true)
+	user := &database.User{}
+	user.Email = args[0]
+	user.Username = args[1]
+	user.HashedPassword = hashedPassword
+	user.Admin = true
 
 	if err = db.NewUser(user); err != nil {
 		pqErr, ok := err.(*pq.Error)

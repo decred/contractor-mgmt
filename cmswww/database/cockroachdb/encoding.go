@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
@@ -13,9 +14,13 @@ func EncodeUser(dbUser *database.User) *User {
 
 	user.ID = uint(dbUser.ID)
 	user.Email = dbUser.Email
-	user.Username.String = dbUser.Username
 	user.Admin = dbUser.Admin
 	user.FailedLoginAttempts = dbUser.FailedLoginAttempts
+
+	if len(dbUser.Username) > 0 {
+		user.Username.Valid = true
+		user.Username.String = dbUser.Username
+	}
 
 	if dbUser.HashedPassword != nil {
 		user.HashedPassword.Valid = true
@@ -150,4 +155,76 @@ func DecodeIdentity(id *Identity) (*database.Identity, error) {
 	}
 
 	return &dbId, nil
+}
+
+// EncodeInvoice encodes a generic database.Invoice instance into a cockroachdb
+// Invoice.
+func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
+	invoice := Invoice{}
+
+	invoice.Token = dbInvoice.Token
+	invoice.UserID = uint(dbInvoice.UserID)
+	invoice.Month = uint(dbInvoice.Month)
+	invoice.Year = uint(dbInvoice.Year)
+	if dbInvoice.File != nil {
+		invoice.FilePayload = dbInvoice.File.Payload
+		invoice.FileMIME = dbInvoice.File.MIME
+		invoice.FileDigest = dbInvoice.File.Digest
+	}
+	invoice.PublicKey = dbInvoice.PublicKey
+	invoice.UserSignature = dbInvoice.UserSignature
+	invoice.ServerSignature = dbInvoice.ServerSignature
+
+	for _, dbInvoiceChange := range dbInvoice.Changes {
+		invoice.Changes = append(invoice.Changes, *EncodeInvoiceChange(&dbInvoiceChange))
+	}
+
+	return &invoice
+}
+
+// EncodeInvoiceChange encodes a generic database.InvoiceChange instance into a cockroachdb
+// InvoiceChange.
+func EncodeInvoiceChange(dbInvoiceChange *database.InvoiceChange) *InvoiceChange {
+	invoiceChange := InvoiceChange{}
+
+	invoiceChange.AdminPublicKey = dbInvoiceChange.AdminPublicKey
+	invoiceChange.NewStatus = uint(dbInvoiceChange.NewStatus)
+	invoiceChange.Timestamp = time.Unix(dbInvoiceChange.Timestamp, 0)
+
+	return &invoiceChange
+}
+
+// DecodeInvoice decodes a cockroachdb Invoice instance into a generic database.Invoice.
+func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
+	dbInvoice := database.Invoice{}
+
+	dbInvoice.Token = invoice.Token
+	dbInvoice.UserID = uint64(invoice.UserID)
+	dbInvoice.Username = invoice.Username
+	dbInvoice.Month = uint16(invoice.Month)
+	dbInvoice.Year = uint16(invoice.Year)
+	if invoice.FilePayload != "" {
+		dbInvoice.File = &database.File{
+			Payload: invoice.FilePayload,
+			MIME:    invoice.FileMIME,
+			Digest:  invoice.FileDigest,
+		}
+	}
+	dbInvoice.PublicKey = invoice.PublicKey
+	dbInvoice.UserSignature = invoice.UserSignature
+	dbInvoice.ServerSignature = invoice.ServerSignature
+
+	return &dbInvoice, nil
+}
+
+// DecodeInvoiceChange decodes a a cockroachdb InvoiceChange instance into a generic
+// database.InvoiceChange.
+func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
+	dbInvoiceChange := database.InvoiceChange{}
+
+	dbInvoiceChange.AdminPublicKey = invoiceChange.AdminPublicKey
+	dbInvoiceChange.NewStatus = v1.InvoiceStatusT(invoiceChange.NewStatus)
+	dbInvoiceChange.Timestamp = invoiceChange.Timestamp.Unix()
+
+	return &dbInvoiceChange
 }

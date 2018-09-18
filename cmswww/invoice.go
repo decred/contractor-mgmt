@@ -30,13 +30,15 @@ func (c *cmswww) HandleInvoices(
 	}
 
 	return &v1.InvoicesReply{
-		Invoices: c.getInvoices(invoicesRequest{
-			//After:  ui.After,
-			//Before: ui.Before,
-			Month:     i.Month,
-			Year:      i.Year,
-			StatusMap: statusMap,
-		}),
+		/*
+			Invoices: c.getInvoices(invoicesRequest{
+				//After:  ui.After,
+				//Before: ui.Before,
+				Month:     i.Month,
+				Year:      i.Year,
+				StatusMap: statusMap,
+			}),
+		*/
 	}, nil
 }
 
@@ -55,12 +57,14 @@ func (c *cmswww) HandleMyInvoices(
 	}
 
 	return &v1.InvoicesReply{
-		Invoices: c.getInvoices(invoicesRequest{
-			//After:  ui.After,
-			//Before: ui.Before,
-			UserID:    strconv.FormatUint(user.ID, 10),
-			StatusMap: statusMap,
-		}),
+		/*
+			Invoices: c.getInvoices(invoicesRequest{
+				//After:  ui.After,
+				//Before: ui.Before,
+				UserID:    strconv.FormatUint(user.ID, 10),
+				StatusMap: statusMap,
+			}),
+		*/
 	}, nil
 }
 
@@ -82,8 +86,8 @@ func (c *cmswww) HandleSetInvoiceStatus(
 
 	// Create change record
 	newStatus := convertInvoiceStatusFromWWW(sis.Status)
-	changes := MDStreamChanges{
-		Version:   VersionMDStreamChanges,
+	changes := BackendInvoiceMDChanges{
+		Version:   VersionBackendInvoiceMDChanges,
 		Timestamp: time.Now().Unix(),
 		NewStatus: newStatus,
 	}
@@ -144,7 +148,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	}
 
 	// Update the inventory with the metadata changes.
-	c.updateInventoryRecord(pdReply.Record)
+	//c.updateInventoryRecord(pdReply.Record)
 
 	// Log the action in the admin log.
 	c.logAdminInvoiceAction(user, sis.Token,
@@ -153,7 +157,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 
 	// Return the reply.
 	sisr := v1.SetInvoiceStatusReply{
-		Invoice: convertInvoiceFromPD(pdReply.Record),
+		//Invoice: convertInvoiceFromPD(pdReply.Record),
 	}
 	return &sisr, nil
 }
@@ -174,18 +178,19 @@ func (c *cmswww) HandleInvoiceDetails(
 		return nil, err
 	}
 
-	c.RLock()
-	p, ok := c.inventory[id.Token]
-	if !ok {
-		c.RUnlock()
-		return nil, v1.UserError{
-			ErrorCode: v1.ErrorStatusInvoiceNotFound,
+	dbInvoice, err := c.db.GetInvoiceByToken(id.Token)
+	if err != nil {
+		if err == database.ErrInvoiceNotFound {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusInvoiceNotFound,
+			}
 		}
+		return nil, err
 	}
-	c.RUnlock()
-	cachedInvoice := convertInvoiceFromInventoryRecord(p, c.userPubkeys)
 
-	err = validateUserCanSeeInvoice(&cachedInvoice, user)
+	invoice := convertDatabaseInvoiceToInvoice(dbInvoice)
+
+	err = validateUserCanSeeInvoice(invoice, user)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +200,7 @@ func (c *cmswww) HandleInvoiceDetails(
 		route           string
 		requestObject   interface{}
 	)
-	if cachedInvoice.Status == v1.InvoiceStatusApproved {
+	if invoice.Status == v1.InvoiceStatusApproved {
 		isVettedInvoice = true
 		route = pd.GetVettedRoute
 		requestObject = pd.GetVetted{
@@ -246,10 +251,7 @@ func (c *cmswww) HandleInvoiceDetails(
 		return nil, err
 	}
 
-	idr.Invoice = convertInvoiceFromInventoryRecord(&inventoryRecord{
-		record:  fullRecord,
-		changes: p.changes,
-	}, c.userPubkeys)
+	idr.Invoice = convertRecordToInvoice(fullRecord)
 	idr.Invoice.Username = c.getUsernameByID(idr.Invoice.UserID)
 	return &idr, nil
 }
@@ -279,7 +281,7 @@ func (c *cmswww) HandleSubmitInvoice(
 	md, err := json.Marshal(BackendInvoiceMetadata{
 		Month:     ni.Month,
 		Year:      ni.Year,
-		Version:   BackendInvoiceMetadataVersion,
+		Version:   VersionBackendInvoiceMetadata,
 		Timestamp: ts,
 		PublicKey: ni.PublicKey,
 		Signature: ni.Signature,

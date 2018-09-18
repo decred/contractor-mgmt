@@ -95,7 +95,7 @@ func createAdminUserAction() error {
 	user.HashedPassword = hashedPassword
 	user.Admin = true
 
-	if err = db.NewUser(user); err != nil {
+	if err = db.CreateUser(user); err != nil {
 		pqErr, ok := err.(*pq.Error)
 		if !ok {
 			return err

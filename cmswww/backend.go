@@ -102,7 +102,7 @@ func (c *cmswww) LoadInventory() error {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.inventory != nil {
+	if c.inventoryLoaded {
 		return nil
 	}
 
@@ -114,12 +114,12 @@ func (c *cmswww) LoadInventory() error {
 
 	err = c.initializeInventory(inv)
 	if err != nil {
-		c.Unlock()
 		return fmt.Errorf("initializeInventory: %v", err)
 	}
 
-	log.Infof("Adding %v invoices to the cache",
+	log.Infof("Adding %v invoices to the database",
 		len(inv.Vetted)+len(inv.Branches))
 
+	c.inventoryLoaded = true
 	return nil
 }

@@ -176,7 +176,7 @@ func (c *cmswww) login(l *v1.Login) loginReplyWithError {
 	}
 
 	// Check that the user is verified.
-	if user.RegisterVerificationToken != nil {
+	if user.IsVerified() {
 		return loginReplyWithError{
 			reply: nil,
 			err: v1.UserError{

@@ -2,17 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
 
 	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
+	"github.com/decred/contractor-mgmt/cmswww/database"
 	pd "github.com/decred/politeia/politeiad/api/v1"
 )
-
-type MDStreamChanges struct {
-	Version        uint             `json:"version"`        // Version of the struct
-	AdminPublicKey string           `json:"adminpublickey"` // Identity of the administrator
-	NewStatus      pd.RecordStatusT `json:"newstatus"`      // NewStatus
-	Timestamp      int64            `json:"timestamp"`      // Timestamp of the change
-}
 
 type BackendInvoiceMetadata struct {
 	Version   uint64 `json:"version"` // BackendInvoiceMetadata version
@@ -21,6 +19,13 @@ type BackendInvoiceMetadata struct {
 	Timestamp int64  `json:"timestamp"` // Last update of invoice
 	PublicKey string `json:"publickey"` // Key used for signature.
 	Signature string `json:"signature"` // Signature of merkle root
+}
+
+type BackendInvoiceMDChanges struct {
+	Version        uint             `json:"version"`        // Version of the struct
+	AdminPublicKey string           `json:"adminpublickey"` // Identity of the administrator
+	NewStatus      pd.RecordStatusT `json:"newstatus"`      // NewStatus
+	Timestamp      int64            `json:"timestamp"`      // Timestamp of the change
 }
 
 func convertInvoiceStatusFromWWW(s v1.InvoiceStatusT) pd.RecordStatusT {
@@ -105,6 +110,18 @@ func convertInvoiceFileFromPD(files []pd.File) *v1.File {
 	}
 }
 
+func convertRecordFilesToDatabaseInvoiceFile(files []pd.File) *database.File {
+	if len(files) == 0 {
+		return nil
+	}
+
+	return &database.File{
+		MIME:    files[0].MIME,
+		Digest:  files[0].Digest,
+		Payload: files[0].Payload,
+	}
+}
+
 func convertInvoiceCensorFromPD(f pd.CensorshipRecord) v1.CensorshipRecord {
 	return v1.CensorshipRecord{
 		Token:     f.Token,
@@ -114,7 +131,7 @@ func convertInvoiceCensorFromPD(f pd.CensorshipRecord) v1.CensorshipRecord {
 }
 
 func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[string]string) v1.InvoiceRecord {
-	invoice := convertInvoiceFromPD(r.record)
+	invoice := convertRecordToInvoice(r.record)
 
 	// Set the most up-to-date status.
 	for _, v := range r.changes {
@@ -132,7 +149,7 @@ func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[strin
 	return invoice
 }
 
-func convertInvoiceFromPD(p pd.Record) v1.InvoiceRecord {
+func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
 	md := &BackendInvoiceMetadata{}
 	for _, v := range p.Metadata {
 		if v.ID != mdStreamGeneral {
@@ -156,6 +173,93 @@ func convertInvoiceFromPD(p pd.Record) v1.InvoiceRecord {
 		File:             convertInvoiceFileFromPD(p.Files),
 		CensorshipRecord: convertInvoiceCensorFromPD(p.CensorshipRecord),
 	}
+}
+
+func convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
+	dbInvoice := database.Invoice{}
+	md := &BackendInvoiceMetadata{}
+	for _, m := range p.Metadata {
+		switch m.ID {
+		case mdStreamGeneral:
+			err := json.Unmarshal([]byte(m.Payload), md)
+			if err != nil {
+				return nil, fmt.Errorf("could not decode metadata '%v' token '%v': %v",
+					p.Metadata, p.CensorshipRecord.Token, err)
+			}
+
+			dbInvoice.Month = md.Month
+			dbInvoice.Year = md.Year
+			dbInvoice.Status = convertInvoiceStatusFromPD(p.Status)
+			dbInvoice.Timestamp = md.Timestamp
+			dbInvoice.PublicKey = md.PublicKey
+			dbInvoice.UserSignature = md.Signature
+			dbInvoice.File = convertRecordFilesToDatabaseInvoiceFile(p.Files)
+			dbInvoice.Token = p.CensorshipRecord.Token
+			dbInvoice.ServerSignature = p.CensorshipRecord.Signature
+		case mdStreamChanges:
+			f := strings.NewReader(m.Payload)
+			d := json.NewDecoder(f)
+			for {
+				var mdChanges BackendInvoiceMDChanges
+				if err := d.Decode(&md); err == io.EOF {
+					break
+				} else if err != nil {
+					return nil, err
+				}
+				dbInvoice.Changes = append(dbInvoice.Changes,
+					convertStreamChangeToDatabaseInvoiceChange(mdChanges))
+			}
+		default:
+			// Log error but proceed
+			log.Errorf("initializeInventory: invalid "+
+				"metadata stream ID %v token %v",
+				m.ID, p.CensorshipRecord.Token)
+		}
+	}
+
+	return &dbInvoice, nil
+}
+
+func convertStreamChangeToDatabaseInvoiceChange(mdChanges BackendInvoiceMDChanges) database.InvoiceChange {
+	dbInvoiceChange := database.InvoiceChange{}
+
+	dbInvoiceChange.AdminPublicKey = mdChanges.AdminPublicKey
+	dbInvoiceChange.NewStatus = convertInvoiceStatusFromPD(mdChanges.NewStatus)
+	dbInvoiceChange.Timestamp = mdChanges.Timestamp
+
+	return dbInvoiceChange
+}
+
+func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRecord {
+	invoice := v1.InvoiceRecord{}
+
+	invoice.Status = dbInvoice.Status
+	invoice.Timestamp = dbInvoice.Timestamp
+	invoice.Month = dbInvoice.Month
+	invoice.Year = dbInvoice.Year
+	invoice.UserID = strconv.FormatUint(dbInvoice.UserID, 10)
+	invoice.Username = dbInvoice.Username
+	invoice.PublicKey = dbInvoice.PublicKey
+	invoice.Signature = dbInvoice.UserSignature
+	if dbInvoice.File != nil {
+		invoice.File = &v1.File{
+			MIME:    dbInvoice.File.MIME,
+			Digest:  dbInvoice.File.Digest,
+			Payload: dbInvoice.File.Payload,
+		}
+	}
+	invoice.CensorshipRecord = v1.CensorshipRecord{
+		Token: dbInvoice.Token,
+		//Merkle:    dbInvoice.File.Digest,
+		Signature: dbInvoice.ServerSignature,
+	}
+
+	// TODO: clean up, merkle should always be set
+	if dbInvoice.File != nil {
+		invoice.CensorshipRecord.Merkle = dbInvoice.File.Digest
+	}
+
+	return &invoice
 }
 
 func convertErrorStatusFromPD(s int) v1.ErrorStatusT {

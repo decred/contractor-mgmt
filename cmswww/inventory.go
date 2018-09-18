@@ -1,13 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"sort"
-	"strings"
-
-	"github.com/davecgh/go-spew/spew"
 
 	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	pd "github.com/decred/politeia/politeiad/api/v1"
@@ -18,9 +12,9 @@ var (
 )
 
 type inventoryRecord struct {
-	record    pd.Record              // actual record
-	invoiceMD BackendInvoiceMetadata // invoice metadata
-	changes   []MDStreamChanges      // changes metadata
+	record    pd.Record                 // actual record
+	invoiceMD BackendInvoiceMetadata    // invoice metadata
+	changes   []BackendInvoiceMDChanges // changes metadata
 }
 
 // invoicesRequest is used for passing parameters into the
@@ -34,150 +28,59 @@ type invoicesRequest struct {
 	StatusMap map[v1.InvoiceStatusT]bool
 }
 
-// updateInventoryRecord updates an existing record.
+// updateInventoryRecord updates an existing Politea record within the database.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) updateInventoryRecord(record pd.Record) {
-	c.inventory[record.CensorshipRecord.Token] = &inventoryRecord{
-		record: record,
-	}
-}
-
-// newInventoryRecord adds a record to the inventory.
-//
-// This function must be called WITH the mutex held.
-func (c *cmswww) newInventoryRecord(record pd.Record) error {
-	t := record.CensorshipRecord.Token
-	if _, ok := c.inventory[t]; ok {
-		return fmt.Errorf("duplicate token: %v", t)
-	}
-
-	c.updateInventoryRecord(record)
-	return nil
-}
-
-// loadInvoiceMD decodes backend invoice metadata and stores it inventory object.
-//
-// This function must be called WITH the mutex held.
-func (c *cmswww) loadInvoiceMD(token, payload string) error {
-	f := strings.NewReader(payload)
-	d := json.NewDecoder(f)
-	var md BackendInvoiceMetadata
-	if err := d.Decode(&md); err == io.EOF {
-		return nil
-	} else if err != nil {
+func (c *cmswww) updateInventoryRecord(record pd.Record) error {
+	dbInvoice, err := convertRecordToDatabaseInvoice(record)
+	if err != nil {
 		return err
 	}
 
-	c.inventory[token].invoiceMD = md
-	return nil
+	return c.db.UpdateInvoice(dbInvoice)
 }
 
-// loadChanges decodes chnages metadata and stores it inventory object.
+// newInventoryRecord adds a Politeia record to the database.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) loadChanges(token, payload string) error {
-	f := strings.NewReader(payload)
-	d := json.NewDecoder(f)
-	for {
-		var md MDStreamChanges
-		if err := d.Decode(&md); err == io.EOF {
-			return nil
-		} else if err != nil {
-			return err
-		}
-		p := c.inventory[token]
-		p.changes = append(p.changes, md)
+func (c *cmswww) newInventoryRecord(record pd.Record) error {
+	dbInvoice, err := convertRecordToDatabaseInvoice(record)
+	if err != nil {
+		return err
 	}
+
+	return c.db.CreateInvoice(dbInvoice)
 }
 
-// loadFullRecord load an entire record into inventory.
-//
-// This function must be called WITH the mutex held.
-func (c *cmswww) loadFullRecord(v pd.Record) {
-	t := v.CensorshipRecord.Token
-
-	// Fish metadata out as well
-	var err error
-	for _, m := range v.Metadata {
-		switch m.ID {
-		case mdStreamGeneral:
-			err = c.loadInvoiceMD(t, m.Payload)
-			if err != nil {
-				log.Errorf("initializeInventory "+
-					"could not load metadata: %v",
-					err)
-				continue
-			}
-		case mdStreamChanges:
-			err = c.loadChanges(t, m.Payload)
-			if err != nil {
-				log.Errorf("initializeInventory "+
-					"could not load changes: %v",
-					err)
-				continue
-			}
-		default:
-			// log error but proceed
-			log.Errorf("initializeInventory: invalid "+
-				"metadata stream ID %v token %v",
-				m.ID, t)
-		}
-	}
-}
-
-// initializeInventory initializes the inventory map and loads it with a
-// InventoryReply.
+// initializeInventory loads the database with the current inventory of Politeia records.
 //
 // This function must be called WITH the mutex held.
 func (c *cmswww) initializeInventory(inv *pd.InventoryReply) error {
-	c.inventory = make(map[string]*inventoryRecord)
-
 	for _, v := range append(inv.Vetted, inv.Branches...) {
 		err := c.newInventoryRecord(v)
 		if err != nil {
 			return err
 		}
-		c.loadFullRecord(v)
 	}
 
 	return nil
 }
 
-// _getInventoryRecord reads an inventory record from the inventory cache.
-//
-// This function must be called WITH the mutex held.
-func (c *cmswww) _getInventoryRecord(token string) (inventoryRecord, error) {
-	r, ok := c.inventory[token]
-	if !ok {
-		return inventoryRecord{}, errRecordNotFound
-	}
-	return *r, nil
-}
-
-// getInventoryRecord returns an inventory record from the inventory cache.
-//
-// This function must be called WITHOUT the mutex held.
-func (c *cmswww) getInventoryRecord(token string) (inventoryRecord, error) {
-	c.RLock()
-	defer c.RUnlock()
-	return c._getInventoryRecord(token)
-}
-
 // getInvoice returns a single invoice by its token
-func (c *cmswww) getInvoice(token string) (v1.InvoiceRecord, error) {
-	ir, err := c._getInventoryRecord(token)
+func (c *cmswww) getInvoice(token string) (*v1.InvoiceRecord, error) {
+	dbInvoice, err := c.db.GetInvoiceByToken(token)
 	if err != nil {
-		return v1.InvoiceRecord{}, err
+		return nil, err
 	}
-	pr := convertInvoiceFromInventoryRecord(&ir, c.userPubkeys)
-	return pr, nil
+
+	return convertDatabaseInvoiceToInvoice(dbInvoice), nil
 }
 
 // getInvoices returns a list of invoices that adheres to the requirements
 // specified in the provided request.
 //
 // This function must be called WITHOUT the mutex held.
+/*
 func (c *cmswww) getInvoices(pr invoicesRequest) []v1.InvoiceRecord {
 	c.RLock()
 
@@ -294,3 +197,4 @@ func (c *cmswww) getInvoices(pr invoicesRequest) []v1.InvoiceRecord {
 
 	return invoices
 }
+*/

@@ -130,7 +130,7 @@ func (c *cmswww) HandleInviteNewUser(
 	existingUser, err := c.db.GetUserByEmail(inu.Email)
 	if err == nil {
 		// Check if the user is already verified.
-		if existingUser.RegisterVerificationToken == nil {
+		if !existingUser.IsVerified() {
 			return nil, v1.UserError{
 				ErrorCode: v1.ErrorStatusUserAlreadyExists,
 			}
@@ -164,7 +164,7 @@ func (c *cmswww) HandleInviteNewUser(
 	}
 
 	// Save the new user in the db.
-	err = c.db.NewUser(newUser)
+	err = c.db.CreateUser(newUser)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (c *cmswww) HandleEditUser(
 // the token must be verified before it expires.
 func (c *cmswww) resendInvite(adminUser, targetUser *database.User) (string, error) {
 	// Check if the user is already verified.
-	if targetUser.RegisterVerificationToken == nil {
+	if !targetUser.IsVerified() {
 		return "", v1.UserError{
 			ErrorCode: v1.ErrorStatusUserAlreadyExists,
 		}

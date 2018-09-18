@@ -193,7 +193,7 @@ func (c *cmswww) HandleRegister(
 	c.SetUserPubkeyAssociaton(user, nu.PublicKey)
 
 	// Update the user in the db.
-	user.RegisterVerificationToken = nil
+	user.RegisterVerificationToken = []byte{}
 	user.RegisterVerificationExpiry = 0
 	user.HashedPassword = hashedPassword
 	user.Username = nu.Username

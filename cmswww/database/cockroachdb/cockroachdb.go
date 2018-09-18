@@ -73,8 +73,8 @@ func (c *cockroachdb) getUserByQuery(query string, args ...interface{}) (databas
 */
 // Store new user.
 //
-// NewUser satisfies the backend interface.
-func (c *cockroachdb) NewUser(dbUser *database.User) error {
+// CreateUser satisfies the backend interface.
+func (c *cockroachdb) CreateUser(dbUser *database.User) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -83,15 +83,13 @@ func (c *cockroachdb) NewUser(dbUser *database.User) error {
 	}
 
 	user := EncodeUser(dbUser)
-
 	log.Debugf("NewUser: %v", user.Email)
 
 	if err := checkmail.ValidateFormat(user.Email); err != nil {
 		return database.ErrInvalidEmail
 	}
 
-	c.db.Create(user)
-	return nil
+	return c.db.Create(user).Error
 }
 
 // Update an existing user.
@@ -106,16 +104,13 @@ func (c *cockroachdb) UpdateUser(dbUser *database.User) error {
 	}
 
 	user := EncodeUser(dbUser)
-
 	log.Debugf("UpdateUser: %v", user.Email)
-
-	c.db.Save(user)
-	return nil
+	return c.db.Model(&User{}).Updates(*user).Error
 }
 
-// UserGet returns a user record if found in the database.
+// GetUser returns a user record if found in the database.
 //
-// UserGet satisfies the backend interface.
+// GetUser satisfies the backend interface.
 func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -136,9 +131,9 @@ func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
 	return DecodeUser(&user)
 }
 
-// UserGetByUsername returns a user record given its username, if found in the database.
+// GetUserByUsername returns a user record given its username, if found in the database.
 //
-// UserGetByUsername satisfies the backend interface.
+// GetUserByUsername satisfies the backend interface.
 func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -159,9 +154,9 @@ func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error)
 	return DecodeUser(&user)
 }
 
-// UserGetById returns a user record given its id, if found in the database.
+// GetUserById returns a user record given its id, if found in the database.
 //
-// UserGetById satisfies the backend interface.
+// GetUserById satisfies the backend interface.
 func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -182,6 +177,17 @@ func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
 	return DecodeUser(&user)
 }
 
+// getUserIdByPublicKey returns a user record given its id, if found in the database.
+func (c *cockroachdb) getUserIdByPublicKey(publicKey string) (uint, error) {
+	var id Identity
+	result := c.db.Where("key = ?", publicKey).First(&id)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	return id.UserID, nil
+}
+
 // Executes a callback on every user in the database.
 //
 // AllUsers satisfies the backend interface.
@@ -193,10 +199,13 @@ func (c *cockroachdb) AllUsers(callbackFn func(u *database.User)) error {
 		return database.ErrShutdown
 	}
 
-	log.Debugf("AllUsers\n")
+	log.Debugf("AllUsers")
 
 	var users []User
-	c.db.Find(&users)
+	result := c.db.Find(&users)
+	if result.Error != nil {
+		return result.Error
+	}
 
 	for _, user := range users {
 		dbUser, err := DecodeUser(&user)
@@ -210,6 +219,74 @@ func (c *cockroachdb) AllUsers(callbackFn func(u *database.User)) error {
 	return nil
 }
 
+// Create new invoice.
+//
+// CreateInvoice satisfies the backend interface.
+func (c *cockroachdb) CreateInvoice(dbInvoice *database.Invoice) error {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.shutdown {
+		return database.ErrShutdown
+	}
+
+	invoice := EncodeInvoice(dbInvoice)
+	if invoice.UserID == 0 {
+		userID, err := c.getUserIdByPublicKey(invoice.PublicKey)
+		if err != nil {
+			return err
+		}
+
+		invoice.UserID = userID
+	}
+
+	log.Debugf("CreateInvoice: %v", invoice.Token)
+	return c.db.Create(invoice).Error
+}
+
+// Update existing invoice.
+//
+// CreateInvoice satisfies the backend interface.
+func (c *cockroachdb) UpdateInvoice(dbInvoice *database.Invoice) error {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.shutdown {
+		return database.ErrShutdown
+	}
+
+	invoice := EncodeInvoice(dbInvoice)
+
+	log.Debugf("UpdateInvoice: %v", invoice.Token)
+
+	return c.db.Save(invoice).Error
+}
+
+// Return invoice by its token.
+func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.shutdown {
+		return nil, database.ErrShutdown
+	}
+
+	log.Debugf("GetInvoiceByToken: %v", token)
+
+	var invoice Invoice
+	result := c.db.Table("invoices i").Select("i.*, u.username").Joins(
+		"inner join users u on i.user_id = u.id").Where(
+		"i.token = ?", token).Scan(&invoice)
+	if result.Error != nil {
+		if gorm.IsRecordNotFoundError(result.Error) {
+			return nil, database.ErrInvoiceNotFound
+		}
+		return nil, result.Error
+	}
+
+	return DecodeInvoice(&invoice)
+}
+
 // Deletes all data from all tables.
 //
 // DeleteAllData satisfies the backend interface.
@@ -221,9 +298,13 @@ func (c *cockroachdb) DeleteAllData() error {
 		return database.ErrShutdown
 	}
 
-	log.Debugf("DeleteAllData\n")
+	log.Debugf("DeleteAllData")
 
-	c.db.DropTableIfExists(&User{}, &Identity{})
+	c.db.DropTableIfExists(
+		&User{},
+		&Identity{},
+		&Invoice{},
+	)
 	return nil
 }
 
@@ -260,9 +341,12 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 		return nil, fmt.Errorf("error connecting to the database: %v", err)
 	}
 
+	db.LogMode(true)
+	db.DropTableIfExists(&Invoice{})
 	db.AutoMigrate(
 		&User{},
 		&Identity{},
+		&Invoice{},
 	)
 
 	cdb := cockroachdb{

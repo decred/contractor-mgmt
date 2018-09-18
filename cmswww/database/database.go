@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 
+	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 )
 
@@ -15,6 +16,10 @@ var (
 	// ErrUserNotFound indicates that a user name was not found in the
 	// database.
 	ErrUserNotFound = errors.New("user not found")
+
+	// ErrInvoiceNotFound indicates that the invoice was not found in the
+	// database.
+	ErrInvoiceNotFound = errors.New("invoice not found")
 
 	// ErrUserExists indicates that a user already exists in the database.
 	ErrUserExists = errors.New("user already exists")
@@ -29,13 +34,19 @@ var (
 // Database interface that is required by the web server.
 type Database interface {
 	// User functions
+	CreateUser(*User) error                  // Create new user
+	UpdateUser(*User) error                  // Update existing user
 	GetUserByEmail(string) (*User, error)    // Return user record given the email address
 	GetUserByUsername(string) (*User, error) // Return user record given the username
 	GetUserById(uint64) (*User, error)       // Return user record given its id
-	NewUser(*User) error                     // Add new user
-	UpdateUser(*User) error                  // Update existing user
 	AllUsers(callbackFn func(u *User)) error // Iterate all users
-	DeleteAllData() error                    // Delete all data from all tables
+
+	// Invoice functions
+	CreateInvoice(*Invoice) error               // Create new invoice
+	UpdateInvoice(*Invoice) error               // Update existing invoice
+	GetInvoiceByToken(string) (*Invoice, error) // Return invoice given its token
+
+	DeleteAllData() error // Delete all data from all tables
 
 	// Close performs cleanup of the backend.
 	Close() error
@@ -68,16 +79,48 @@ type Identity struct {
 	Deactivated int64
 }
 
-func IsActive(id Identity) bool {
+type Invoice struct {
+	Token           string
+	UserID          uint64
+	Username        string // Only populated when reading from the database
+	Month           uint16
+	Year            uint16
+	Timestamp       int64
+	Status          v1.InvoiceStatusT
+	File            *File
+	PublicKey       string
+	UserSignature   string
+	ServerSignature string
+
+	Changes []InvoiceChange
+}
+
+type File struct {
+	Payload string
+	MIME    string
+	Digest  string
+}
+
+type InvoiceChange struct {
+	AdminPublicKey string
+	NewStatus      v1.InvoiceStatusT
+	Timestamp      int64
+}
+
+func (id *Identity) IsActive() bool {
 	return id.Activated != 0 && id.Deactivated == 0
+}
+
+func (u *User) IsVerified() bool {
+	return u.RegisterVerificationToken != nil && len(u.RegisterVerificationToken) > 0
 }
 
 // ActiveIdentity returns a the current active key.  If there is no active
 // valid key the call returns all 0s and false.
-func ActiveIdentity(i []Identity) ([identity.PublicKeySize]byte, bool) {
-	for _, v := range i {
-		if IsActive(v) {
-			return v.Key, true
+func ActiveIdentity(ids []Identity) ([identity.PublicKeySize]byte, bool) {
+	for _, id := range ids {
+		if id.IsActive() {
+			return id.Key, true
 		}
 	}
 

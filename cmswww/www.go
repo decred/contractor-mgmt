@@ -44,10 +44,10 @@ const (
 
 	// mdStream* indicate the metadata stream used for various types
 	mdStreamGeneral = 0 // General information for this invoice
-	mdStreamChanges = 2 // Changes to record
+	mdStreamChanges = 1 // Changes to record
 
-	VersionMDStreamChanges        = 1
-	BackendInvoiceMetadataVersion = 1
+	VersionBackendInvoiceMetadata  = 1
+	VersionBackendInvoiceMDChanges = 1
 )
 
 // cmswww application context.
@@ -65,7 +65,7 @@ type cmswww struct {
 	userPubkeys map[string]string // [pubkey][userid]
 
 	// Following entries require locks
-	inventory map[string]*inventoryRecord // Current inventory
+	inventoryLoaded bool // Current inventory
 }
 
 // RespondWithError returns an HTTP error status to the client. If it's a user

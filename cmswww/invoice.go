@@ -56,15 +56,18 @@ func (c *cmswww) HandleMyInvoices(
 		statusMap[mi.Status] = true
 	}
 
+	invoices, err := c.getInvoices(database.InvoicesRequest{
+		//After:  ui.After,
+		//Before: ui.Before,
+		UserID:    strconv.FormatUint(user.ID, 10),
+		StatusMap: statusMap,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &v1.InvoicesReply{
-		/*
-			Invoices: c.getInvoices(invoicesRequest{
-				//After:  ui.After,
-				//Before: ui.Before,
-				UserID:    strconv.FormatUint(user.ID, 10),
-				StatusMap: statusMap,
-			}),
-		*/
+		Invoices: invoices,
 	}, nil
 }
 

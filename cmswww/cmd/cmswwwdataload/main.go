@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	cliconfig "github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 	wwwconfig "github.com/decred/contractor-mgmt/cmswww/sharedconfig"
@@ -97,17 +96,6 @@ func setNewIdentity(email, password string) error {
 	}
 
 	return c.Logout()
-}
-
-func createNewInvoice(email, password, dateStr string) error {
-	date, err := time.Parse("2006-01", dateStr)
-	if err != nil {
-		return err
-	}
-
-	if err := c.Login(email, password); err != nil {
-		return err
-	}
 }
 
 func createContractorUser(

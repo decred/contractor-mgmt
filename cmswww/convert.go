@@ -176,7 +176,12 @@ func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
 }
 
 func convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
-	dbInvoice := database.Invoice{}
+	dbInvoice := database.Invoice{
+		Status:          convertInvoiceStatusFromPD(p.Status),
+		File:            convertRecordFilesToDatabaseInvoiceFile(p.Files),
+		Token:           p.CensorshipRecord.Token,
+		ServerSignature: p.CensorshipRecord.Signature,
+	}
 	md := &BackendInvoiceMetadata{}
 	for _, m := range p.Metadata {
 		switch m.ID {
@@ -189,13 +194,9 @@ func convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
 
 			dbInvoice.Month = md.Month
 			dbInvoice.Year = md.Year
-			dbInvoice.Status = convertInvoiceStatusFromPD(p.Status)
 			dbInvoice.Timestamp = md.Timestamp
 			dbInvoice.PublicKey = md.PublicKey
 			dbInvoice.UserSignature = md.Signature
-			dbInvoice.File = convertRecordFilesToDatabaseInvoiceFile(p.Files)
-			dbInvoice.Token = p.CensorshipRecord.Token
-			dbInvoice.ServerSignature = p.CensorshipRecord.Signature
 		case mdStreamChanges:
 			f := strings.NewReader(m.Payload)
 			d := json.NewDecoder(f)
@@ -260,6 +261,14 @@ func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRec
 	}
 
 	return &invoice
+}
+
+func convertDatabaseInvoicesToInvoices(dbInvoices []database.Invoice) []v1.InvoiceRecord {
+	invoices := make([]v1.InvoiceRecord, 0, len(dbInvoices))
+	for _, dbInvoice := range dbInvoices {
+		invoices = append(invoices, *convertDatabaseInvoiceToInvoice(&dbInvoice))
+	}
+	return invoices
 }
 
 func convertErrorStatusFromPD(s int) v1.ErrorStatusT {

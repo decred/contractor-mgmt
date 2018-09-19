@@ -35,12 +35,14 @@ type Identity struct {
 }
 
 type Invoice struct {
-	Token           string `gorm:"primary_key"`
-	UserID          uint   `gorm:"not_null"`
-	Username        string `gorm:"-"` // Only populated when reading from the database
-	Month           uint   `gorm:"not_null"`
-	Year            uint   `gorm:"not_null"`
-	FilePayload     string `gorm:"type:text"`
+	Token           string    `gorm:"primary_key"`
+	UserID          uint      `gorm:"not_null"`
+	Username        string    `gorm:"-"` // Only populated when reading from the database
+	Month           uint      `gorm:"not_null"`
+	Year            uint      `gorm:"not_null"`
+	Timestamp       time.Time `gorm:not_null"`
+	Status          uint      `gorm:"not_null"`
+	FilePayload     string    `gorm:"type:text"`
 	FileMIME        string
 	FileDigest      string
 	PublicKey       string `gorm:"not_null"`

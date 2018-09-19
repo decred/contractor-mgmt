@@ -31,6 +31,17 @@ var (
 	ErrShutdown = errors.New("database is shutting down")
 )
 
+// InvoicesRequest is used for passing parameters into the
+// GetInvoices() function.
+type InvoicesRequest struct {
+	After     string
+	Before    string
+	UserID    string
+	Month     uint16
+	Year      uint16
+	StatusMap map[v1.InvoiceStatusT]bool
+}
+
 // Database interface that is required by the web server.
 type Database interface {
 	// User functions
@@ -42,9 +53,10 @@ type Database interface {
 	AllUsers(callbackFn func(u *User)) error // Iterate all users
 
 	// Invoice functions
-	CreateInvoice(*Invoice) error               // Create new invoice
-	UpdateInvoice(*Invoice) error               // Update existing invoice
-	GetInvoiceByToken(string) (*Invoice, error) // Return invoice given its token
+	CreateInvoice(*Invoice) error                   // Create new invoice
+	UpdateInvoice(*Invoice) error                   // Update existing invoice
+	GetInvoiceByToken(string) (*Invoice, error)     // Return invoice given its token
+	GetInvoices(InvoicesRequest) ([]Invoice, error) // Return a list of invoices
 
 	DeleteAllData() error // Delete all data from all tables
 

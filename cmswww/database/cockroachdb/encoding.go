@@ -166,6 +166,8 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.UserID = uint(dbInvoice.UserID)
 	invoice.Month = uint(dbInvoice.Month)
 	invoice.Year = uint(dbInvoice.Year)
+	invoice.Status = uint(dbInvoice.Status)
+	invoice.Timestamp = time.Unix(dbInvoice.Timestamp, 0)
 	if dbInvoice.File != nil {
 		invoice.FilePayload = dbInvoice.File.Payload
 		invoice.FileMIME = dbInvoice.File.MIME
@@ -203,6 +205,8 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	dbInvoice.Username = invoice.Username
 	dbInvoice.Month = uint16(invoice.Month)
 	dbInvoice.Year = uint16(invoice.Year)
+	dbInvoice.Status = v1.InvoiceStatusT(invoice.Status)
+	dbInvoice.Timestamp = invoice.Timestamp.Unix()
 	if invoice.FilePayload != "" {
 		dbInvoice.File = &database.File{
 			Payload: invoice.FilePayload,
@@ -227,4 +231,21 @@ func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 	dbInvoiceChange.Timestamp = invoiceChange.Timestamp.Unix()
 
 	return &dbInvoiceChange
+}
+
+// DecodeInvoices decodes an array of cockroachdb Invoice instances into
+// generic database.Invoices.
+func DecodeInvoices(invoices []Invoice) ([]database.Invoice, error) {
+	dbInvoices := make([]database.Invoice, 0, len(invoices))
+
+	for _, invoice := range invoices {
+		dbInvoice, err := DecodeInvoice(&invoice)
+		if err != nil {
+			return nil, err
+		}
+
+		dbInvoices = append(dbInvoices, *dbInvoice)
+	}
+
+	return dbInvoices, nil
 }

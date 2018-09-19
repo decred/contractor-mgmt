@@ -76,12 +76,17 @@ func fetchSubmittedInvoices(statusStr string) ([]invoice, error) {
 
 	invoices := make([]invoice, 0, len(mir.Invoices))
 	for _, v := range mir.Invoices {
+		// Create local variables to avoid pointer sharing of the range
+		// variable.
+		token := v.CensorshipRecord.Token
+		timestamp := v.Timestamp
+
 		invoices = append(invoices, invoice{
-			Token:     &v.CensorshipRecord.Token,
+			Token:     &token,
 			Month:     v.Month,
 			Year:      v.Year,
 			Status:    v1.InvoiceStatus[v.Status],
-			Timestamp: &v.Timestamp,
+			Timestamp: &timestamp,
 		})
 	}
 
@@ -99,16 +104,10 @@ func fetchUnsubmittedInvoices(submittedInvoices []invoice) ([]invoice, error) {
 		filename := info.Name()
 		year, month, err := config.GetMonthAndYearFromInvoice(filename)
 		if err == nil {
-			alreadySubmitted := false
 			for _, v := range submittedInvoices {
 				if v.Month == month && v.Year == year {
-					alreadySubmitted = true
-					break
+					return nil
 				}
-			}
-
-			if alreadySubmitted {
-				return nil
 			}
 
 			unsubmittedInvoices = append(unsubmittedInvoices, invoice{

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/badoux/checkmail"
@@ -71,6 +72,14 @@ func (c *cockroachdb) getUserByQuery(query string, args ...interface{}) (databas
 	return dbu, nil
 }
 */
+
+func (c *cockroachdb) addWhereClause(db *gorm.DB, paramsMap map[string]interface{}) *gorm.DB {
+	for k, v := range paramsMap {
+		db = db.Where(k+"= ?", v)
+	}
+	return db
+}
+
 // Store new user.
 //
 // CreateUser satisfies the backend interface.
@@ -285,6 +294,57 @@ func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error)
 	}
 
 	return DecodeInvoice(&invoice)
+}
+
+// Return a list of invoices.
+func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]database.Invoice, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.shutdown {
+		return nil, database.ErrShutdown
+	}
+
+	log.Debugf("GetInvoices")
+
+	paramsMap := make(map[string]interface{})
+	var err error
+	if invoicesRequest.UserID != "" {
+		paramsMap["i.user_id"], err = strconv.ParseUint(invoicesRequest.UserID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if invoicesRequest.StatusMap != nil {
+		statuses := make([]uint, 0, len(invoicesRequest.StatusMap))
+		for k := range invoicesRequest.StatusMap {
+			statuses = append(statuses, uint(k))
+		}
+		// TODO: paramsMap[""] = statuses
+	}
+
+	if invoicesRequest.Month != 0 {
+		paramsMap["i.month"] = invoicesRequest.Month
+	}
+
+	if invoicesRequest.Year != 0 {
+		paramsMap["i.year"] = invoicesRequest.Year
+	}
+
+	var invoices []Invoice
+	db := c.db.Table("invoices i").Select("i.*, u.username").Joins(
+		"inner join users u on i.user_id = u.id")
+	db = c.addWhereClause(db, paramsMap)
+	result := db.Scan(&invoices)
+	if result.Error != nil {
+		if gorm.IsRecordNotFoundError(result.Error) {
+			return nil, database.ErrInvoiceNotFound
+		}
+		return nil, result.Error
+	}
+
+	return DecodeInvoices(invoices)
 }
 
 // Deletes all data from all tables.

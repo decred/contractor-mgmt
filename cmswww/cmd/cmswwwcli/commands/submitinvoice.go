@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/csv"
@@ -9,6 +10,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -18,7 +21,8 @@ type SubmitInvoiceCmd struct {
 	Args struct {
 		Month string `positional-arg-name:"month"`
 		Year  uint16 `positional-arg-name:"year"`
-	} `positional-args:"true" required:"true"`
+	} `positional-args:"true" optional:"true"`
+	InvoiceFilename string `long:"invoice" optional:"true" description:"Filepath to an invoice CSV"`
 }
 
 // SubmissionRecord is a record of an invoice submission to the server,
@@ -48,7 +52,6 @@ func validateInvoiceFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	csvReader := csv.NewReader(file)
 	csvReader.Comma = policy.Invoice.FieldDelimiterChar
@@ -56,7 +59,34 @@ func validateInvoiceFile(filename string) error {
 	csvReader.TrimLeadingSpace = true
 
 	_, err = csvReader.ReadAll()
-	return err
+	if err != nil {
+		file.Close()
+		return err
+	}
+	file.Close()
+
+	file, err = os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(file)
+	if !scanner.Scan() {
+		return fmt.Errorf("Unable to read file %v", filename)
+	}
+
+	line := strings.TrimSpace(scanner.Text())
+
+	t, err := time.Parse(fmt.Sprintf("%v 2006-01", string(csvReader.Comment)), line)
+	if err != nil {
+		return fmt.Errorf("CSV should be formatted such that the first line "+
+			"is a comment with the month and year in the pattern YYYY-MM: %v", err)
+	}
+
+	fmt.Printf("%v", t)
+	year = uint16(t.Year())
+	month = uint16(t.Month())
+	return nil
 }
 
 func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
@@ -70,12 +100,21 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		return ErrNotLoggedIn
 	}
 
-	month, err := ParseMonth(cmd.Args.Month)
-	if err != nil {
-		return err
-	}
+	var filename string
+	if cmd.Args.Month != "" && cmd.Args.Year != 0 {
+		month, err := ParseMonth(cmd.Args.Month)
+		if err != nil {
+			return err
+		}
+		year = cmd.Args.Year
 
-	filename := config.GetInvoiceFilename(month, cmd.Args.Year)
+		filename = config.GetInvoiceFilename(month, year)
+	} else if cmd.InvoiceFilename != "" {
+		filename = cmd.InvoiceFilename
+	} else {
+		return fmt.Errorf("You must supply either a month and year or the " +
+			"filepath to an invoice in proper CSV format.")
+	}
 
 	err = validateInvoiceFile(filename)
 	if err != nil {
@@ -94,7 +133,7 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 
 	ni := v1.SubmitInvoice{
 		Month: month,
-		Year:  cmd.Args.Year,
+		Year:  year,
 		File: v1.File{
 			MIME:    "text/plain; charset=utf-8",
 			Digest:  digest,
@@ -126,7 +165,7 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		return err
 	}
 
-	filename = config.GetInvoiceSubmissionRecordFilename(month, cmd.Args.Year)
+	filename = config.GetInvoiceSubmissionRecordFilename(month, year)
 	err = ioutil.WriteFile(filename, data, 0400)
 	if err != nil {
 		return err

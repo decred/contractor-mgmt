@@ -31,48 +31,6 @@ type Version struct {
 	Time    int64  `json:"time"`    // Time of record creation
 }
 
-/*
-func (c *cockroachdb) getUserByQuery(query string, args ...interface{}) (database.User, error) {
-	rows, err := c.query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	dbu, err := DecodeUser(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	if dbu == nil {
-		return nil, database.ErrUserNotFound
-	}
-
-	rows, err = c.query(templateGetIdentitiesByUser, dbu.ID())
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for {
-		dbid, err := DecodeIdentity(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		if dbid == nil {
-			break
-		}
-
-		u, _ := databaseUserToUser(dbu)
-		id, _ := databaseIdentityToIdentity(dbid)
-		u.identities = append(u.identities, id)
-	}
-
-	return dbu, nil
-}
-*/
-
 func (c *cockroachdb) addWhereClause(db *gorm.DB, paramsMap map[string]interface{}) *gorm.DB {
 	for k, v := range paramsMap {
 		db = db.Where(k+"= ?", v)

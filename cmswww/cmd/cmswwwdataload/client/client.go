@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -263,6 +264,69 @@ func (c *Client) RegisterUser(email, username, password, token string) error {
 		username,
 		password,
 		token,
+	)
+}
+
+func (c *Client) SubmitInvoice(file string) (string, error) {
+	fmt.Printf("Submitting invoice\n")
+
+	file = filepath.ToSlash(file)
+
+	var sir v1.SubmitInvoiceReply
+	err := c.ExecuteCliCommand(
+		&sir,
+		func() bool {
+			return sir.CensorshipRecord.Token != ""
+		},
+		"submitinvoice",
+		fmt.Sprintf("--invoice=%v", file),
+	)
+
+	return sir.CensorshipRecord.Token, err
+}
+
+func (c *Client) ApproveInvoice(token string) error {
+	fmt.Printf("Approving invoice: %v\n", token)
+
+	var sisr v1.SetInvoiceStatusReply
+	return c.ExecuteCliCommand(
+		&sisr,
+		func() bool {
+			return sisr.Invoice.Status == v1.InvoiceStatusApproved
+		},
+		"setinvoicestatus",
+		token,
+		"approved",
+	)
+}
+
+func (c *Client) RejectInvoice(token string) error {
+	fmt.Printf("Rejecting invoice: %v\n", token)
+
+	var sisr v1.SetInvoiceStatusReply
+	return c.ExecuteCliCommand(
+		&sisr,
+		func() bool {
+			return sisr.Invoice.Status == v1.InvoiceStatusRejected
+		},
+		"setinvoicestatus",
+		token,
+		"rejected",
+	)
+}
+
+func (c *Client) ChangePassword(currentPassword, newPassword string) error {
+	fmt.Printf("Changing password to: %v\n", newPassword)
+
+	var cpr v1.ChangePasswordReply
+	return c.ExecuteCliCommand(
+		&cpr,
+		func() bool {
+			return true
+		},
+		"changepassword",
+		currentPassword,
+		newPassword,
 	)
 }
 

@@ -83,7 +83,6 @@ func validateInvoiceFile(filename string) error {
 			"is a comment with the month and year in the pattern YYYY-MM: %v", err)
 	}
 
-	fmt.Printf("%v", t)
 	year = uint16(t.Year())
 	month = uint16(t.Month())
 	return nil
@@ -108,7 +107,10 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		}
 		year = cmd.Args.Year
 
-		filename = config.GetInvoiceFilename(month, year)
+		filename, err = config.GetInvoiceFilename(month, year)
+		if err != nil {
+			return err
+		}
 	} else if cmd.InvoiceFilename != "" {
 		filename = cmd.InvoiceFilename
 	} else {
@@ -165,7 +167,11 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		return err
 	}
 
-	filename = config.GetInvoiceSubmissionRecordFilename(month, year)
+	filename, err = config.GetInvoiceSubmissionRecordFilename(month, year)
+	if err != nil {
+		return err
+	}
+
 	err = ioutil.WriteFile(filename, data, 0400)
 	if err != nil {
 		return err

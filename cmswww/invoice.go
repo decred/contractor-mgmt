@@ -151,7 +151,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	}
 
 	// Update the inventory with the metadata changes.
-	//c.updateInventoryRecord(pdReply.Record)
+	c.updateInventoryRecord(pdReply.Record)
 
 	// Log the action in the admin log.
 	c.logAdminInvoiceAction(user, sis.Token,
@@ -160,7 +160,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 
 	// Return the reply.
 	sisr := v1.SetInvoiceStatusReply{
-		//Invoice: convertInvoiceFromPD(pdReply.Record),
+		Invoice: convertRecordToInvoice(pdReply.Record),
 	}
 	return &sisr, nil
 }

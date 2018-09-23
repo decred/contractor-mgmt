@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -126,15 +125,11 @@ func (cmd *LogWorkCmd) Execute(args []string) error {
 		return err
 	}
 
-	invoiceFile := config.GetInvoiceFilename(month, year)
-	invoiceAlreadyExists := config.FileExists(invoiceFile)
-
-	if !invoiceAlreadyExists {
-		dirpath := filepath.Dir(invoiceFile)
-		if err = os.MkdirAll(dirpath, 0700); err != nil {
-			return err
-		}
+	invoiceFile, err := config.GetInvoiceFilename(month, year)
+	if err != nil {
+		return err
 	}
+	invoiceAlreadyExists := config.FileExists(invoiceFile)
 
 	file, err = os.OpenFile(invoiceFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
 	if err != nil {

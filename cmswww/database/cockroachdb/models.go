@@ -19,6 +19,8 @@ type User struct {
 	RegisterVerificationExpiry       pq.NullTime
 	UpdateIdentityVerificationToken  sql.NullString
 	UpdateIdentityVerificationExpiry pq.NullTime
+	ResetPasswordVerificationToken   sql.NullString
+	ResetPasswordVerificationExpiry  pq.NullTime
 	LastLogin                        pq.NullTime
 	FailedLoginAttempts              uint64 `gorm:"not_null"`
 

@@ -352,6 +352,180 @@ func (c *cmswww) HandleVerifyNewIdentity(
 	return &v1.VerifyNewIdentityReply{}, err
 }
 
+// HandleChangePassword checks that the current password matches the one
+// in the database, then changes it to the new password.
+func (c *cmswww) HandleChangePassword(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	cp := req.(*v1.ChangePassword)
+
+	// Check the user's password.
+	err := bcrypt.CompareHashAndPassword(user.HashedPassword,
+		[]byte(cp.CurrentPassword))
+	if err != nil {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusInvalidEmailOrPassword,
+		}
+	}
+
+	// Validate the new password.
+	err = validatePassword(cp.NewPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hash the user's password.
+	hashedPassword, err := hashPassword(cp.NewPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the updated user information to the db.
+	user.HashedPassword = hashedPassword
+	err = c.db.UpdateUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v1.ChangePasswordReply{}, nil
+}
+
+// HandleResetPassword is intended to be called twice; in the first call, an
+// email is provided and the function checks if the user exists. If the user exists, it
+// generates a verification token and stores it in the database. In the second
+// call, the email, verification token and a new password are provided. If everything
+// matches, then the user's password is updated in the database.
+func (c *cmswww) HandleResetPassword(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	rp := req.(*v1.ResetPassword)
+	rpr := &v1.ResetPasswordReply{}
+
+	// Get user from db.
+	var err error
+	user, err = c.db.GetUserByEmail(rp.Email)
+	if err != nil {
+		if err == database.ErrInvalidEmail {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusMalformedEmail,
+			}
+		} else if err == database.ErrUserNotFound {
+			return &rpr, nil
+		}
+
+		return nil, err
+	}
+
+	if rp.VerificationToken == "" {
+		err = c.emailResetPassword(user, rp, rpr)
+	} else {
+		err = c.verifyResetPassword(user, rp, rpr)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return rpr, nil
+}
+
+func (c *cmswww) emailResetPassword(
+	user *database.User,
+	rp *v1.ResetPassword,
+	rpr *v1.ResetPasswordReply,
+) error {
+	if user.ResetPasswordVerificationToken != nil {
+		if user.ResetPasswordVerificationExpiry > time.Now().Unix() {
+			// The verification token is present and hasn't expired, so do nothing.
+			return nil
+		}
+	}
+
+	// The verification token isn't present or is present but expired.
+
+	// Generate a new verification token and expiry.
+	token, expiry, err := c.generateVerificationTokenAndExpiry()
+	if err != nil {
+		return err
+	}
+
+	// Add the updated user information to the db.
+	user.ResetPasswordVerificationToken = token
+	user.ResetPasswordVerificationExpiry = expiry
+	err = c.db.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
+	// This is conditional on the email server being setup.
+	err = c.emailResetPasswordVerificationLink(rp.Email, hex.EncodeToString(token))
+	if err != nil {
+		return err
+	}
+
+	// Only set the token if email verification is disabled.
+	if c.cfg.SMTP == nil {
+		rpr.VerificationToken = hex.EncodeToString(token)
+	}
+
+	return nil
+}
+
+func (c *cmswww) verifyResetPassword(
+	user *database.User,
+	rp *v1.ResetPassword,
+	rpr *v1.ResetPasswordReply,
+) error {
+	// Decode the verification token.
+	token, err := hex.DecodeString(rp.VerificationToken)
+	if err != nil {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+		}
+	}
+
+	// Check that the verification token matches.
+	if !bytes.Equal(token, user.ResetPasswordVerificationToken) {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+		}
+	}
+
+	// Check that the token hasn't expired.
+	if user.ResetPasswordVerificationExpiry < time.Now().Unix() {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
+		}
+	}
+
+	// Validate the new password.
+	err = validatePassword(rp.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	// Hash the new password.
+	hashedPassword, err := hashPassword(rp.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	// Clear out the verification token fields, set the new password in the db,
+	// and unlock account
+	user.ResetPasswordVerificationToken = nil
+	user.ResetPasswordVerificationExpiry = 0
+	user.HashedPassword = hashedPassword
+	user.FailedLoginAttempts = 0
+
+	return c.db.UpdateUser(user)
+}
+
 /*
 // ProcessUserInvoices returns the invoices for the given user.
 func (c *cmswww) ProcessUserInvoices(up *v1.UserInvoices, isCurrentUser, isAdminUser bool) (*v1.UserInvoicesReply, error) {

@@ -75,6 +75,8 @@ type User struct {
 	RegisterVerificationExpiry       int64
 	UpdateIdentityVerificationToken  []byte
 	UpdateIdentityVerificationExpiry int64
+	ResetPasswordVerificationToken   []byte
+	ResetPasswordVerificationExpiry  int64
 	LastLogin                        int64
 	FailedLoginAttempts              uint64
 

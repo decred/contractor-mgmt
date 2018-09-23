@@ -74,14 +74,32 @@ func GetInvoiceDirectory() string {
 	return filepath.Join(InvoicesDir, LoggedInUser.Email)
 }
 
-func GetInvoiceFilename(month, year uint16) string {
-	return filepath.Join(GetInvoiceDirectory(),
+func GetInvoiceFilename(month, year uint16) (string, error) {
+	filename := filepath.Join(GetInvoiceDirectory(),
 		fmt.Sprintf("%v.csv", GetInvoiceMonthStr(month, year)))
+
+	if !FileExists(filename) {
+		dirpath := filepath.Dir(filename)
+		if err := os.MkdirAll(dirpath, 0700); err != nil {
+			return "", err
+		}
+	}
+
+	return filename, nil
 }
 
-func GetInvoiceSubmissionRecordFilename(month, year uint16) string {
-	return filepath.Join(GetInvoiceDirectory(),
+func GetInvoiceSubmissionRecordFilename(month, year uint16) (string, error) {
+	filename := filepath.Join(GetInvoiceDirectory(),
 		fmt.Sprintf("submission_record_%v.json", GetInvoiceMonthStr(month, year)))
+
+	if !FileExists(filename) {
+		dirpath := filepath.Dir(filename)
+		if err := os.MkdirAll(dirpath, 0700); err != nil {
+			return "", err
+		}
+	}
+
+	return filename, nil
 }
 
 func GetMonthAndYearFromInvoice(filename string) (uint16, uint16, error) {

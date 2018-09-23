@@ -12,6 +12,8 @@ const (
 	RouteVerifyNewIdentity = "/user/identity/verify"
 	RouteUserInvoices      = "/user/invoices"
 	RouteUserDetails       = "/user"
+	RouteChangePassword    = "/user/password/change"
+	RouteResetPassword     = "/user/password/reset"
 	RouteEditUser          = "/user/edit"
 	RouteLogin             = "/login"
 	RouteLogout            = "/logout"
@@ -265,6 +267,31 @@ type MyInvoicesReply struct {
 	Invoices []InvoiceRecord `json:"invoices"`
 }
 
+// ChangePassword is used to perform a password change while the user
+// is logged in.
+type ChangePassword struct {
+	CurrentPassword string `json:"currentpassword"`
+	NewPassword     string `json:"newpassword"`
+}
+
+// ChangePasswordReply is used to perform a password change while the user
+// is logged in.
+type ChangePasswordReply struct{}
+
+// ResetPassword is used to perform a password change when the
+// user is not logged in.
+type ResetPassword struct {
+	Email             string `json:"email"`
+	VerificationToken string `json:"verificationtoken"`
+	NewPassword       string `json:"newpassword"`
+}
+
+// ResetPasswordReply is used to reply to the ResetPassword command
+// with an error if the command is unsuccessful.
+type ResetPasswordReply struct {
+	VerificationToken string `json:"verificationtoken"`
+}
+
 // Policy returns a struct with various maxima.  The client shall observe the
 // maxima.
 type Policy struct{}
@@ -330,6 +357,8 @@ type User struct {
 	RegisterVerificationExpiry       int64           `json:"newuserverificationexpiry"`
 	UpdateIdentityVerificationToken  []byte          `json:"updateidentityverificationtoken"`
 	UpdateIdentityVerificationExpiry int64           `json:"updateidentityverificationexpiry"`
+	ResetPasswordVerificationToken   []byte          `json:"resetpasswordverificationtoken"`
+	ResetPasswordVerificationExpiry  int64           `json:"resetpasswordverificationexpiry"`
 	LastLogin                        int64           `json:"lastlogin"`
 	FailedLoginAttempts              uint64          `json:"failedloginattempts"`
 	Locked                           bool            `json:"islocked"`

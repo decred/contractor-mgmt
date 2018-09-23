@@ -43,6 +43,7 @@ type Config struct {
 	ConfigFile       string `long:"configfile" description:"Path to configuration file"`
 	DebugLevel       string `long:"debuglevel" description:"Logging level to use for servers {trace, debug, info, warn, error, critical}"`
 	DeleteData       bool   `long:"deletedata" description:"Delete all existing data from politeiad and cmswww before loading data"`
+	IncludeTests     bool   `long:"includetests" description:"Includes running tests of different commands."`
 	PoliteiadLogFile string
 	CmswwwLogFile    string
 }

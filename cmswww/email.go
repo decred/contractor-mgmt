@@ -16,6 +16,10 @@ type NewIdentityEmailTemplateData struct {
 	Email     string
 	PublicKey string
 }
+type ResetPasswordEmailTemplateData struct {
+	Token string
+	Email string
+}
 
 const (
 	cmsMailName = "Decred Contractor Management"
@@ -27,7 +31,9 @@ var (
 	templateNewIdentityEmail = template.Must(
 		template.New("new_identity_email_template").Parse(templateNewIdentityEmailRaw))
 	templateUserLockedResetPassword = template.Must(
-		template.New("user_locked_reset_password").Parse(templateUserLockedResetPasswordRaw))
+		template.New("user_locked_reset_password_email_template").Parse(templateUserLockedResetPasswordRaw))
+	templateResetPasswordEmail = template.Must(
+		template.New("reset_password_email_template").Parse(templateResetPasswordEmailRaw))
 )
 
 // ExecuteTemplate executes a template with the given data.
@@ -125,4 +131,29 @@ func (c *cmswww) emailUserLocked(email string) error {
 		msg.SetName(cmsMailName)
 		return c.cfg.SMTP.Send(msg)
 	*/
+}
+
+func (c *cmswww) emailResetPasswordVerificationLink(email, token string) error {
+	if c.cfg.SMTP == nil {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	tplData := ResetPasswordEmailTemplateData{
+		Email: email,
+		Token: token,
+	}
+	err := templateResetPasswordEmail.Execute(&buf, &tplData)
+	if err != nil {
+		return err
+	}
+	from := "noreply@decred.org"
+	subject := "Verify Your Password Reset"
+	body := buf.String()
+
+	msg := goemail.NewHTMLMessage(from, subject, body)
+	msg.AddTo(email)
+
+	msg.SetName(cmsMailName)
+	return c.cfg.SMTP.Send(msg)
 }

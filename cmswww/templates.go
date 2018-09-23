@@ -12,9 +12,7 @@ const templateRegisterEmailRaw = `
 </div>
 <div style="margin: 20px 0 0 10px">
 	<pre><code>
-$ cmswwwcli
-
-  > newuser &lt;email> &lt;username> &lt;password> {{.Token}}
+$ cmswwwcli register {{.Email}} &lt;username> &lt;password> {{.Token}}
 	</code></pre>
 </div>
 <div style="margin-top: 20px">
@@ -31,10 +29,8 @@ const templateNewIdentityEmailRaw = `
 </div>
 <div style="margin: 20px 0 0 10px">
 	<pre><code>
-$ cmswwwcli
-
-  > login &lt;email> &lt;password>
-  > verifyidentity {{.Token}}
+$ cmswwwcli login {{.Email}} &lt;password>
+$ cmswwwcli verifyidentity {{.Token}}
 	</code></pre>
 </div>
 <div style="margin-top: 20px">
@@ -46,8 +42,37 @@ $ cmswwwcli
 `
 
 const templateUserLockedResetPasswordRaw = `
-<div>Your account was locked due to too many login attempts. You need to reset your password in order to unlock your account:</div>
-<div style="margin: 20px 0 0 10px"><a href="{{.Link}}">{{.Link}}</a></div>
-<div style="margin-top: 20px">You are receiving this email because someone made too many login attempts for <span style="font-weight: bold">{{.Email}}</span> on Politeia.</div>
-<div>If that was not you, please notify Politeia administrators.</div>
+<div>
+	Your account was locked due to too many login attempts. You need to
+	reset your password in order to unlock your account by executing
+	the following:
+</div>
+<div style="margin: 20px 0 0 10px">
+	<pre><code>
+$ cmswwwcli resetpassword {{.Email}}
+	</code></pre>
+</div>
+<div style="margin-top: 20px">
+	You are receiving this email because someone made too many login attempts
+	 for <span style="font-weight: bold">{{.Email}}</span> on Decred Contractor
+	 Management. If that was not you, please notify the administrators.
+</div>
+`
+
+const templateResetPasswordEmailRaw = `
+<div>
+	You have reset your password. To verify your password reset,
+	you will need to execute the following:
+</div>
+<div style="margin: 20px 0 0 10px">
+	<pre><code>
+$ cmswwwcli verifyresetpassword {{.Email}} {{.Token}}
+	</code></pre>
+</div>
+<div style="margin-top: 20px">
+	You are receiving this email because the password has been reset for
+	 <span style="font-weight: bold">{{.Email}}</span> on Decred Contractor
+	 Management. If you did not perform this action, please notify the
+	 administrators.</div>
+</div>
 `

@@ -133,12 +133,16 @@ func (c *cmswww) SetupRoutes() {
 		permissionPublic, false)
 	c.addRoute(http.MethodPost, v1.RouteLogout, c.HandleLogout,
 		permissionPublic, false)
+	c.addPostRoute(v1.RouteResetPassword, c.HandleResetPassword,
+		new(v1.ResetPassword), permissionPublic, false)
 
 	// Routes that require being logged in.
 	c.addPostRoute(v1.RouteNewIdentity, c.HandleNewIdentity,
 		new(v1.NewIdentity), permissionLogin, false)
 	c.addPostRoute(v1.RouteVerifyNewIdentity, c.HandleVerifyNewIdentity,
 		new(v1.VerifyNewIdentity), permissionLogin, false)
+	c.addPostRoute(v1.RouteChangePassword, c.HandleChangePassword,
+		new(v1.ChangePassword), permissionLogin, false)
 	c.addPostRoute(v1.RouteSubmitInvoice, c.HandleSubmitInvoice,
 		new(v1.SubmitInvoice), permissionLogin, true)
 	c.addGetRoute(v1.RouteInvoiceDetails, c.HandleInvoiceDetails,

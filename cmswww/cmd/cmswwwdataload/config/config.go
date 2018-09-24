@@ -32,20 +32,23 @@ var (
 //
 // See loadConfig for details on the configuration load process.
 type Config struct {
-	AdminEmail       string `long:"adminemail" description:"Admin user email address"`
-	AdminUser        string `long:"adminuser" description:"Admin username"`
-	AdminPass        string `long:"adminpass" description:"Admin password"`
-	ContractorEmail  string `long:"contractoremail" description:"Contractor user email address"`
-	ContractorUser   string `long:"contractoruser" description:"Contractor user username"`
-	ContractorPass   string `long:"contractorpass" description:"Contractor user password"`
-	Verbose          bool   `short:"v" long:"verbose" description:"Verbose output"`
-	DataDir          string `long:"datadir" description:"Path to config/data directory"`
-	ConfigFile       string `long:"configfile" description:"Path to configuration file"`
-	DebugLevel       string `long:"debuglevel" description:"Logging level to use for servers {trace, debug, info, warn, error, critical}"`
-	DeleteData       bool   `long:"deletedata" description:"Delete all existing data from politeiad and cmswww before loading data"`
-	IncludeTests     bool   `long:"includetests" description:"Includes running tests of different commands."`
-	PoliteiadLogFile string
-	CmswwwLogFile    string
+	AdminEmail                  string `long:"adminemail" description:"Admin user email address"`
+	AdminUser                   string `long:"adminuser" description:"Admin username"`
+	AdminPass                   string `long:"adminpass" description:"Admin password"`
+	ContractorEmail             string `long:"contractoremail" description:"Contractor user email address"`
+	ContractorUser              string `long:"contractoruser" description:"Contractor user username"`
+	ContractorPass              string `long:"contractorpass" description:"Contractor user password"`
+	ContractorName              string `long:"contractorname" description:"Contractor user full name"`
+	ContractorLocation          string `long:"contractorlocation" description:"Contractor user physical location"`
+	ContractorExtendedPublicKey string `long:"contractorextendedpublickey" description:"Contractor extended public key"`
+	Verbose                     bool   `short:"v" long:"verbose" description:"Verbose output"`
+	DataDir                     string `long:"datadir" description:"Path to config/data directory"`
+	ConfigFile                  string `long:"configfile" description:"Path to configuration file"`
+	DebugLevel                  string `long:"debuglevel" description:"Logging level to use for servers {trace, debug, info, warn, error, critical}"`
+	DeleteData                  bool   `long:"deletedata" description:"Delete all existing data from politeiad and cmswww before loading data"`
+	IncludeTests                bool   `long:"includetests" description:"Includes running tests of different commands."`
+	PoliteiadLogFile            string
+	CmswwwLogFile               string
 }
 
 // cleanAndExpandPath expands environment variables and leading ~ in the
@@ -92,17 +95,20 @@ func newConfigParser(cfg *Config, options flags.Options) *flags.Parser {
 func Load() (*Config, error) {
 	// Default config.
 	cfg := Config{
-		AdminEmail:      "admin@example.com",
-		AdminUser:       "admin",
-		AdminPass:       "password",
-		ContractorEmail: "contractor@example.com",
-		ContractorUser:  "contractor",
-		ContractorPass:  "password",
-		DeleteData:      false,
-		Verbose:         false,
-		DataDir:         defaultDataDir,
-		ConfigFile:      defaultConfigFile,
-		DebugLevel:      defaultLogLevel,
+		AdminEmail:                  "admin@example.com",
+		AdminUser:                   "admin",
+		AdminPass:                   "password",
+		ContractorEmail:             "contractor@example.com",
+		ContractorUser:              "contractor",
+		ContractorPass:              "password",
+		ContractorName:              "John Smith",
+		ContractorLocation:          "Dallas, TX, USA",
+		ContractorExtendedPublicKey: "faketpub",
+		DeleteData:                  false,
+		Verbose:                     false,
+		DataDir:                     defaultDataDir,
+		ConfigFile:                  defaultConfigFile,
+		DebugLevel:                  defaultLogLevel,
 	}
 
 	// Pre-parse the command line options to see if an alternative config

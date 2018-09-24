@@ -250,7 +250,10 @@ func (c *Client) ResendInvite(email string) (string, error) {
 	return *eur.VerificationToken, err
 }
 
-func (c *Client) RegisterUser(email, username, password, token string) error {
+func (c *Client) RegisterUser(
+	email, username, password, name,
+	location, extendedPublicKey, token string,
+) error {
 	fmt.Printf("Registering user: %v\n", email)
 
 	var rr v1.RegisterReply
@@ -261,9 +264,12 @@ func (c *Client) RegisterUser(email, username, password, token string) error {
 		},
 		"register",
 		email,
-		username,
-		password,
 		token,
+		fmt.Sprintf("--username=\"%v\"", username),
+		fmt.Sprintf("--password=\"%v\"", password),
+		fmt.Sprintf("--name=\"%v\"", name),
+		fmt.Sprintf("--location=\"%v\"", location),
+		fmt.Sprintf("--xpubkey=%v", extendedPublicKey),
 	)
 }
 

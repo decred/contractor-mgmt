@@ -144,6 +144,9 @@ type Register struct {
 	Email             string `json:"email"`
 	Username          string `json:"username"`
 	Password          string `json:"password"`
+	Name              string `json:"name"`              // User's full name
+	Location          string `json:"location"`          // User's physical location
+	ExtendedPublicKey string `json:"extendedpublickey"` // Extended public key for user's payment account
 	VerificationToken string `json:"verificationtoken"`
 	PublicKey         string `json:"publickey"`
 	Signature         string `json:"signature"`
@@ -352,6 +355,9 @@ type User struct {
 	ID                               string          `json:"id"`
 	Email                            string          `json:"email"`
 	Username                         string          `json:"username"`
+	Name                             string          `json:"name"`
+	Location                         string          `json:"location"`
+	ExtendedPublicKey                string          `json:"extendedpublickey"`
 	Admin                            bool            `json:"isadmin"`
 	RegisterVerificationToken        []byte          `json:"newuserverificationtoken"`
 	RegisterVerificationExpiry       int64           `json:"newuserverificationexpiry"`

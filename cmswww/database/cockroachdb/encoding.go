@@ -14,6 +14,9 @@ func EncodeUser(dbUser *database.User) *User {
 
 	user.ID = uint(dbUser.ID)
 	user.Email = dbUser.Email
+	user.Name = dbUser.Name
+	user.Location = dbUser.Location
+	user.ExtendedPublicKey = dbUser.ExtendedPublicKey
 	user.Admin = dbUser.Admin
 	user.FailedLoginAttempts = dbUser.FailedLoginAttempts
 
@@ -69,6 +72,9 @@ func DecodeUser(user *User) (*database.User, error) {
 		ID:                  uint64(user.ID),
 		Email:               user.Email,
 		Username:            user.Username.String,
+		Name:                user.Name,
+		Location:            user.Location,
+		ExtendedPublicKey:   user.ExtendedPublicKey,
 		Admin:               user.Admin,
 		FailedLoginAttempts: user.FailedLoginAttempts,
 	}

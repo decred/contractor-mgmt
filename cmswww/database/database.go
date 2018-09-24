@@ -69,6 +69,9 @@ type User struct {
 	ID                               uint64
 	Email                            string
 	Username                         string
+	Name                             string
+	Location                         string
+	ExtendedPublicKey                string
 	HashedPassword                   []byte
 	Admin                            bool
 	RegisterVerificationToken        []byte

@@ -197,6 +197,9 @@ func (c *cmswww) HandleRegister(
 	user.RegisterVerificationExpiry = 0
 	user.HashedPassword = hashedPassword
 	user.Username = nu.Username
+	user.Name = nu.Name
+	user.Location = nu.Location
+	user.ExtendedPublicKey = nu.ExtendedPublicKey
 
 	id := database.Identity{}
 	id.Activated = time.Now().Unix()

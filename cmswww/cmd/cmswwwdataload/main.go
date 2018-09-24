@@ -185,7 +185,10 @@ func createContractorUser(
 	adminPass,
 	contractorEmail,
 	contractorUser,
-	contractorPass string,
+	contractorPass,
+	contractorName,
+	contractorLocation,
+	contractorExtendedPublicKey string,
 ) error {
 	if err := c.Login(adminEmail, adminPass); err != nil {
 		return err
@@ -205,7 +208,14 @@ func createContractorUser(
 		return err
 	}
 
-	return c.RegisterUser(contractorEmail, contractorUser, contractorPass, token)
+	return c.RegisterUser(
+		contractorEmail,
+		contractorUser,
+		contractorPass,
+		contractorName,
+		contractorLocation,
+		contractorExtendedPublicKey,
+		token)
 }
 
 func deleteExistingData() error {
@@ -294,6 +304,9 @@ func _main() error {
 		cfg.ContractorEmail,
 		cfg.ContractorUser,
 		cfg.ContractorPass,
+		cfg.ContractorName,
+		cfg.ContractorLocation,
+		cfg.ContractorExtendedPublicKey,
 	)
 	if err != nil {
 		return err

@@ -14,7 +14,10 @@ type User struct {
 	Email                            string         `gorm:"type:varchar(100);unique_index"`
 	Username                         sql.NullString `gorm:"unique"`
 	HashedPassword                   sql.NullString
-	Admin                            bool `gorm:"not_null"`
+	Name                             string `gorm:"not_null"`
+	Location                         string `gorm:"not_null"`
+	ExtendedPublicKey                string `gorm:"not_null"`
+	Admin                            bool   `gorm:"not_null"`
 	RegisterVerificationToken        sql.NullString
 	RegisterVerificationExpiry       pq.NullTime
 	UpdateIdentityVerificationToken  sql.NullString

@@ -330,6 +330,21 @@ func (c *Client) ChangePassword(currentPassword, newPassword string) error {
 	)
 }
 
+func (c *Client) ResetPassword(email, newPassword string) error {
+	fmt.Printf("Resetting password: %v\n", email)
+
+	var rpr v1.ResetPasswordReply
+	return c.ExecuteCliCommand(
+		&rpr,
+		func() bool {
+			return true
+		},
+		"resetpassword",
+		email,
+		fmt.Sprintf("--newpassword=%v", newPassword),
+	)
+}
+
 func (c *Client) CreateAdminUser(email, username, password string) error {
 	fmt.Printf("Creating admin user: %v\n", c.cfg.AdminEmail)
 	_, err := c.ExecuteCommandWithErrorHandling(

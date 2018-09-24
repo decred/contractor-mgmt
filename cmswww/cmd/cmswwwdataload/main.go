@@ -163,18 +163,9 @@ func rejectInvoice(email, password, token string) error {
 	return c.Logout()
 }
 
-func testPasswordChange(email, password string) error {
-	if err := c.Login(email, password); err != nil {
-		return err
-	}
-
+func testPasswordResetAndChange(email, password string) error {
 	newPassword := generateRandomString(16)
-
-	if err := c.ChangePassword(password, newPassword); err != nil {
-		return err
-	}
-
-	if err := c.Logout(); err != nil {
+	if err := c.ResetPassword(email, newPassword); err != nil {
 		return err
 	}
 
@@ -343,7 +334,7 @@ func _main() error {
 	}
 
 	if cfg.IncludeTests {
-		err = testPasswordChange(cfg.AdminEmail, cfg.AdminPass)
+		err = testPasswordResetAndChange(cfg.AdminEmail, cfg.AdminPass)
 		if err != nil {
 			return err
 		}

@@ -92,9 +92,9 @@ PropStatusLocked       6 // Proposal is locked
 Admin users can edit certain properties of other users with the `useredit` command.  The edit action codes are listed below.
 
 ```
-UserEditExpireRegisterVerification        1 // Expire new user verification
-UserEditExpireUpdateKeyVerification      2 // Expire update key verification
-UserEditExpireResetPasswordVerification  3 // Expire reset password verification
-UserEditClearUserPaywall                 4 // Clear user paywall
-UserEditUnlock                           5 // Unlock user
+UserManageExpireRegisterVerification        1 // Expire new user verification
+UserManageExpireUpdateKeyVerification      2 // Expire update key verification
+UserManageExpireResetPasswordVerification  3 // Expire reset password verification
+UserManageClearUserPaywall                 4 // Clear user paywall
+UserManageUnlock                           5 // Unlock user
 ```

@@ -85,7 +85,7 @@ API.  It does not render HTML.
 - [`ErrorStatusDuplicatePublicKey`](#ErrorStatusDuplicatePublicKey)
 - [`ErrorStatusInvalidInvoiceVoteStatus`](#ErrorStatusInvalidInvoiceVoteStatus)
 - [`ErrorStatusNoInvoiceCredits`](#ErrorStatusNoInvoiceCredits)
-- [`ErrorStatusInvalidUserEditAction`](#ErrorStatusInvalidUserEditAction)
+- [`ErrorStatusInvalidUserManageAction`](#ErrorStatusInvalidUserManageAction)
 
 
 **Invoice status codes**
@@ -533,7 +533,7 @@ Edits a user's details. This call requires admin privileges.
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
 | userid | string | The unique id of the user. | Yes |
-| action | int64 | The [user edit action](#user-edit-actions) to execute on the user. | Yes |
+| action | int64 | The [user manage action](#user-edit-actions) to execute on the user. | Yes |
 | reason | string | The admin's reason for executing this action. | Yes |
 
 **Results:** none
@@ -542,7 +542,7 @@ On failure the call shall return `400 Bad Request` and one of the following
 error codes:
 - [`ErrorStatusUserNotFound`](#ErrorStatusUserNotFound)
 - [`ErrorStatusInvalidInput`](#ErrorStatusInvalidInput)
-- [`ErrorStatusInvalidUserEditAction`](#ErrorStatusInvalidUserEditAction)
+- [`ErrorStatusInvalidUserManageAction`](#ErrorStatusInvalidUserManageAction)
 
 **Example**
 
@@ -2068,7 +2068,7 @@ Reply:
 | <a name="ErrorStatusInvalidInvoiceVoteStatus">ErrorStatusInvalidInvoiceVoteStatus</a> | 37 | Invalid invoice vote status. |
 | <a name="ErrorStatusUserLocked">ErrorStatusUserLocked</a> | 38 | User locked due to too many login attempts. |
 | <a name="ErrorStatusNoInvoiceCredits">ErrorStatusNoInvoiceCredits</a> | 39 | No invoice credits. |
-| <a name="ErrorStatusInvalidUserEditAction">ErrorStatusInvalidUserEditAction</a> | 40 | Invalid action for editing a user. |
+| <a name="ErrorStatusInvalidUserManageAction">ErrorStatusInvalidUserManageAction</a> | 40 | Invalid action for editing a user. |
 
 ### Invoice status codes
 
@@ -2085,12 +2085,12 @@ Reply:
 
 | Status | Value | Description |
 |-|-|-|
-| <a name="UserEditInvalid">UserEditInvalid</a>| 0 | An invalid action. This shall be considered a bug. |
-| <a name="UserEditExpireRegisterVerification">UserEditExpireRegisterVerification</a> | 1 | Expires the new user verification token. |
-| <a name="UserEditExpireUpdateKeyVerification">UserEditExpireUpdateKeyVerification</a> | 2 | Expires the update key verification token. |
-| <a name="UserEditExpireResetPasswordVerification">UserEditExpireResetPasswordVerification</a> | 3 | Expires the reset password verification token. |
-| <a name="UserEditClearUserPaywall">UserEditClearUserPaywall</a> | 4 | Clears the user's paywall. |
-| <a name="UserEditUnlock">UserEditUnlock</a> | 5 | Unlocks a user's account. |
+| <a name="UserManageInvalid">UserManageInvalid</a>| 0 | An invalid action. This shall be considered a bug. |
+| <a name="UserManageExpireRegisterVerification">UserManageExpireRegisterVerification</a> | 1 | Expires the new user verification token. |
+| <a name="UserManageExpireUpdateKeyVerification">UserManageExpireUpdateKeyVerification</a> | 2 | Expires the update key verification token. |
+| <a name="UserManageExpireResetPasswordVerification">UserManageExpireResetPasswordVerification</a> | 3 | Expires the reset password verification token. |
+| <a name="UserManageClearUserPaywall">UserManageClearUserPaywall</a> | 4 | Clears the user's paywall. |
+| <a name="UserManageUnlock">UserManageUnlock</a> | 5 | Unlocks a user's account. |
 
 ### `User`
 

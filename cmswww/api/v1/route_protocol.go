@@ -14,6 +14,7 @@ const (
 	RouteUserDetails       = "/user"
 	RouteChangePassword    = "/user/password/change"
 	RouteResetPassword     = "/user/password/reset"
+	RouteManageUser        = "/user/manage"
 	RouteEditUser          = "/user/edit"
 	RouteLogin             = "/login"
 	RouteLogout            = "/logout"
@@ -336,19 +337,29 @@ type UserDetailsReply struct {
 	User User `json:"user"`
 }
 
-// EditUser performs the given action on a user given their id, email or username.
+// ManageUser performs the given action on a user given their id, email or username.
+type ManageUser struct {
+	UserID   string            `json:"userid"`
+	Email    string            `json:"email"`
+	Username string            `json:"username"`
+	Action   UserManageActionT `json:"action"` // Action
+	Reason   string            `json:"reason"` // Admin reason for action
+}
+
+// ManageUserReply is the reply for the ManageUserReply command.
+type ManageUserReply struct {
+	VerificationToken *string `json:"verificationtoken"` // Only set for certain user manage actions
+}
+
+// EditUser allows a user to make changes to himself.
 type EditUser struct {
-	UserID   string          `json:"userid"`
-	Email    string          `json:"email"`
-	Username string          `json:"username"`
-	Action   UserEditActionT `json:"action"` // Action
-	Reason   string          `json:"reason"` // Admin reason for action
+	Name              *string `json:"name"`
+	Location          *string `json:"location"`
+	ExtendedPublicKey *string `json:"extendedpublickey"`
 }
 
 // EditUserReply is the reply for the EditUserReply command.
-type EditUserReply struct {
-	VerificationToken *string `json:"verificationtoken"` // Only set for certain user edit actions
-}
+type EditUserReply struct{}
 
 // User represents an individual user.
 type User struct {

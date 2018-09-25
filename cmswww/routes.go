@@ -149,13 +149,15 @@ func (c *cmswww) SetupRoutes() {
 		new(v1.InvoiceDetails), permissionLogin, true)
 	c.addGetRoute(v1.RouteUserInvoices, c.HandleMyInvoices,
 		new(v1.MyInvoices), permissionLogin, true)
+	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, new(v1.EditUser),
+		permissionLogin, false)
+	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, new(v1.UserDetails),
+		permissionLogin, false)
 
 	// Routes that require being logged in as an admin user.
 	c.addPostRoute(v1.RouteInviteNewUser, c.HandleInviteNewUser,
 		new(v1.InviteNewUser), permissionAdmin, false)
-	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, new(v1.UserDetails),
-		permissionAdmin, false)
-	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, new(v1.EditUser),
+	c.addPostRoute(v1.RouteManageUser, c.HandleManageUser, new(v1.ManageUser),
 		permissionAdmin, false)
 	c.addGetRoute(v1.RouteInvoices, c.HandleInvoices,
 		new(v1.Invoices), permissionAdmin, true)

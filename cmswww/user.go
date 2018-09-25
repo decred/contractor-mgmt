@@ -211,6 +211,31 @@ func (c *cmswww) HandleRegister(
 	return &v1.RegisterReply{}, err
 }
 
+// HandleEditUser changes a user's details.
+func (c *cmswww) HandleEditUser(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	eu := req.(*v1.EditUser)
+
+	// Update the user in the db.
+	if eu.Name != nil {
+		user.Name = *eu.Name
+	}
+	if eu.Location != nil {
+		user.Location = *eu.Location
+	}
+	if eu.ExtendedPublicKey != nil {
+		user.ExtendedPublicKey = *eu.ExtendedPublicKey
+	}
+
+	err := c.db.UpdateUser(user)
+	return &v1.EditUserReply{}, err
+}
+
+// HandleNewIdentity creates a new identity.
 func (c *cmswww) HandleNewIdentity(
 	req interface{},
 	user *database.User,
@@ -282,6 +307,7 @@ func (c *cmswww) HandleNewIdentity(
 	return &nir, nil
 }
 
+// HandleVerifyNewIdentity verifies a newly generated identity.
 func (c *cmswww) HandleVerifyNewIdentity(
 	req interface{},
 	user *database.User,

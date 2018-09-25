@@ -2,7 +2,7 @@ package v1
 
 type ErrorStatusT int
 type InvoiceStatusT int
-type UserEditActionT int
+type UserManageActionT int
 type InvoiceFieldTypeT int
 
 const (
@@ -31,7 +31,7 @@ const (
 	ErrorStatusMalformedUsername              ErrorStatusT = 21
 	ErrorStatusDuplicateUsername              ErrorStatusT = 22
 	ErrorStatusUserLocked                     ErrorStatusT = 23
-	ErrorStatusInvalidUserEditAction          ErrorStatusT = 24
+	ErrorStatusInvalidUserManageAction        ErrorStatusT = 24
 	ErrorStatusMissingInvoiceFile             ErrorStatusT = 25
 	ErrorStatusUserAlreadyExists              ErrorStatusT = 26
 	ErrorStatusReasonNotProvided              ErrorStatusT = 27
@@ -43,12 +43,12 @@ const (
 	InvoiceStatusRejected    InvoiceStatusT = 3 // Invoice has been rejected
 	InvoiceStatusApproved    InvoiceStatusT = 4 // Invoice has been approved
 
-	// User edit actions
-	UserEditInvalid                              UserEditActionT = 0 // Invalid action type
-	UserEditResendInvite                         UserEditActionT = 1
-	UserEditRegenerateUpdateIdentityVerification UserEditActionT = 2
-	UserEditUnlock                               UserEditActionT = 3
-	UserEditLock                                 UserEditActionT = 4
+	// User manage actions
+	UserManageInvalid                              UserManageActionT = 0 // Invalid action type
+	UserManageResendInvite                         UserManageActionT = 1
+	UserManageRegenerateUpdateIdentityVerification UserManageActionT = 2
+	UserManageUnlock                               UserManageActionT = 3
+	UserManageLock                                 UserManageActionT = 4
 
 	InvoiceFieldTypeInvalid InvoiceFieldTypeT = 0
 	InvoiceFieldTypeString  InvoiceFieldTypeT = 1
@@ -81,7 +81,7 @@ var (
 		ErrorStatusMalformedUsername:              "malformed username",
 		ErrorStatusDuplicateUsername:              "duplicate username",
 		ErrorStatusUserLocked:                     "user locked due to too many login attempts",
-		ErrorStatusInvalidUserEditAction:          "invalid user edit action",
+		ErrorStatusInvalidUserManageAction:        "invalid user manage action",
 		ErrorStatusMissingInvoiceFile:             "invoice file is missing",
 		ErrorStatusUserAlreadyExists:              "user already exists",
 		ErrorStatusReasonNotProvided:              "reason for action not provided",
@@ -96,12 +96,12 @@ var (
 		InvoiceStatusApproved:    "approved",
 	}
 
-	// UserEditAction converts user edit actions to human readable text
-	UserEditAction = map[UserEditActionT]string{
-		UserEditInvalid:                              "invalid action",
-		UserEditResendInvite:                         "resend invite",
-		UserEditRegenerateUpdateIdentityVerification: "regenerate update identity verification",
-		UserEditUnlock:                               "unlock user",
-		UserEditLock:                                 "lock user",
+	// UserManageAction converts user manage actions to human readable text
+	UserManageAction = map[UserManageActionT]string{
+		UserManageInvalid:                              "invalid action",
+		UserManageResendInvite:                         "resend invite",
+		UserManageRegenerateUpdateIdentityVerification: "regenerate update identity verification",
+		UserManageUnlock:                               "unlock user",
+		UserManageLock:                                 "lock user",
 	}
 )

@@ -108,7 +108,7 @@ func startPoliteiad() error {
 }
 
 func setNewIdentity(email, password string) error {
-	if err := c.Login(email, password); err != nil {
+	if _, err := c.Login(email, password); err != nil {
 		return err
 	}
 
@@ -125,7 +125,7 @@ func setNewIdentity(email, password string) error {
 }
 
 func submitInvoice(email, password, filepath string) (string, error) {
-	if err := c.Login(email, password); err != nil {
+	if _, err := c.Login(email, password); err != nil {
 		return "", err
 	}
 
@@ -138,7 +138,7 @@ func submitInvoice(email, password, filepath string) (string, error) {
 }
 
 func approveInvoice(email, password, token string) error {
-	if err := c.Login(email, password); err != nil {
+	if _, err := c.Login(email, password); err != nil {
 		return err
 	}
 
@@ -151,7 +151,7 @@ func approveInvoice(email, password, token string) error {
 }
 
 func rejectInvoice(email, password, token string) error {
-	if err := c.Login(email, password); err != nil {
+	if _, err := c.Login(email, password); err != nil {
 		return err
 	}
 
@@ -169,11 +169,52 @@ func testPasswordResetAndChange(email, password string) error {
 		return err
 	}
 
-	if err := c.Login(email, newPassword); err != nil {
+	if _, err := c.Login(email, newPassword); err != nil {
 		return err
 	}
 
 	if err := c.ChangePassword(newPassword, password); err != nil {
+		return err
+	}
+
+	return c.Logout()
+}
+
+func testEditUser(email, password string) error {
+	lr, err := c.Login(email, password)
+	if err != nil {
+		return err
+	}
+
+	udr, err := c.UserDetails(lr.UserID)
+	if err != nil {
+		return err
+	}
+
+	newName := generateRandomString(16)
+	newLocation := generateRandomString(16)
+	newExtendedPublicKey := generateRandomString(16)
+
+	if err := c.EditUser(newName, newLocation, newExtendedPublicKey); err != nil {
+		return err
+	}
+
+	udr2, err := c.UserDetails(lr.UserID)
+	if err != nil {
+		return err
+	}
+
+	if newName != udr2.User.Name {
+		return fmt.Errorf("User's name was not modified")
+	}
+	if newLocation != udr2.User.Location {
+		return fmt.Errorf("User's location was not modified")
+	}
+	if newExtendedPublicKey != udr2.User.ExtendedPublicKey {
+		return fmt.Errorf("User's extended public key was not modified")
+	}
+
+	if err := c.EditUser(udr.User.Name, udr.User.Location, udr.User.ExtendedPublicKey); err != nil {
 		return err
 	}
 
@@ -190,7 +231,7 @@ func createContractorUser(
 	contractorLocation,
 	contractorExtendedPublicKey string,
 ) error {
-	if err := c.Login(adminEmail, adminPass); err != nil {
+	if _, err := c.Login(adminEmail, adminPass); err != nil {
 		return err
 	}
 
@@ -348,6 +389,11 @@ func _main() error {
 
 	if cfg.IncludeTests {
 		err = testPasswordResetAndChange(cfg.AdminEmail, cfg.AdminPass)
+		if err != nil {
+			return err
+		}
+
+		err = testEditUser(cfg.ContractorEmail, cfg.ContractorPass)
 		if err != nil {
 			return err
 		}

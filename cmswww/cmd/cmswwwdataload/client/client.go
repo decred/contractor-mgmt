@@ -176,10 +176,11 @@ func (c *Client) Version() error {
 	)
 }
 
-func (c *Client) Login(email, password string) error {
+func (c *Client) Login(email, password string) (*v1.LoginReply, error) {
 	fmt.Printf("Logging in as: %v\n", email)
+
 	var lr v1.LoginReply
-	return c.ExecuteCliCommand(
+	err := c.ExecuteCliCommand(
 		&lr,
 		func() bool {
 			return lr.UserID != ""
@@ -187,6 +188,8 @@ func (c *Client) Login(email, password string) error {
 		"login",
 		email,
 		password)
+
+	return &lr, err
 }
 
 func (c *Client) Logout() error {
@@ -232,22 +235,54 @@ func (c *Client) InviteUser(email string) (string, error) {
 func (c *Client) ResendInvite(email string) (string, error) {
 	fmt.Printf("Re-inviting user: %v\n", email)
 
-	var eur v1.EditUserReply
+	var mur v1.ManageUserReply
 	err := c.ExecuteCliCommand(
-		&eur,
+		&mur,
 		func() bool {
-			return eur.VerificationToken != nil && *eur.VerificationToken != ""
+			return mur.VerificationToken != nil && *mur.VerificationToken != ""
 		},
-		"edituser",
+		"manageuser",
 		email,
 		"resendinvite",
 		"automatically sent by dataload util",
 	)
 
-	if eur.VerificationToken == nil {
+	if mur.VerificationToken == nil {
 		return "", err
 	}
-	return *eur.VerificationToken, err
+	return *mur.VerificationToken, err
+}
+
+func (c *Client) UserDetails(userID string) (*v1.UserDetailsReply, error) {
+	fmt.Printf("Fetching user details\n")
+
+	var udr v1.UserDetailsReply
+	err := c.ExecuteCliCommand(
+		&udr,
+		func() bool {
+			return udr.User.ID == userID
+		},
+		"user",
+		userID,
+	)
+
+	return &udr, err
+}
+
+func (c *Client) EditUser(name, location, extendedPublicKey string) error {
+	fmt.Printf("Editing user\n")
+
+	var eur v1.EditUserReply
+	return c.ExecuteCliCommand(
+		&eur,
+		func() bool {
+			return true
+		},
+		"edituser",
+		fmt.Sprintf("--name=\"%v\"", name),
+		fmt.Sprintf("--location=\"%v\"", location),
+		fmt.Sprintf("--xpubkey=%v", extendedPublicKey),
+	)
 }
 
 func (c *Client) RegisterUser(

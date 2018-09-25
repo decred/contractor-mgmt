@@ -15,10 +15,13 @@ import (
 
 func convertWWWUserFromDatabaseUser(user *database.User) v1.User {
 	return v1.User{
-		ID:       strconv.FormatUint(user.ID, 10),
-		Email:    user.Email,
-		Username: user.Username,
-		Admin:    user.Admin,
+		ID:                strconv.FormatUint(user.ID, 10),
+		Email:             user.Email,
+		Username:          user.Username,
+		Name:              user.Name,
+		Location:          user.Location,
+		ExtendedPublicKey: user.ExtendedPublicKey,
+		Admin:             user.Admin,
 		RegisterVerificationToken:        user.RegisterVerificationToken,
 		RegisterVerificationExpiry:       user.RegisterVerificationExpiry,
 		UpdateIdentityVerificationToken:  user.UpdateIdentityVerificationToken,
@@ -195,8 +198,17 @@ func (c *cmswww) HandleUserDetails(
 		return nil, err
 	}
 
-	// Convert the database user into a proper response.
 	var udr v1.UserDetailsReply
+	if targetUser == nil {
+		return &udr, nil
+	}
+	if !user.Admin && targetUser.ID != user.ID {
+		// Don't return user details for another user unless the requesting
+		// user is an admin.
+		return &udr, nil
+	}
+
+	// Convert the database user into a proper response.
 	udr.User = convertWWWUserFromDatabaseUser(targetUser)
 	/*
 		// Fetch the first page of the user's invoices.
@@ -213,79 +225,79 @@ func (c *cmswww) HandleUserDetails(
 	return &udr, nil
 }
 
-func (c *cmswww) HandleEditUser(
+func (c *cmswww) HandleManageUser(
 	req interface{},
 	adminUser *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	eu := req.(*v1.EditUser)
-	var eur v1.EditUserReply
+	mu := req.(*v1.ManageUser)
+	var mur v1.ManageUserReply
 
 	// Fetch the database user.
-	targetUser, err := c.findUser(eu.UserID, eu.Email, eu.Username,
+	targetUser, err := c.findUser(mu.UserID, mu.Email, mu.Username,
 		adminUser.Admin)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate that the action is valid.
-	if eu.Action == v1.UserEditInvalid {
+	if mu.Action == v1.UserManageInvalid {
 		return nil, v1.UserError{
-			ErrorCode: v1.ErrorStatusInvalidUserEditAction,
+			ErrorCode: v1.ErrorStatusInvalidUserManageAction,
 		}
 	}
 
 	// Validate that the reason is supplied for certain actions.
-	if eu.Action == v1.UserEditLock {
-		eu.Reason = strings.TrimSpace(eu.Reason)
-		if len(eu.Reason) == 0 {
+	if mu.Action == v1.UserManageLock {
+		mu.Reason = strings.TrimSpace(mu.Reason)
+		if len(mu.Reason) == 0 {
 			return nil, v1.UserError{
 				ErrorCode: v1.ErrorStatusReasonNotProvided,
 			}
 		}
 	}
 
-	switch eu.Action {
-	case v1.UserEditResendInvite:
+	switch mu.Action {
+	case v1.UserManageResendInvite:
 		token, err := c.resendInvite(adminUser, targetUser)
 		if err != nil {
 			return nil, err
 		}
 
-		eur.VerificationToken = &token
-	case v1.UserEditRegenerateUpdateIdentityVerification:
+		mur.VerificationToken = &token
+	case v1.UserManageRegenerateUpdateIdentityVerification:
 		/*
 			// -168 hours is 7 days in the past
 			expiredTime := time.Now().Add(-168 * time.Hour).Unix()
 
 			targetUser.UpdateIdentityVerificationExpiry = expiredTime
 		*/
-	case v1.UserEditUnlock:
+	case v1.UserManageUnlock:
 		targetUser.FailedLoginAttempts = 0
 		err = c.db.UpdateUser(targetUser)
 		if err != nil {
 			return nil, err
 		}
-	case v1.UserEditLock:
+	case v1.UserManageLock:
 		targetUser.FailedLoginAttempts = v1.LoginAttemptsToLockUser
 		err = c.db.UpdateUser(targetUser)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unsupported user edit action: %v",
-			v1.UserEditAction[eu.Action])
+		return nil, fmt.Errorf("unsupported user manage action: %v",
+			v1.UserManageAction[mu.Action])
 	}
 
 	// Append this action to the admin log file.
 	err = c.logAdminUserActionLock(adminUser, targetUser,
-		v1.UserEditAction[eu.Action], eu.Reason)
+		v1.UserManageAction[mu.Action], mu.Reason)
 	if err != nil {
 		return nil, err
 	}
 
-	return &eur, nil
+	return &mur, nil
 }
 
 // resendInvite sets a new verification token and expiry for a new user;

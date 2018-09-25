@@ -1,26 +1,14 @@
 package commands
 
 import (
-	"fmt"
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 )
 
 type EditUserCmd struct {
-	Args struct {
-		User   string `positional-arg-name:"user"`
-		Action string `positional-arg-name:"action"`
-		Reason string `positional-arg-name:"reason"`
-	} `positional-args:"true" required:"true"`
+	Name              *string `long:"name" optional:"true" description:"User's full name"`
+	Location          *string `long:"location" optional:"true" description:"User's physical location"`
+	ExtendedPublicKey *string `long:"xpubkey" optional:"true" description:"User's extended public key for payment account"`
 }
-
-var (
-	UserEditActionCommands = map[string]v1.UserEditActionT{
-		"resendinvite":        v1.UserEditResendInvite,
-		"resendidentitytoken": v1.UserEditRegenerateUpdateIdentityVerification,
-		"lock":                v1.UserEditLock,
-		"unlock":              v1.UserEditUnlock,
-	}
-)
 
 func (cmd *EditUserCmd) Execute(args []string) error {
 	err := InitialVersionRequest()
@@ -28,17 +16,10 @@ func (cmd *EditUserCmd) Execute(args []string) error {
 		return err
 	}
 
-	action, ok := UserEditActionCommands[cmd.Args.Action]
-	if !ok {
-		return fmt.Errorf("%v is an invalid user edit action", cmd.Args.Action)
-	}
-
 	eu := v1.EditUser{
-		UserID:   cmd.Args.User,
-		Email:    cmd.Args.User,
-		Username: cmd.Args.User,
-		Action:   action,
-		Reason:   cmd.Args.Reason,
+		Name:              cmd.Name,
+		Location:          cmd.Location,
+		ExtendedPublicKey: cmd.ExtendedPublicKey,
 	}
 
 	var eur v1.EditUserReply

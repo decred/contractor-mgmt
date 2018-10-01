@@ -5,24 +5,25 @@ import (
 )
 
 const (
-	RouteRoot              = "/"
-	RouteInviteNewUser     = "/user/invite"
-	RouteRegister          = "/user/new"
-	RouteNewIdentity       = "/user/identity"
-	RouteVerifyNewIdentity = "/user/identity/verify"
-	RouteUserInvoices      = "/user/invoices"
-	RouteUserDetails       = "/user"
-	RouteChangePassword    = "/user/password/change"
-	RouteResetPassword     = "/user/password/reset"
-	RouteManageUser        = "/user/manage"
-	RouteEditUser          = "/user/edit"
-	RouteLogin             = "/login"
-	RouteLogout            = "/logout"
-	RouteInvoices          = "/invoices"
-	RouteSubmitInvoice     = "/invoice/submit"
-	RouteInvoiceDetails    = "/invoice"
-	RouteSetInvoiceStatus  = "/invoice/setstatus"
-	RoutePolicy            = "/policy"
+	RouteRoot                      = "/"
+	RouteInviteNewUser             = "/user/invite"
+	RouteRegister                  = "/user/new"
+	RouteNewIdentity               = "/user/identity"
+	RouteVerifyNewIdentity         = "/user/identity/verify"
+	RouteUserInvoices              = "/user/invoices"
+	RouteUserDetails               = "/user"
+	RouteChangePassword            = "/user/password/change"
+	RouteResetPassword             = "/user/password/reset"
+	RouteManageUser                = "/user/manage"
+	RouteEditUser                  = "/user/edit"
+	RouteEditUserExtendedPublicKey = "/user/edit/xpublickey"
+	RouteLogin                     = "/login"
+	RouteLogout                    = "/logout"
+	RouteInvoices                  = "/invoices"
+	RouteSubmitInvoice             = "/invoice/submit"
+	RouteInvoiceDetails            = "/invoice"
+	RouteSetInvoiceStatus          = "/invoice/setstatus"
+	RoutePolicy                    = "/policy"
 )
 
 var (
@@ -145,9 +146,9 @@ type Register struct {
 	Email             string `json:"email"`
 	Username          string `json:"username"`
 	Password          string `json:"password"`
-	Name              string `json:"name"`              // User's full name
-	Location          string `json:"location"`          // User's physical location
-	ExtendedPublicKey string `json:"extendedpublickey"` // Extended public key for user's payment account
+	Name              string `json:"name"`       // User's full name
+	Location          string `json:"location"`   // User's physical location
+	ExtendedPublicKey string `json:"xpublickey"` // Extended public key for user's payment account
 	VerificationToken string `json:"verificationtoken"`
 	PublicKey         string `json:"publickey"`
 	Signature         string `json:"signature"`
@@ -346,41 +347,54 @@ type ManageUser struct {
 	Reason   string            `json:"reason"` // Admin reason for action
 }
 
-// ManageUserReply is the reply for the ManageUserReply command.
+// ManageUserReply is the reply for the ManageUser command.
 type ManageUserReply struct {
 	VerificationToken *string `json:"verificationtoken"` // Only set for certain user manage actions
 }
 
-// EditUser allows a user to make changes to himself.
+// EditUser allows a user to make changes to his profile.
 type EditUser struct {
-	Name              *string `json:"name"`
-	Location          *string `json:"location"`
-	ExtendedPublicKey *string `json:"extendedpublickey"`
+	Name     *string `json:"name"`
+	Location *string `json:"location"`
 }
 
-// EditUserReply is the reply for the EditUserReply command.
+// EditUserReply is the reply for the EditUser command.
 type EditUserReply struct{}
+
+// EditUserExtendedPublicKey allows a user to change his extended public key.
+type EditUserExtendedPublicKey struct {
+	ExtendedPublicKey string `json:"xpublickey"`
+	VerificationToken string `json:"verificationtoken"`
+}
+
+// EditUserExtendedPublicKeyReply is the reply for the EditUserExtendedPublicKey
+// command.
+type EditUserExtendedPublicKeyReply struct {
+	VerificationToken string `json:"verificationtoken"`
+}
 
 // User represents an individual user.
 type User struct {
-	ID                               string          `json:"id"`
-	Email                            string          `json:"email"`
-	Username                         string          `json:"username"`
-	Name                             string          `json:"name"`
-	Location                         string          `json:"location"`
-	ExtendedPublicKey                string          `json:"extendedpublickey"`
-	Admin                            bool            `json:"isadmin"`
-	RegisterVerificationToken        []byte          `json:"newuserverificationtoken"`
-	RegisterVerificationExpiry       int64           `json:"newuserverificationexpiry"`
-	UpdateIdentityVerificationToken  []byte          `json:"updateidentityverificationtoken"`
-	UpdateIdentityVerificationExpiry int64           `json:"updateidentityverificationexpiry"`
-	ResetPasswordVerificationToken   []byte          `json:"resetpasswordverificationtoken"`
-	ResetPasswordVerificationExpiry  int64           `json:"resetpasswordverificationexpiry"`
-	LastLogin                        int64           `json:"lastlogin"`
-	FailedLoginAttempts              uint64          `json:"failedloginattempts"`
-	Locked                           bool            `json:"islocked"`
-	Identities                       []UserIdentity  `json:"identities"`
-	Invoices                         []InvoiceRecord `json:"invoices"`
+	ID                                        string          `json:"id"`
+	Email                                     string          `json:"email"`
+	Username                                  string          `json:"username"`
+	Name                                      string          `json:"name"`
+	Location                                  string          `json:"location"`
+	ExtendedPublicKey                         string          `json:"xpublickey"`
+	Admin                                     bool            `json:"isadmin"`
+	RegisterVerificationToken                 []byte          `json:"newuserverificationtoken"`
+	RegisterVerificationExpiry                int64           `json:"newuserverificationexpiry"`
+	UpdateIdentityVerificationToken           []byte          `json:"updateidentityverificationtoken"`
+	UpdateIdentityVerificationExpiry          int64           `json:"updateidentityverificationexpiry"`
+	ResetPasswordVerificationToken            []byte          `json:"resetpasswordverificationtoken"`
+	ResetPasswordVerificationExpiry           int64           `json:"resetpasswordverificationexpiry"`
+	UpdateExtendedPublicKeyVerificationToken  []byte          `json:"updatexpublickeyverificationtoken"`
+	UpdateExtendedPublicKeyVerificationExpiry int64           `json:"updatexpublickeyverificationexpiry"`
+	LastLogin                                 int64           `json:"lastlogin"`
+	FailedLoginAttempts                       uint64          `json:"failedloginattempts"`
+	Locked                                    bool            `json:"islocked"`
+	Identities                                []UserIdentity  `json:"identities"`
+	Invoices                                  []InvoiceRecord `json:"invoices"`
 }
 
 // UserIdentity represents a user's unique identity.

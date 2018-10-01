@@ -273,7 +273,7 @@ func (c *Client) EditUser(name, location, extendedPublicKey string) error {
 	fmt.Printf("Editing user\n")
 
 	var eur v1.EditUserReply
-	return c.ExecuteCliCommand(
+	err := c.ExecuteCliCommand(
 		&eur,
 		func() bool {
 			return true
@@ -281,7 +281,19 @@ func (c *Client) EditUser(name, location, extendedPublicKey string) error {
 		"edituser",
 		fmt.Sprintf("--name=\"%v\"", name),
 		fmt.Sprintf("--location=\"%v\"", location),
-		fmt.Sprintf("--xpubkey=%v", extendedPublicKey),
+	)
+	if err != nil {
+		return err
+	}
+
+	var euepkr v1.EditUserExtendedPublicKeyReply
+	return c.ExecuteCliCommand(
+		&euepkr,
+		func() bool {
+			return true
+		},
+		"updatexpublickey",
+		fmt.Sprintf("--xpublickey=%v", extendedPublicKey),
 	)
 }
 

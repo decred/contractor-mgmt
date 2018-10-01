@@ -66,22 +66,24 @@ type Database interface {
 
 // User record.
 type User struct {
-	ID                               uint64
-	Email                            string
-	Username                         string
-	Name                             string
-	Location                         string
-	ExtendedPublicKey                string
-	HashedPassword                   []byte
-	Admin                            bool
-	RegisterVerificationToken        []byte
-	RegisterVerificationExpiry       int64
-	UpdateIdentityVerificationToken  []byte
-	UpdateIdentityVerificationExpiry int64
-	ResetPasswordVerificationToken   []byte
-	ResetPasswordVerificationExpiry  int64
-	LastLogin                        int64
-	FailedLoginAttempts              uint64
+	ID                                        uint64
+	Email                                     string
+	Username                                  string
+	Name                                      string
+	Location                                  string
+	ExtendedPublicKey                         string
+	HashedPassword                            []byte
+	Admin                                     bool
+	RegisterVerificationToken                 []byte
+	RegisterVerificationExpiry                int64
+	UpdateIdentityVerificationToken           []byte
+	UpdateIdentityVerificationExpiry          int64
+	ResetPasswordVerificationToken            []byte
+	ResetPasswordVerificationExpiry           int64
+	UpdateExtendedPublicKeyVerificationToken  []byte
+	UpdateExtendedPublicKeyVerificationExpiry int64
+	LastLogin                                 int64
+	FailedLoginAttempts                       uint64
 
 	Identities []Identity
 }

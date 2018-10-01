@@ -227,12 +227,121 @@ func (c *cmswww) HandleEditUser(
 	if eu.Location != nil {
 		user.Location = *eu.Location
 	}
-	if eu.ExtendedPublicKey != nil {
-		user.ExtendedPublicKey = *eu.ExtendedPublicKey
-	}
 
 	err := c.db.UpdateUser(user)
 	return &v1.EditUserReply{}, err
+}
+
+// HandleEditUserExtendedPublicKey changes a user's extended public key.
+func (c *cmswww) HandleEditUserExtendedPublicKey(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	eu := req.(*v1.EditUserExtendedPublicKey)
+	var eur v1.EditUserExtendedPublicKeyReply
+
+	if eu.VerificationToken == "" {
+		c.emailUpdateExtendedPublicKey(user, eu, &eur)
+	} else {
+		user.ExtendedPublicKey = eu.ExtendedPublicKey
+	}
+
+	err := c.db.UpdateUser(user)
+	return &eur, err
+}
+
+func (c *cmswww) emailUpdateExtendedPublicKey(
+	user *database.User,
+	rp *v1.EditUserExtendedPublicKey,
+	rpr *v1.EditUserExtendedPublicKeyReply,
+) error {
+	if user.UpdateExtendedPublicKeyVerificationToken != nil {
+		if user.UpdateExtendedPublicKeyVerificationExpiry > time.Now().Unix() {
+			// The verification token is present and hasn't expired, so do nothing.
+			return nil
+		}
+	}
+
+	// The verification token isn't present or is present but expired.
+
+	// Generate a new verification token and expiry.
+	token, expiry, err := c.generateVerificationTokenAndExpiry()
+	if err != nil {
+		return err
+	}
+
+	// Add the updated user information to the db.
+	user.UpdateExtendedPublicKeyVerificationToken = token
+	user.UpdateExtendedPublicKeyVerificationExpiry = expiry
+	err = c.db.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
+	// This is conditional on the email server being setup.
+	err = c.emailUpdateExtendedPublicKeyVerificationLink(user.Email,
+		hex.EncodeToString(token))
+	if err != nil {
+		return err
+	}
+
+	// Only set the token if email verification is disabled.
+	if c.cfg.SMTP == nil {
+		rpr.VerificationToken = hex.EncodeToString(token)
+	}
+
+	return nil
+}
+
+func (c *cmswww) verifyUpdateExtendedPublicKey(
+	user *database.User,
+	rp *v1.ResetPassword,
+	rpr *v1.ResetPasswordReply,
+) error {
+	// Decode the verification token.
+	token, err := hex.DecodeString(rp.VerificationToken)
+	if err != nil {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+		}
+	}
+
+	// Check that the verification token matches.
+	if !bytes.Equal(token, user.ResetPasswordVerificationToken) {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+		}
+	}
+
+	// Check that the token hasn't expired.
+	if user.ResetPasswordVerificationExpiry < time.Now().Unix() {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
+		}
+	}
+
+	// Validate the new password.
+	err = validatePassword(rp.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	// Hash the new password.
+	hashedPassword, err := hashPassword(rp.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	// Clear out the verification token fields, set the new password in the db,
+	// and unlock account
+	user.ResetPasswordVerificationToken = nil
+	user.ResetPasswordVerificationExpiry = 0
+	user.HashedPassword = hashedPassword
+	user.FailedLoginAttempts = 0
+
+	return c.db.UpdateUser(user)
 }
 
 // HandleNewIdentity creates a new identity.

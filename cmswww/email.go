@@ -20,6 +20,10 @@ type ResetPasswordEmailTemplateData struct {
 	Token string
 	Email string
 }
+type UpdateExtendedPublicKeyEmailTemplateData struct {
+	Token string
+	Email string
+}
 
 const (
 	cmsMailName = "Decred Contractor Management"
@@ -34,6 +38,8 @@ var (
 		template.New("user_locked_reset_password_email_template").Parse(templateUserLockedResetPasswordRaw))
 	templateResetPasswordEmail = template.Must(
 		template.New("reset_password_email_template").Parse(templateResetPasswordEmailRaw))
+	templateUpdateExtendedPublicKeyEmail = template.Must(
+		template.New("update_extended_public_key_email_template").Parse(templateUpdateExtendedPublicKeyEmailRaw))
 )
 
 // ExecuteTemplate executes a template with the given data.
@@ -149,6 +155,31 @@ func (c *cmswww) emailResetPasswordVerificationLink(email, token string) error {
 	}
 	from := "noreply@decred.org"
 	subject := "Verify Your Password Reset"
+	body := buf.String()
+
+	msg := goemail.NewHTMLMessage(from, subject, body)
+	msg.AddTo(email)
+
+	msg.SetName(cmsMailName)
+	return c.cfg.SMTP.Send(msg)
+}
+
+func (c *cmswww) emailUpdateExtendedPublicKeyVerificationLink(email, token string) error {
+	if c.cfg.SMTP == nil {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	tplData := UpdateExtendedPublicKeyEmailTemplateData{
+		Email: email,
+		Token: token,
+	}
+	err := templateUpdateExtendedPublicKeyEmail.Execute(&buf, &tplData)
+	if err != nil {
+		return err
+	}
+	from := "noreply@decred.org"
+	subject := "Update your Extended Public Key"
 	body := buf.String()
 
 	msg := goemail.NewHTMLMessage(from, subject, body)

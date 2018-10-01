@@ -5,9 +5,8 @@ import (
 )
 
 type EditUserCmd struct {
-	Name              *string `long:"name" optional:"true" description:"User's full name"`
-	Location          *string `long:"location" optional:"true" description:"User's physical location"`
-	ExtendedPublicKey *string `long:"xpubkey" optional:"true" description:"User's extended public key for payment account"`
+	Name     *string `long:"name" optional:"true" description:"User's full name"`
+	Location *string `long:"location" optional:"true" description:"User's physical location"`
 }
 
 func (cmd *EditUserCmd) Execute(args []string) error {
@@ -17,9 +16,8 @@ func (cmd *EditUserCmd) Execute(args []string) error {
 	}
 
 	eu := v1.EditUser{
-		Name:              cmd.Name,
-		Location:          cmd.Location,
-		ExtendedPublicKey: cmd.ExtendedPublicKey,
+		Name:     cmd.Name,
+		Location: cmd.Location,
 	}
 
 	var eur v1.EditUserReply

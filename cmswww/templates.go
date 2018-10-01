@@ -76,3 +76,20 @@ $ cmswwwcli verifyresetpassword {{.Email}} {{.Token}}
 	 administrators.</div>
 </div>
 `
+
+const templateUpdateExtendedPublicKeyEmailRaw = `
+<div>
+	To update your extended public key, you will need to execute the following:
+</div>
+<div style="margin: 20px 0 0 10px">
+	<pre><code>
+$ cmswwwcli updatexpublickey {{.Token}} &lt;your extended public key>
+	</code></pre>
+</div>
+<div style="margin-top: 20px">
+	You are receiving this email because it has been requested to update the
+	 extended public key for <span style="font-weight: bold">{{.Email}}</span>
+	 on Decred Contractor Management. If you did not perform this action,
+	 please notify the administrators.</div>
+</div>
+`

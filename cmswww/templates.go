@@ -66,7 +66,7 @@ const templateResetPasswordEmailRaw = `
 </div>
 <div style="margin: 20px 0 0 10px">
 	<pre><code>
-$ cmswwwcli verifyresetpassword {{.Email}} {{.Token}}
+$ cmswwwcli resetpassword {{.Email}} --token={{.Token}} --newpassword=&lt;your new password>
 	</code></pre>
 </div>
 <div style="margin-top: 20px">
@@ -83,7 +83,7 @@ const templateUpdateExtendedPublicKeyEmailRaw = `
 </div>
 <div style="margin: 20px 0 0 10px">
 	<pre><code>
-$ cmswwwcli updatexpublickey {{.Token}} &lt;your extended public key>
+$ cmswwwcli updatexpublickey --token={{.Token}} --xpublickey=&lt;your extended public key>
 	</code></pre>
 </div>
 <div style="margin-top: 20px">

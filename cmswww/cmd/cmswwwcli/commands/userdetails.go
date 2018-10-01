@@ -38,6 +38,7 @@ func (cmd *UserDetailsCmd) Execute(args []string) error {
 		fmt.Printf("                  Email: %v\n", udr.User.Email)
 		fmt.Printf("               Username: %v\n", udr.User.Username)
 		fmt.Printf("                  Admin: %v\n", udr.User.Admin)
+		fmt.Printf("    Extended public key: %v\n", udr.User.ExtendedPublicKey)
 		fmt.Printf("             Last login: %v\n", udr.User.LastLogin)
 		fmt.Printf("  Failed login attempts: %v\n", udr.User.FailedLoginAttempts)
 		fmt.Printf("                 Locked: %v\n",

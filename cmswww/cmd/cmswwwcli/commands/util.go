@@ -26,6 +26,10 @@ var (
 )
 
 func ParseMonth(monthStr string) (uint16, error) {
+	if monthStr == "" {
+		return 0, nil
+	}
+
 	parsedMonth, err := strconv.ParseUint(monthStr, 10, 16)
 	if err == nil {
 		return uint16(parsedMonth), nil

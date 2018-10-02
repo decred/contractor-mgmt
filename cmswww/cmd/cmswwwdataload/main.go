@@ -33,6 +33,8 @@ var (
 	c            *client.Client
 	politeiadCmd *exec.Cmd
 	cmswwwCmd    *exec.Cmd
+
+	numInvoices int
 )
 
 func createLogFile(path string) (*os.File, error) {
@@ -134,6 +136,7 @@ func submitInvoice(email, password, filepath string) (string, error) {
 		return "", err
 	}
 
+	numInvoices++
 	return token, c.Logout()
 }
 
@@ -158,6 +161,46 @@ func rejectInvoice(email, password, token string) error {
 	err := c.RejectInvoice(token)
 	if err != nil {
 		return err
+	}
+
+	return c.Logout()
+}
+
+func testInventory(email, password string) error {
+	if _, err := c.Login(email, password); err != nil {
+		return err
+	}
+
+	invoices, err := c.GetAllInvoices()
+	if err != nil {
+		return err
+	}
+
+	if len(invoices) != numInvoices {
+		return fmt.Errorf("Expected %v invoices, got %v", numInvoices, len(invoices))
+	}
+
+	if err := c.Logout(); err != nil {
+		return err
+	}
+
+	// Test inventory on startup as well.
+	stopCmswww()
+	if err = startCmswww(); err != nil {
+		return err
+	}
+
+	if _, err := c.Login(email, password); err != nil {
+		return err
+	}
+
+	invoices, err = c.GetAllInvoices()
+	if err != nil {
+		return err
+	}
+
+	if len(invoices) != numInvoices {
+		return fmt.Errorf("Expected %v invoices, got %v", numInvoices, len(invoices))
 	}
 
 	return c.Logout()
@@ -388,6 +431,11 @@ func _main() error {
 	}
 
 	if cfg.IncludeTests {
+		err = testInventory(cfg.AdminEmail, cfg.AdminPass)
+		if err != nil {
+			return err
+		}
+
 		err = testPasswordResetAndChange(cfg.AdminEmail, cfg.AdminPass)
 		if err != nil {
 			return err

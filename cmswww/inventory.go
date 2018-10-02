@@ -22,7 +22,7 @@ type inventoryRecord struct {
 //
 // This function must be called WITH the mutex held.
 func (c *cmswww) updateInventoryRecord(record pd.Record) error {
-	dbInvoice, err := convertRecordToDatabaseInvoice(record)
+	dbInvoice, err := c.convertRecordToDatabaseInvoice(record)
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func (c *cmswww) updateInventoryRecord(record pd.Record) error {
 //
 // This function must be called WITH the mutex held.
 func (c *cmswww) newInventoryRecord(record pd.Record) error {
-	dbInvoice, err := convertRecordToDatabaseInvoice(record)
+	dbInvoice, err := c.convertRecordToDatabaseInvoice(record)
 	if err != nil {
 		return err
 	}

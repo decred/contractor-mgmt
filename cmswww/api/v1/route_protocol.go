@@ -20,6 +20,7 @@ const (
 	RouteLogin                     = "/login"
 	RouteLogout                    = "/logout"
 	RouteInvoices                  = "/invoices"
+	RouteGenerateUnpaidInvoices    = "/invoices/unpaid/generate"
 	RouteSubmitInvoice             = "/invoice/submit"
 	RouteInvoiceDetails            = "/invoice"
 	RouteSetInvoiceStatus          = "/invoice/setstatus"
@@ -259,6 +260,21 @@ type Invoices struct {
 
 // InvoicesReply is used to reply with a list of invoices.
 type InvoicesReply struct {
+	Invoices []InvoiceRecord `json:"invoices"`
+}
+
+// GenerateUnpaidInvoices retrieves all approved but unpaid invoices and returns
+// them along with their amounts in DCR, using the provided DCR-USD rate.
+//
+// Note: This call requires admin privileges.
+type GenerateUnpaidInvoices struct {
+	Month      uint16  `json:"month"`
+	Year       uint16  `json:"year"`
+	DCRUSDRate float64 `json:"dcrusdrate"`
+}
+
+// GenerateUnpaidInvoicesReply is used to reply with a list of invoices.
+type GenerateUnpaidInvoicesReply struct {
 	Invoices []InvoiceRecord `json:"invoices"`
 }
 

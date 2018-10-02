@@ -175,7 +175,7 @@ func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
 	}
 }
 
-func convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
+func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
 	dbInvoice := database.Invoice{
 		Status:          convertInvoiceStatusFromPD(p.Status),
 		File:            convertRecordFilesToDatabaseInvoiceFile(p.Files),
@@ -197,6 +197,12 @@ func convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
 			dbInvoice.Timestamp = md.Timestamp
 			dbInvoice.PublicKey = md.PublicKey
 			dbInvoice.UserSignature = md.Signature
+
+			dbInvoice.UserID, err = c.db.GetUserIdByPublicKey(md.PublicKey)
+			if err != nil {
+				return nil, fmt.Errorf("could not get user id from public key %v",
+					md.PublicKey)
+			}
 		case mdStreamChanges:
 			f := strings.NewReader(m.Payload)
 			d := json.NewDecoder(f)

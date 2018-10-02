@@ -29,7 +29,32 @@ func (c *cmswww) HandleInvoices(
 		statusMap[i.Status] = true
 	}
 
+	invoices, err := c.getInvoices(database.InvoicesRequest{
+		//After:  ui.After,
+		//Before: ui.Before,
+		Month:     i.Month,
+		Year:      i.Year,
+		StatusMap: statusMap,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &v1.InvoicesReply{
+		Invoices: invoices,
+	}, nil
+}
+
+// HandleGenerateUnpaidInvoices returns an array of all invoices.
+func (c *cmswww) HandleGenerateUnpaidInvoices(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	//gui := req.(*v1.GenerateUnpaidInvoices)
+
+	return &v1.GenerateUnpaidInvoicesReply{
 		/*
 			Invoices: c.getInvoices(invoicesRequest{
 				//After:  ui.After,
@@ -322,7 +347,6 @@ func (c *cmswww) HandleSubmitInvoice(
 	}
 
 	// Add the new proposal to the inventory cache.
-	c.Lock()
 	c.newInventoryRecord(pd.Record{
 		Status:           pd.RecordStatusNotReviewed,
 		Timestamp:        ts,
@@ -330,7 +354,6 @@ func (c *cmswww) HandleSubmitInvoice(
 		Metadata:         n.Metadata,
 		Files:            n.Files,
 	})
-	c.Unlock()
 
 	nir.CensorshipRecord = convertInvoiceCensorFromPD(pdReply.CensorshipRecord)
 	return &nir, nil

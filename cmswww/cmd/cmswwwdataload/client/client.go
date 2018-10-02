@@ -368,6 +368,21 @@ func (c *Client) RejectInvoice(token string) error {
 	)
 }
 
+func (c *Client) GetAllInvoices() ([]v1.InvoiceRecord, error) {
+	fmt.Printf("Fetching all invoices\n")
+
+	var ir v1.InvoicesReply
+	err := c.ExecuteCliCommand(
+		&ir,
+		func() bool {
+			return true
+		},
+		"invoices",
+	)
+
+	return ir.Invoices, err
+}
+
 func (c *Client) ChangePassword(currentPassword, newPassword string) error {
 	fmt.Printf("Changing password to: %v\n", newPassword)
 

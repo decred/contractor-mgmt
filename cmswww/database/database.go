@@ -45,12 +45,13 @@ type InvoicesRequest struct {
 // Database interface that is required by the web server.
 type Database interface {
 	// User functions
-	CreateUser(*User) error                  // Create new user
-	UpdateUser(*User) error                  // Update existing user
-	GetUserByEmail(string) (*User, error)    // Return user record given the email address
-	GetUserByUsername(string) (*User, error) // Return user record given the username
-	GetUserById(uint64) (*User, error)       // Return user record given its id
-	AllUsers(callbackFn func(u *User)) error // Iterate all users
+	CreateUser(*User) error                      // Create new user
+	UpdateUser(*User) error                      // Update existing user
+	GetUserByEmail(string) (*User, error)        // Return user record given the email address
+	GetUserByUsername(string) (*User, error)     // Return user record given the username
+	GetUserById(uint64) (*User, error)           // Return user record given its id
+	AllUsers(callbackFn func(u *User)) error     // Iterate all users
+	GetUserIdByPublicKey(string) (uint64, error) // Return user id by public key
 
 	// Invoice functions
 	CreateInvoice(*Invoice) error                   // Create new invoice

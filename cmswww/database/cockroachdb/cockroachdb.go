@@ -144,15 +144,17 @@ func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
 	return DecodeUser(&user)
 }
 
-// getUserIdByPublicKey returns a user record given its id, if found in the database.
-func (c *cockroachdb) getUserIdByPublicKey(publicKey string) (uint, error) {
+// GetUserIdByPublicKey returns a user record given its id, if found in the database.
+//
+// GetUserIdByPublicKey satisfies the backend interface.
+func (c *cockroachdb) GetUserIdByPublicKey(publicKey string) (uint64, error) {
 	var id Identity
 	result := c.db.Where("key = ?", publicKey).First(&id)
 	if result.Error != nil {
 		return 0, result.Error
 	}
 
-	return id.UserID, nil
+	return uint64(id.UserID), nil
 }
 
 // Executes a callback on every user in the database.
@@ -198,14 +200,6 @@ func (c *cockroachdb) CreateInvoice(dbInvoice *database.Invoice) error {
 	}
 
 	invoice := EncodeInvoice(dbInvoice)
-	if invoice.UserID == 0 {
-		userID, err := c.getUserIdByPublicKey(invoice.PublicKey)
-		if err != nil {
-			return err
-		}
-
-		invoice.UserID = userID
-	}
 
 	log.Debugf("CreateInvoice: %v", invoice.Token)
 	return c.db.Create(invoice).Error
@@ -274,7 +268,7 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 		}
 	}
 
-	if invoicesRequest.StatusMap != nil {
+	if invoicesRequest.StatusMap != nil && len(invoicesRequest.StatusMap) > 0 {
 		statuses := make([]uint, 0, len(invoicesRequest.StatusMap))
 		for k := range invoicesRequest.StatusMap {
 			statuses = append(statuses, uint(k))

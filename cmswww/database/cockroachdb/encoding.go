@@ -200,7 +200,9 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.ServerSignature = dbInvoice.ServerSignature
 
 	for _, dbInvoiceChange := range dbInvoice.Changes {
-		invoice.Changes = append(invoice.Changes, *EncodeInvoiceChange(&dbInvoiceChange))
+		invoiceChange := EncodeInvoiceChange(&dbInvoiceChange)
+		invoice.Changes = append(invoice.Changes, *invoiceChange)
+		invoice.Status = invoiceChange.NewStatus
 	}
 
 	return &invoice

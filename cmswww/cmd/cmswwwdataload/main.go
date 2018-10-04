@@ -34,6 +34,9 @@ var (
 	politeiadCmd *exec.Cmd
 	cmswwwCmd    *exec.Cmd
 
+	cmswwwlogFile *os.File
+	pdLogFile     *os.File
+
 	numInvoices int
 )
 
@@ -77,14 +80,17 @@ func startCmswww() error {
 		return err
 	}
 
-	logFile, err := createLogFile(cfg.CmswwwLogFile)
-	if err != nil {
-		return err
+	if cmswwwlogFile == nil {
+		var err error
+		cmswwwlogFile, err = createLogFile(cfg.CmswwwLogFile)
+		if err != nil {
+			return err
+		}
 	}
 
-	reader := io.TeeReader(stdout, logFile)
+	reader := io.TeeReader(stdout, cmswwwlogFile)
 	waitForStartOfDay(reader)
-	go io.Copy(logFile, stdout)
+	go io.Copy(cmswwwlogFile, stdout)
 
 	// Get the version for the csrf
 	return c.Version()
@@ -99,12 +105,15 @@ func startPoliteiad() error {
 		return err
 	}
 
-	logFile, err := createLogFile(cfg.PoliteiadLogFile)
-	if err != nil {
-		return err
+	if pdLogFile == nil {
+		var err error
+		pdLogFile, err = createLogFile(cfg.PoliteiadLogFile)
+		if err != nil {
+			return err
+		}
 	}
 
-	reader := io.TeeReader(out, logFile)
+	reader := io.TeeReader(out, pdLogFile)
 	waitForStartOfDay(reader)
 	return nil
 }
@@ -404,13 +413,13 @@ func _main() error {
 	if err != nil {
 		return err
 	}
-	invoiceToApproveToken, err := submitInvoice(cfg.ContractorEmail, cfg.ContractorPass,
+	_, err = submitInvoice(cfg.ContractorEmail, cfg.ContractorPass,
 		invoiceToApproveFilepath)
 	if err != nil {
 		return err
 	}
 
-	err = approveInvoice(cfg.AdminEmail, cfg.AdminPass, invoiceToApproveToken)
+	//err = approveInvoice(cfg.AdminEmail, cfg.AdminPass, invoiceToApproveToken)
 	if err != nil {
 		return err
 	}
@@ -419,13 +428,13 @@ func _main() error {
 	if err != nil {
 		return err
 	}
-	invoiceToRejectToken, err := submitInvoice(cfg.ContractorEmail, cfg.ContractorPass,
+	_, err = submitInvoice(cfg.ContractorEmail, cfg.ContractorPass,
 		invoiceToRejectFilepath)
 	if err != nil {
 		return err
 	}
 
-	err = rejectInvoice(cfg.AdminEmail, cfg.AdminPass, invoiceToRejectToken)
+	//err = rejectInvoice(cfg.AdminEmail, cfg.AdminPass, invoiceToRejectToken)
 	if err != nil {
 		return err
 	}

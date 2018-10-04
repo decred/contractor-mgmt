@@ -22,24 +22,10 @@ type BackendInvoiceMetadata struct {
 }
 
 type BackendInvoiceMDChanges struct {
-	Version        uint             `json:"version"`        // Version of the struct
-	AdminPublicKey string           `json:"adminpublickey"` // Identity of the administrator
-	NewStatus      pd.RecordStatusT `json:"newstatus"`      // NewStatus
-	Timestamp      int64            `json:"timestamp"`      // Timestamp of the change
-}
-
-func convertInvoiceStatusFromWWW(s v1.InvoiceStatusT) pd.RecordStatusT {
-	switch s {
-	case v1.InvoiceStatusNotFound:
-		return pd.RecordStatusNotFound
-	case v1.InvoiceStatusNotReviewed:
-		return pd.RecordStatusNotReviewed
-	case v1.InvoiceStatusRejected:
-		return pd.RecordStatusCensored
-	case v1.InvoiceStatusApproved:
-		return pd.RecordStatusPublic
-	}
-	return pd.RecordStatusInvalid
+	Version        uint              `json:"version"`        // Version of the struct
+	AdminPublicKey string            `json:"adminpublickey"` // Identity of the administrator
+	NewStatus      v1.InvoiceStatusT `json:"newstatus"`      // Status
+	Timestamp      int64             `json:"timestamp"`      // Timestamp of the change
 }
 
 func convertInvoiceFileFromWWW(f *v1.File) []pd.File {
@@ -57,45 +43,6 @@ func convertInvoiceCensorFromWWW(f v1.CensorshipRecord) pd.CensorshipRecord {
 		Merkle:    f.Merkle,
 		Signature: f.Signature,
 	}
-}
-
-// convertInvoiceFromWWW converts a www invoice to a politeiad record.  This
-// function should only be used in tests. Note that convertInvoiceFromWWW can not
-// emulate MD properly.
-func convertInvoiceFromWWW(p v1.InvoiceRecord) pd.Record {
-	return pd.Record{
-		Status:    convertInvoiceStatusFromWWW(p.Status),
-		Timestamp: p.Timestamp,
-		Metadata: []pd.MetadataStream{{
-			ID:      pd.MetadataStreamsMax + 1, // fail deliberately
-			Payload: "invalid payload",
-		}},
-		Files:            convertInvoiceFileFromWWW(p.File),
-		CensorshipRecord: convertInvoiceCensorFromWWW(p.CensorshipRecord),
-	}
-}
-
-func convertInvoicesFromWWW(p []v1.InvoiceRecord) []pd.Record {
-	pr := make([]pd.Record, 0, len(p))
-	for _, v := range p {
-		pr = append(pr, convertInvoiceFromWWW(v))
-	}
-	return pr
-}
-
-///////////////////////////////
-func convertInvoiceStatusFromPD(s pd.RecordStatusT) v1.InvoiceStatusT {
-	switch s {
-	case pd.RecordStatusNotFound:
-		return v1.InvoiceStatusNotFound
-	case pd.RecordStatusNotReviewed:
-		return v1.InvoiceStatusNotReviewed
-	case pd.RecordStatusCensored:
-		return v1.InvoiceStatusRejected
-	case pd.RecordStatusPublic:
-		return v1.InvoiceStatusApproved
-	}
-	return v1.InvoiceStatusInvalid
 }
 
 func convertInvoiceFileFromPD(files []pd.File) *v1.File {
@@ -135,7 +82,7 @@ func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[strin
 
 	// Set the most up-to-date status.
 	for _, v := range r.changes {
-		invoice.Status = convertInvoiceStatusFromPD(v.NewStatus)
+		invoice.Status = v.NewStatus
 	}
 
 	// Set the user id.
@@ -164,7 +111,6 @@ func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
 	}
 
 	return v1.InvoiceRecord{
-		Status:           convertInvoiceStatusFromPD(p.Status),
 		Timestamp:        md.Timestamp,
 		Month:            md.Month,
 		Year:             md.Year,
@@ -177,44 +123,45 @@ func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
 
 func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
 	dbInvoice := database.Invoice{
-		Status:          convertInvoiceStatusFromPD(p.Status),
 		File:            convertRecordFilesToDatabaseInvoiceFile(p.Files),
 		Token:           p.CensorshipRecord.Token,
 		ServerSignature: p.CensorshipRecord.Signature,
 	}
-	md := &BackendInvoiceMetadata{}
 	for _, m := range p.Metadata {
 		switch m.ID {
 		case mdStreamGeneral:
-			err := json.Unmarshal([]byte(m.Payload), md)
+			var mdGeneral BackendInvoiceMetadata
+			err := json.Unmarshal([]byte(m.Payload), &mdGeneral)
 			if err != nil {
 				return nil, fmt.Errorf("could not decode metadata '%v' token '%v': %v",
 					p.Metadata, p.CensorshipRecord.Token, err)
 			}
 
-			dbInvoice.Month = md.Month
-			dbInvoice.Year = md.Year
-			dbInvoice.Timestamp = md.Timestamp
-			dbInvoice.PublicKey = md.PublicKey
-			dbInvoice.UserSignature = md.Signature
+			dbInvoice.Month = mdGeneral.Month
+			dbInvoice.Year = mdGeneral.Year
+			dbInvoice.Timestamp = mdGeneral.Timestamp
+			dbInvoice.PublicKey = mdGeneral.PublicKey
+			dbInvoice.UserSignature = mdGeneral.Signature
 
-			dbInvoice.UserID, err = c.db.GetUserIdByPublicKey(md.PublicKey)
+			dbInvoice.UserID, err = c.db.GetUserIdByPublicKey(mdGeneral.PublicKey)
 			if err != nil {
 				return nil, fmt.Errorf("could not get user id from public key %v",
-					md.PublicKey)
+					mdGeneral.PublicKey)
 			}
 		case mdStreamChanges:
 			f := strings.NewReader(m.Payload)
 			d := json.NewDecoder(f)
 			for {
 				var mdChanges BackendInvoiceMDChanges
-				if err := d.Decode(&md); err == io.EOF {
+				if err := d.Decode(&mdChanges); err == io.EOF {
 					break
 				} else if err != nil {
 					return nil, err
 				}
+
 				dbInvoice.Changes = append(dbInvoice.Changes,
 					convertStreamChangeToDatabaseInvoiceChange(mdChanges))
+				dbInvoice.Status = mdChanges.NewStatus
 			}
 		default:
 			// Log error but proceed
@@ -231,7 +178,7 @@ func convertStreamChangeToDatabaseInvoiceChange(mdChanges BackendInvoiceMDChange
 	dbInvoiceChange := database.InvoiceChange{}
 
 	dbInvoiceChange.AdminPublicKey = mdChanges.AdminPublicKey
-	dbInvoiceChange.NewStatus = convertInvoiceStatusFromPD(mdChanges.NewStatus)
+	dbInvoiceChange.NewStatus = mdChanges.NewStatus
 	dbInvoiceChange.Timestamp = mdChanges.Timestamp
 
 	return dbInvoiceChange

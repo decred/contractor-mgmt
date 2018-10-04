@@ -104,88 +104,82 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	sis := req.(*v1.SetInvoiceStatus)
+	/*
+		sis := req.(*v1.SetInvoiceStatus)
 
-	err := checkPublicKeyAndSignature(user, sis.PublicKey, sis.Signature,
-		sis.Token, strconv.FormatUint(uint64(sis.Status), 10))
-	if err != nil {
-		return nil, err
-	}
+		err := checkPublicKeyAndSignature(user, sis.PublicKey, sis.Signature,
+			sis.Token, strconv.FormatUint(uint64(sis.Status), 10))
+		if err != nil {
+			return nil, err
+		}
 
-	// Create change record
-	newStatus := convertInvoiceStatusFromWWW(sis.Status)
-	changes := BackendInvoiceMDChanges{
-		Version:   VersionBackendInvoiceMDChanges,
-		Timestamp: time.Now().Unix(),
-		NewStatus: newStatus,
-	}
+		// Create change record
+		changes := BackendInvoiceMDChanges{
+			Version:   VersionBackendInvoiceMDChanges,
+			Timestamp: time.Now().Unix(),
+			NewStatus: sis.Status,
+		}
 
-	var pdReply pd.SetUnvettedStatusReply
+		var pdReply pd.SetUnvettedStatusReply
 
-	// XXX Expensive to lock but do it for now.
-	// Lock is needed to prevent a race into this record and it
-	// needs to be updated in the cache.
-	c.Lock()
-	defer c.Unlock()
+		challenge, err := util.Random(pd.ChallengeSize)
+		if err != nil {
+			return nil, err
+		}
 
-	challenge, err := util.Random(pd.ChallengeSize)
-	if err != nil {
-		return nil, err
-	}
+		var ok bool
+		changes.AdminPublicKey, ok = database.ActiveIdentityString(user.Identities)
+		if !ok {
+			return nil, fmt.Errorf("invalid admin identity: %v",
+				user.ID)
+		}
 
-	var ok bool
-	changes.AdminPublicKey, ok = database.ActiveIdentityString(user.Identities)
-	if !ok {
-		return nil, fmt.Errorf("invalid admin identity: %v",
-			user.ID)
-	}
+		blob, err := json.Marshal(changes)
+		if err != nil {
+			return nil, err
+		}
 
-	blob, err := json.Marshal(changes)
-	if err != nil {
-		return nil, err
-	}
-
-	sus := pd.SetUnvettedStatus{
-		Token:     sis.Token,
-		Status:    newStatus,
-		Challenge: hex.EncodeToString(challenge),
-		MDAppend: []pd.MetadataStream{
-			{
-				ID:      mdStreamChanges,
-				Payload: string(blob),
+		sus := pd.SetUnvettedStatus{
+			Token:     sis.Token,
+			Status:    newStatus,
+			Challenge: hex.EncodeToString(challenge),
+			MDAppend: []pd.MetadataStream{
+				{
+					ID:      mdStreamChanges,
+					Payload: string(blob),
+				},
 			},
-		},
-	}
+		}
 
-	responseBody, err := c.rpc(http.MethodPost,
-		pd.SetUnvettedStatusRoute, sus)
-	if err != nil {
-		return nil, err
-	}
+		responseBody, err := c.rpc(http.MethodPost,
+			pd.SetUnvettedStatusRoute, sus)
+		if err != nil {
+			return nil, err
+		}
 
-	err = json.Unmarshal(responseBody, &pdReply)
-	if err != nil {
-		return nil, fmt.Errorf("Could not unmarshal SetUnvettedStatusReply: %v",
-			err)
-	}
+		err = json.Unmarshal(responseBody, &pdReply)
+		if err != nil {
+			return nil, fmt.Errorf("Could not unmarshal SetUnvettedStatusReply: %v",
+				err)
+		}
 
-	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-	if err != nil {
-		return nil, err
-	}
+		// Verify the challenge.
+		err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+		if err != nil {
+			return nil, err
+		}
 
-	// Update the inventory with the metadata changes.
-	c.updateInventoryRecord(pdReply.Record)
+		// Update the inventory with the metadata changes.
+		c.updateInventoryRecord(pdReply.Record)
 
-	// Log the action in the admin log.
-	c.logAdminInvoiceAction(user, sis.Token,
-		fmt.Sprintf("set invoice status to %v",
-			v1.InvoiceStatus[sis.Status]))
-
+		// Log the action in the admin log.
+		c.logAdminInvoiceAction(user, sis.Token,
+			fmt.Sprintf("set invoice status to %v",
+				v1.InvoiceStatus[sis.Status]))
+	*/
 	// Return the reply.
 	sisr := v1.SetInvoiceStatusReply{
-		Invoice: convertRecordToInvoice(pdReply.Record),
+		//Invoice: convertRecordToInvoice(pdReply.Record),
 	}
 	return &sisr, nil
 }
@@ -279,8 +273,9 @@ func (c *cmswww) HandleInvoiceDetails(
 		return nil, err
 	}
 
-	idr.Invoice = convertRecordToInvoice(fullRecord)
-	idr.Invoice.Username = c.getUsernameByID(idr.Invoice.UserID)
+	invoice.File = convertInvoiceFileFromPD(fullRecord.Files)
+	invoice.Username = c.getUsernameByID(invoice.UserID)
+	idr.Invoice = *invoice
 	return &idr, nil
 }
 
@@ -327,34 +322,85 @@ func (c *cmswww) HandleSubmitInvoice(
 		Files: convertInvoiceFileFromWWW(&ni.File),
 	}
 
-	var pdReply pd.NewRecordReply
-	responseBody, err := c.rpc(http.MethodPost,
-		pd.NewRecordRoute, n)
+	var pdNewRecordReply pd.NewRecordReply
+	responseBody, err := c.rpc(http.MethodPost, pd.NewRecordRoute, n)
 	if err != nil {
 		return nil, err
 	}
 
-	err = json.Unmarshal(responseBody, &pdReply)
+	err = json.Unmarshal(responseBody, &pdNewRecordReply)
 	if err != nil {
 		return nil, fmt.Errorf("Unmarshal NewRecordReply: %v",
 			err)
 	}
 
 	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	err = util.VerifyChallenge(c.cfg.Identity, challenge,
+		pdNewRecordReply.Response)
 	if err != nil {
 		return nil, err
 	}
 
-	// Add the new proposal to the inventory cache.
-	c.newInventoryRecord(pd.Record{
-		Status:           pd.RecordStatusNotReviewed,
+	// Create change record
+	changes := BackendInvoiceMDChanges{
+		Version:   VersionBackendInvoiceMDChanges,
+		Timestamp: time.Now().Unix(),
+		NewStatus: v1.InvoiceStatusNotReviewed,
+	}
+
+	var pdSetUnvettedStatusReply pd.SetUnvettedStatusReply
+	challenge, err = util.Random(pd.ChallengeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	blob, err := json.Marshal(changes)
+	if err != nil {
+		return nil, err
+	}
+
+	sus := pd.SetUnvettedStatus{
+		Token:     pdNewRecordReply.CensorshipRecord.Token,
+		Status:    pd.RecordStatusPublic,
+		Challenge: hex.EncodeToString(challenge),
+		MDAppend: []pd.MetadataStream{
+			{
+				ID:      mdStreamChanges,
+				Payload: string(blob),
+			},
+		},
+	}
+
+	responseBody, err = c.rpc(http.MethodPost, pd.SetUnvettedStatusRoute, sus)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(responseBody, &pdSetUnvettedStatusReply)
+	if err != nil {
+		return nil, fmt.Errorf("Could not unmarshal SetUnvettedStatusReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge,
+		pdSetUnvettedStatusReply.Response)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the new proposal to the database.
+	err = c.newInventoryRecord(pd.Record{
 		Timestamp:        ts,
-		CensorshipRecord: pdReply.CensorshipRecord,
-		Metadata:         n.Metadata,
+		CensorshipRecord: pdNewRecordReply.CensorshipRecord,
+		Metadata:         pdSetUnvettedStatusReply.Record.Metadata,
 		Files:            n.Files,
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	nir.CensorshipRecord = convertInvoiceCensorFromPD(pdReply.CensorshipRecord)
+	nir.CensorshipRecord = convertInvoiceCensorFromPD(
+		pdNewRecordReply.CensorshipRecord)
 	return &nir, nil
 }

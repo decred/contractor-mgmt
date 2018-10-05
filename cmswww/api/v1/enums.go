@@ -40,8 +40,9 @@ const (
 	InvoiceStatusInvalid     InvoiceStatusT = 0 // Invalid status
 	InvoiceStatusNotFound    InvoiceStatusT = 1 // Invoice not found
 	InvoiceStatusNotReviewed InvoiceStatusT = 2 // Invoice has not been reviewed
-	InvoiceStatusRejected    InvoiceStatusT = 3 // Invoice has been rejected
+	InvoiceStatusRejected    InvoiceStatusT = 3 // Invoice needs to be revised
 	InvoiceStatusApproved    InvoiceStatusT = 4 // Invoice has been approved
+	InvoiceStatusPaid        InvoiceStatusT = 5 // Invoice has been paid
 
 	// User manage actions
 	UserManageInvalid                              UserManageActionT = 0 // Invalid action type

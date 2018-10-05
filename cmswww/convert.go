@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +27,41 @@ type BackendInvoiceMDChanges struct {
 	AdminPublicKey string            `json:"adminpublickey"` // Identity of the administrator
 	NewStatus      v1.InvoiceStatusT `json:"newstatus"`      // Status
 	Timestamp      int64             `json:"timestamp"`      // Timestamp of the change
+}
+
+func convertDatabaseUserToUser(user *database.User) v1.User {
+	return v1.User{
+		ID:                strconv.FormatUint(user.ID, 10),
+		Email:             user.Email,
+		Username:          user.Username,
+		Name:              user.Name,
+		Location:          user.Location,
+		ExtendedPublicKey: user.ExtendedPublicKey,
+		Admin:             user.Admin,
+		RegisterVerificationToken:        user.RegisterVerificationToken,
+		RegisterVerificationExpiry:       user.RegisterVerificationExpiry,
+		UpdateIdentityVerificationToken:  user.UpdateIdentityVerificationToken,
+		UpdateIdentityVerificationExpiry: user.UpdateIdentityVerificationExpiry,
+		LastLogin:                        user.LastLogin,
+		FailedLoginAttempts:              user.FailedLoginAttempts,
+		Locked:                           IsUserLocked(user.FailedLoginAttempts),
+		Identities:                       convertDatabaseIdentitiesToIdentities(user.Identities),
+	}
+}
+
+func convertDatabaseIdentitiesToIdentities(dbIdentities []database.Identity) []v1.UserIdentity {
+	identities := make([]v1.UserIdentity, 0, len(dbIdentities))
+	for _, dbIdentity := range dbIdentities {
+		identities = append(identities, convertDatabaseIdentityToIdentity(dbIdentity))
+	}
+	return identities
+}
+
+func convertDatabaseIdentityToIdentity(dbIdentity database.Identity) v1.UserIdentity {
+	return v1.UserIdentity{
+		PublicKey: hex.EncodeToString(dbIdentity.Key[:]),
+		Active:    dbIdentity.IsActive(),
+	}
 }
 
 func convertInvoiceFileFromWWW(f *v1.File) []pd.File {

@@ -236,7 +236,7 @@ type InvoiceDetailsReply struct {
 	Invoice InvoiceRecord `json:"invoice"`
 }
 
-// SetInvoiceStatus is used to publish or censor an unreviewed invoice.
+// SetInvoiceStatus is used to approve or reject an unreviewed invoice.
 type SetInvoiceStatus struct {
 	Token     string         `json:"token"`
 	Status    InvoiceStatusT `json:"status"`
@@ -275,7 +275,28 @@ type GenerateUnpaidInvoices struct {
 
 // GenerateUnpaidInvoicesReply is used to reply with a list of invoices.
 type GenerateUnpaidInvoicesReply struct {
-	Invoices []InvoiceRecord `json:"invoices"`
+	Invoices []GeneratedInvoice `json:"invoices"`
+}
+
+// GeneratedInvoice represents a submitted invoice which has been processed
+// and is ready for payment.
+type GeneratedInvoice struct {
+	UserID         string                     `json:"userid"`
+	Username       string                     `json:"username"`
+	LineItems      []GeneratedInvoiceLineItem `json:"lineitems"`
+	PaymentAddress string                     `json:"paymentaddress"`
+	TotalHours     uint64                     `json:"totalhours"`
+	TotalCostUSD   uint64                     `json:"totalcostusd"`
+	TotalCostDCR   float64                    `json:"totalcostdcr"`
+}
+
+// InvoiceLineItem is a unit of work within a submitted invoice.
+type GeneratedInvoiceLineItem struct {
+	Type        string `json:"type"`
+	Subtype     string `json:"subtype"`
+	Description string `json:"description"`
+	Hours       uint64 `json:"hours"`
+	TotalCost   uint64 `json:"totalcost"`
 }
 
 // MyInvoices retrieves all invoices with a given status for a user.

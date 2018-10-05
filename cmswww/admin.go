@@ -13,42 +13,6 @@ import (
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
-func convertWWWUserFromDatabaseUser(user *database.User) v1.User {
-	return v1.User{
-		ID:                strconv.FormatUint(user.ID, 10),
-		Email:             user.Email,
-		Username:          user.Username,
-		Name:              user.Name,
-		Location:          user.Location,
-		ExtendedPublicKey: user.ExtendedPublicKey,
-		Admin:             user.Admin,
-		RegisterVerificationToken:        user.RegisterVerificationToken,
-		RegisterVerificationExpiry:       user.RegisterVerificationExpiry,
-		UpdateIdentityVerificationToken:  user.UpdateIdentityVerificationToken,
-		UpdateIdentityVerificationExpiry: user.UpdateIdentityVerificationExpiry,
-		LastLogin:                        user.LastLogin,
-		FailedLoginAttempts:              user.FailedLoginAttempts,
-		Locked:                           IsUserLocked(user.FailedLoginAttempts),
-		//Identities:                       convertWWWIdentitiesFromDatabaseIdentities(user.Identities),
-	}
-}
-
-/*
-func convertWWWIdentitiesFromDatabaseIdentities(identities []database.Identity) []v1.UserIdentity {
-	userIdentities := make([]v1.UserIdentity, 0, len(identities))
-	for _, v := range identities {
-		userIdentities = append(userIdentities, convertWWWIdentityFromDatabaseIdentity(v))
-	}
-	return userIdentities
-}
-
-func convertWWWIdentityFromDatabaseIdentity(identity database.Identity) v1.UserIdentity {
-	return v1.UserIdentity{
-		PublicKey: identity.EncodedKey(),
-		Active:    identity.IsActive(),
-	}
-}
-*/
 func (c *cmswww) getUserByIDStr(userIDStr string) (*database.User, error) {
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
@@ -209,19 +173,7 @@ func (c *cmswww) HandleUserDetails(
 	}
 
 	// Convert the database user into a proper response.
-	udr.User = convertWWWUserFromDatabaseUser(targetUser)
-	/*
-		// Fetch the first page of the user's invoices.
-		up := v1.UserInvoices{
-			UserID: ud.UserID,
-		}
-		upr, err := c.ProcessUserInvoices(&up, false, true)
-		if err != nil {
-			return nil, err
-		}
-
-		udr.User.Invoices = upr.Invoices
-	*/
+	udr.User = convertDatabaseUserToUser(targetUser)
 	return &udr, nil
 }
 

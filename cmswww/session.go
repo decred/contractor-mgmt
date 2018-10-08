@@ -154,6 +154,10 @@ func (c *cmswww) isAdmin(r *http.Request) (bool, error) {
 		return false, err
 	}
 
+	if user == nil {
+		return false, nil
+	}
+
 	return user.Admin, nil
 }
 

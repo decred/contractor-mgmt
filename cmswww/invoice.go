@@ -36,14 +36,11 @@ func validateStatusTransition(dbInvoice *database.Invoice, newStatus v1.InvoiceS
 	}
 }
 
-func (c *cmswww) createGeneratedInvoice(
-	invoice *v1.InvoiceRecord,
-	dcrUSDRate float64,
-) (*v1.GeneratedInvoice, error) {
-	generatedInvoice := v1.GeneratedInvoice{
+func (c *cmswww) createInvoiceReview(invoice *v1.InvoiceRecord) (*v1.InvoiceReview, error) {
+	invoiceReview := v1.InvoiceReview{
 		UserID:    invoice.UserID,
 		Username:  invoice.Username,
-		LineItems: make([]v1.GeneratedInvoiceLineItem, 0, 0),
+		LineItems: make([]v1.InvoiceReviewLineItem, 0, 0),
 	}
 
 	b, err := base64.StdEncoding.DecodeString(invoice.File.Payload)
@@ -62,7 +59,7 @@ func (c *cmswww) createGeneratedInvoice(
 	}
 
 	for _, record := range records {
-		lineItem := v1.GeneratedInvoiceLineItem{}
+		lineItem := v1.InvoiceReviewLineItem{}
 		for idx := range v1.InvoiceFields {
 			var err error
 			switch idx {
@@ -78,26 +75,76 @@ func (c *cmswww) createGeneratedInvoice(
 					return nil, err
 				}
 
-				generatedInvoice.TotalHours += lineItem.Hours
+				invoiceReview.TotalHours += lineItem.Hours
 			case 4:
 				lineItem.TotalCost, err = strconv.ParseUint(record[idx], 10, 64)
 				if err != nil {
 					return nil, err
 				}
 
-				generatedInvoice.TotalCostUSD += lineItem.TotalCost
+				invoiceReview.TotalCostUSD += lineItem.TotalCost
 			}
 		}
 
-		generatedInvoice.LineItems = append(generatedInvoice.LineItems, lineItem)
+		invoiceReview.LineItems = append(invoiceReview.LineItems, lineItem)
 	}
-
-	generatedInvoice.TotalCostDCR = float64(generatedInvoice.TotalCostUSD) *
-		dcrUSDRate
 
 	// TODO: generate user address from paywall
 
-	return &generatedInvoice, nil
+	// TODO: start listening to paywall addresses
+
+	return &invoiceReview, nil
+}
+
+func (c *cmswww) createInvoicePayment(invoice *v1.InvoiceRecord, dcrUSDRate float64) (*v1.InvoicePayment, error) {
+	invoicePayment := v1.InvoicePayment{
+		UserID:   invoice.UserID,
+		Username: invoice.Username,
+	}
+
+	b, err := base64.StdEncoding.DecodeString(invoice.File.Payload)
+	if err != nil {
+		return nil, err
+	}
+
+	csvReader := csv.NewReader(strings.NewReader(string(b)))
+	csvReader.Comma = v1.PolicyInvoiceFieldDelimiterChar
+	csvReader.Comment = v1.PolicyInvoiceCommentChar
+	csvReader.TrimLeadingSpace = true
+
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, record := range records {
+		for idx := range v1.InvoiceFields {
+			switch idx {
+			case 3:
+				hours, err := strconv.ParseUint(record[idx], 10, 64)
+				if err != nil {
+					return nil, err
+				}
+
+				invoicePayment.TotalHours += hours
+			case 4:
+				totalCost, err := strconv.ParseUint(record[idx], 10, 64)
+				if err != nil {
+					return nil, err
+				}
+
+				invoicePayment.TotalCostUSD += totalCost
+			}
+		}
+
+		invoicePayment.TotalCostDCR = float64(invoicePayment.TotalCostUSD) / dcrUSDRate
+	}
+
+	// TODO: generate user address from paywall
+
+	// TODO: start listening to paywall addresses
+
+	return &invoicePayment, nil
 }
 
 // HandleInvoices returns an array of all invoices.
@@ -130,27 +177,27 @@ func (c *cmswww) HandleInvoices(
 	}, nil
 }
 
-// HandleGenerateUnpaidInvoices returns an array of all invoices.
-func (c *cmswww) HandleGenerateUnpaidInvoices(
+// HandleReviewInvoices returns a list of all unreviewed invoices.
+func (c *cmswww) HandleReviewInvoices(
 	req interface{},
 	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	gui := req.(*v1.GenerateUnpaidInvoices)
+	ri := req.(*v1.ReviewInvoices)
 
 	invoices, err := c.getInvoices(database.InvoicesRequest{
-		Month: gui.Month,
-		Year:  gui.Year,
+		Month: ri.Month,
+		Year:  ri.Year,
 		StatusMap: map[v1.InvoiceStatusT]bool{
-			v1.InvoiceStatusApproved: true,
+			v1.InvoiceStatusNotReviewed: true,
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var generatedInvoices []v1.GeneratedInvoice
+	var invoiceReviews []v1.InvoiceReview
 
 	for _, invoice := range invoices {
 		if invoice.File == nil {
@@ -184,17 +231,83 @@ func (c *cmswww) HandleGenerateUnpaidInvoices(
 			invoice.File = convertInvoiceFileFromPD(pdReply.Record.Files)
 		}
 
-		generatedInvoice, err := c.createGeneratedInvoice(&invoice,
-			gui.DCRUSDRate)
+		invoiceReview, err := c.createInvoiceReview(&invoice)
 		if err != nil {
 			return nil, err
 		}
 
-		generatedInvoices = append(generatedInvoices, *generatedInvoice)
+		invoiceReviews = append(invoiceReviews, *invoiceReview)
 	}
 
-	return &v1.GenerateUnpaidInvoicesReply{
-		Invoices: generatedInvoices,
+	return &v1.ReviewInvoicesReply{
+		Invoices: invoiceReviews,
+	}, nil
+}
+
+// HandlePayInvoices returns an array of all invoices.
+func (c *cmswww) HandlePayInvoices(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	pi := req.(*v1.PayInvoices)
+
+	invoices, err := c.getInvoices(database.InvoicesRequest{
+		Month: pi.Month,
+		Year:  pi.Year,
+		StatusMap: map[v1.InvoiceStatusT]bool{
+			v1.InvoiceStatusApproved: true,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var invoicePayments []v1.InvoicePayment
+
+	for _, invoice := range invoices {
+		if invoice.File == nil {
+			challenge, err := util.Random(pd.ChallengeSize)
+			if err != nil {
+				return nil, err
+			}
+
+			responseBody, err := c.rpc(http.MethodPost, pd.GetVettedRoute,
+				pd.GetVetted{
+					Token:     invoice.CensorshipRecord.Token,
+					Challenge: hex.EncodeToString(challenge),
+				})
+			if err != nil {
+				return nil, err
+			}
+
+			var pdReply pd.GetVettedReply
+			err = json.Unmarshal(responseBody, &pdReply)
+			if err != nil {
+				return nil, fmt.Errorf("Could not unmarshal "+
+					"GetVettedReply: %v", err)
+			}
+
+			// Verify the challenge.
+			err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+			if err != nil {
+				return nil, err
+			}
+
+			invoice.File = convertInvoiceFileFromPD(pdReply.Record.Files)
+		}
+
+		invoicePayment, err := c.createInvoicePayment(&invoice, pi.DCRUSDRate)
+		if err != nil {
+			return nil, err
+		}
+
+		invoicePayments = append(invoicePayments, *invoicePayment)
+	}
+
+	return &v1.PayInvoicesReply{
+		Invoices: invoicePayments,
 	}, nil
 }
 

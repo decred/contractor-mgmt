@@ -20,7 +20,8 @@ const (
 	RouteLogin                     = "/login"
 	RouteLogout                    = "/logout"
 	RouteInvoices                  = "/invoices"
-	RouteGenerateUnpaidInvoices    = "/invoices/unpaid/generate"
+	RouteReviewInvoices            = "/invoices/review"
+	RoutePayInvoices               = "/invoices/pay"
 	RouteSubmitInvoice             = "/invoice/submit"
 	RouteInvoiceDetails            = "/invoice"
 	RouteSetInvoiceStatus          = "/invoice/setstatus"
@@ -263,40 +264,63 @@ type InvoicesReply struct {
 	Invoices []InvoiceRecord `json:"invoices"`
 }
 
-// GenerateUnpaidInvoices retrieves all approved but unpaid invoices and returns
-// them along with their amounts in DCR, using the provided DCR-USD rate.
+// ReviewInvoices retrieves all unreviewed invoices and returns each of their
+// line items along with their total costs in USD.
 //
 // Note: This call requires admin privileges.
-type GenerateUnpaidInvoices struct {
-	Month      uint16  `json:"month"`
-	Year       uint16  `json:"year"`
-	DCRUSDRate float64 `json:"dcrusdrate"`
+type ReviewInvoices struct {
+	Month uint16 `json:"month"`
+	Year  uint16 `json:"year"`
 }
 
-// GenerateUnpaidInvoicesReply is used to reply with a list of invoices.
-type GenerateUnpaidInvoicesReply struct {
-	Invoices []GeneratedInvoice `json:"invoices"`
+// ReviewInvoicesReply is used to reply with a list of invoices.
+type ReviewInvoicesReply struct {
+	Invoices []InvoiceReview `json:"invoices"`
 }
 
-// GeneratedInvoice represents a submitted invoice which has been processed
-// and is ready for payment.
-type GeneratedInvoice struct {
-	UserID         string                     `json:"userid"`
-	Username       string                     `json:"username"`
-	LineItems      []GeneratedInvoiceLineItem `json:"lineitems"`
-	PaymentAddress string                     `json:"paymentaddress"`
-	TotalHours     uint64                     `json:"totalhours"`
-	TotalCostUSD   uint64                     `json:"totalcostusd"`
-	TotalCostDCR   float64                    `json:"totalcostdcr"`
+// InvoiceReview represents a submitted invoice which needs to be reviewed.
+type InvoiceReview struct {
+	UserID         string                  `json:"userid"`
+	Username       string                  `json:"username"`
+	LineItems      []InvoiceReviewLineItem `json:"lineitems"`
+	PaymentAddress string                  `json:"paymentaddress"`
+	TotalHours     uint64                  `json:"totalhours"`
+	TotalCostUSD   uint64                  `json:"totalcostusd"`
 }
 
-// InvoiceLineItem is a unit of work within a submitted invoice.
-type GeneratedInvoiceLineItem struct {
+// InvoiceReviewLineItem is a unit of work within a submitted invoice.
+type InvoiceReviewLineItem struct {
 	Type        string `json:"type"`
 	Subtype     string `json:"subtype"`
 	Description string `json:"description"`
 	Hours       uint64 `json:"hours"`
 	TotalCost   uint64 `json:"totalcost"`
+}
+
+// PayInvoices retrieves all approved invoices and returns them
+// along with their amounts in DCR, using the provided DCR-USD rate.
+//
+// Note: This call requires admin privileges.
+type PayInvoices struct {
+	Month      uint16  `json:"month"`
+	Year       uint16  `json:"year"`
+	DCRUSDRate float64 `json:"dcrusdrate"`
+}
+
+// PayInvoicesReply is used to reply with a list of invoices.
+type PayInvoicesReply struct {
+	Invoices []InvoicePayment `json:"invoices"`
+}
+
+// InvoicePayment represents a submitted invoice which has been processed
+// and is ready for payment.
+type InvoicePayment struct {
+	UserID         string  `json:"userid"`
+	Username       string  `json:"username"`
+	TotalHours     uint64  `json:"totalhours"`
+	TotalCostUSD   uint64  `json:"totalcostusd"`
+	TotalCostDCR   float64 `json:"totalcostdcr"`
+	PaymentAddress string  `json:"paymentaddress"`
 }
 
 // MyInvoices retrieves all invoices with a given status for a user.

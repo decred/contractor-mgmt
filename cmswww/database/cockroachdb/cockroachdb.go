@@ -273,7 +273,7 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 		for k := range invoicesRequest.StatusMap {
 			statuses = append(statuses, uint(k))
 		}
-		// TODO: paramsMap[""] = statuses
+		paramsMap["i.status"] = statuses
 	}
 
 	if invoicesRequest.Month != 0 {

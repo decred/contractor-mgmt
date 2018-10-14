@@ -282,6 +282,7 @@ type ReviewInvoicesReply struct {
 type InvoiceReview struct {
 	UserID         string                  `json:"userid"`
 	Username       string                  `json:"username"`
+	Token          string                  `json:"token"`
 	LineItems      []InvoiceReviewLineItem `json:"lineitems"`
 	PaymentAddress string                  `json:"paymentaddress"`
 	TotalHours     uint64                  `json:"totalhours"`
@@ -293,6 +294,7 @@ type InvoiceReviewLineItem struct {
 	Type        string `json:"type"`
 	Subtype     string `json:"subtype"`
 	Description string `json:"description"`
+	Proposal    string `json:"proposal"`
 	Hours       uint64 `json:"hours"`
 	TotalCost   uint64 `json:"totalcost"`
 }
@@ -317,6 +319,7 @@ type PayInvoicesReply struct {
 type InvoicePayment struct {
 	UserID         string  `json:"userid"`
 	Username       string  `json:"username"`
+	Token          string  `json:"token"`
 	TotalHours     uint64  `json:"totalhours"`
 	TotalCostUSD   uint64  `json:"totalcostusd"`
 	TotalCostDCR   float64 `json:"totalcostdcr"`

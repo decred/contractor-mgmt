@@ -95,6 +95,7 @@ var (
 		InvoiceStatusNotReviewed: "unreviewed",
 		InvoiceStatusRejected:    "rejected",
 		InvoiceStatusApproved:    "approved",
+		InvoiceStatusPaid:        "paid",
 	}
 
 	// UserManageAction converts user manage actions to human readable text

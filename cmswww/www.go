@@ -59,10 +59,11 @@ type cmswww struct {
 
 	store *sessions.FilesystemStore
 
-	db          database.Database
-	params      *chaincfg.Params
-	client      *http.Client      // politeiad client
-	userPubkeys map[string]string // [pubkey][userid]
+	db             database.Database
+	params         *chaincfg.Params
+	client         *http.Client             // politeiad client
+	userPubkeys    map[string]string        // [pubkey][userid]
+	polledPayments map[string]polledPayment // [token][polledPayment]
 
 	// Following entries require locks
 	inventoryLoaded bool // Current inventory
@@ -273,9 +274,10 @@ func _main() error {
 
 	// Setup application context.
 	c := &cmswww{
-		cfg:         loadedCfg,
-		params:      activeNetParams.Params,
-		userPubkeys: make(map[string]string),
+		cfg:            loadedCfg,
+		params:         activeNetParams.Params,
+		userPubkeys:    make(map[string]string),
+		polledPayments: make(map[string]polledPayment),
 	}
 
 	// Check if this command is being run to fetch the identity.

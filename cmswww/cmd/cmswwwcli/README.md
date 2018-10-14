@@ -95,6 +95,6 @@ Admin users can edit certain properties of other users with the `useredit` comma
 UserManageExpireRegisterVerification        1 // Expire new user verification
 UserManageExpireUpdateKeyVerification      2 // Expire update key verification
 UserManageExpireResetPasswordVerification  3 // Expire reset password verification
-UserManageClearUserPaywall                 4 // Clear user paywall
+UserManageClearUserPayment                 4 // Clear user paywall
 UserManageUnlock                           5 // Unlock user
 ```

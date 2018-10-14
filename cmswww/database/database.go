@@ -85,6 +85,7 @@ type User struct {
 	UpdateExtendedPublicKeyVerificationExpiry int64
 	LastLogin                                 int64
 	FailedLoginAttempts                       uint64
+	PaymentAddressIndex                       uint64
 
 	Identities []Identity
 }
@@ -111,8 +112,10 @@ type Invoice struct {
 	PublicKey       string
 	UserSignature   string
 	ServerSignature string
+	Proposal        string // Optional link to a Politeia proposal
 
-	Changes []InvoiceChange
+	Changes  []InvoiceChange
+	Payments []InvoicePayment
 }
 
 type File struct {
@@ -125,6 +128,14 @@ type InvoiceChange struct {
 	AdminPublicKey string
 	NewStatus      v1.InvoiceStatusT
 	Timestamp      int64
+}
+
+type InvoicePayment struct {
+	Address     string
+	Amount      uint64
+	TxNotBefore int64
+	PollExpiry  int64
+	TxID        string
 }
 
 func (id *Identity) IsActive() bool {

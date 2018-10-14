@@ -1,13 +1,13 @@
 package client
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -97,6 +97,13 @@ func (c *Client) CreateCmswwwCmd() *exec.Cmd {
 		"--debuglevel", c.cfg.DebugLevel)
 }
 
+func (c *Client) CreatePoliteiadCmd() *exec.Cmd {
+	return c.ExecuteCommand(
+		"politeiad",
+		"--testnet",
+		"--debuglevel", c.cfg.DebugLevel)
+}
+
 func (c *Client) ExecuteCliCommand(reply interface{}, verify verifyReply, args ...string) error {
 	fullArgs := make([]string, 0, len(args)+2)
 	fullArgs = append(fullArgs, cli)
@@ -111,53 +118,64 @@ func (c *Client) ExecuteCliCommand(reply interface{}, verify verifyReply, args .
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	defer cmd.Wait()
 
-	errBytes, err := ioutil.ReadAll(stderr)
+	var stderrBytes, stdoutBytes []byte
+	var errStderr, errStdout error
+	go func() {
+		stderrBytes, errStderr = ioutil.ReadAll(stderr)
+		if errStderr == nil && len(stderrBytes) > 0 {
+			errStderr = fmt.Errorf("unexpected error output from %v: %v", cli,
+				string(stderrBytes))
+		}
+	}()
+
+	go func() {
+		stdoutBytes, errStdout = ioutil.ReadAll(stdout)
+	}()
+
+	err := cmd.Wait()
 	if err != nil {
 		return err
 	}
+	if errStderr != nil {
+		return errStderr
+	}
+	if errStdout != nil {
+		return errStdout
+	}
 
-	if len(errBytes) > 0 {
-		return fmt.Errorf("unexpected error output from %v: %v", cli,
-			string(errBytes))
+	text := string(stdoutBytes)
+
+	var lines []string
+	if strings.Contains(text, "\n") {
+		lines = strings.Split(text, "\n")
+	} else {
+		lines = append(lines, text)
 	}
 
 	var allText string
-	buf := bufio.NewScanner(stdout)
-	for buf.Scan() {
-		text := buf.Text()
-
-		var lines []string
-		if strings.Contains(text, "\n") {
-			lines = strings.Split(text, "\n")
-		} else {
-			lines = append(lines, text)
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
 		}
 
-		for _, line := range lines {
-			if c.cfg.Verbose {
-				fmt.Printf("  %v\n", line)
-			}
-
-			var er v1.ErrorReply
-			err := json.Unmarshal([]byte(line), &er)
-			if err == nil && er.ErrorCode != int64(v1.ErrorStatusInvalid) {
-				return fmt.Errorf("error returned from %v: %v %v", cli,
-					er.ErrorCode, er.ErrorContext)
-			}
-
-			err = json.Unmarshal([]byte(line), reply)
-			if err == nil && verify() {
-				return nil
-			}
-
-			allText += line + "\n"
+		if c.cfg.Verbose {
+			fmt.Printf("  %v\n", line)
 		}
-	}
 
-	if err := buf.Err(); err != nil {
-		return err
+		var er v1.ErrorReply
+		err := json.Unmarshal([]byte(line), &er)
+		if err == nil && er.ErrorCode != int64(v1.ErrorStatusInvalid) {
+			return fmt.Errorf("error returned from %v: %v %v", cli,
+				er.ErrorCode, er.ErrorContext)
+		}
+
+		err = json.Unmarshal([]byte(line), reply)
+		if err == nil && verify() {
+			return nil
+		}
+
+		allText += line + "\n"
 	}
 
 	return fmt.Errorf("unexpected output from %v: %v", cli, allText)
@@ -365,6 +383,22 @@ func (c *Client) RejectInvoice(token string) error {
 		"setinvoicestatus",
 		token,
 		"rejected",
+	)
+}
+
+func (c *Client) PayInvoices(month, year uint16, dcrUSDRate float64) error {
+	fmt.Printf("Paying invoices\n")
+
+	var pir v1.PayInvoicesReply
+	return c.ExecuteCliCommand(
+		&pir,
+		func() bool {
+			return true
+		},
+		"payinvoices",
+		strconv.FormatUint(uint64(month), 10),
+		strconv.FormatUint(uint64(year), 10),
+		strconv.FormatFloat(dcrUSDRate, 'f', -1, 64),
 	)
 }
 

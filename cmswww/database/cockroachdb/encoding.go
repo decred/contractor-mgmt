@@ -198,11 +198,17 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.PublicKey = dbInvoice.PublicKey
 	invoice.UserSignature = dbInvoice.UserSignature
 	invoice.ServerSignature = dbInvoice.ServerSignature
+	invoice.Proposal = dbInvoice.Proposal
 
 	for _, dbInvoiceChange := range dbInvoice.Changes {
 		invoiceChange := EncodeInvoiceChange(&dbInvoiceChange)
 		invoice.Changes = append(invoice.Changes, *invoiceChange)
 		invoice.Status = invoiceChange.NewStatus
+	}
+
+	for _, dbInvoicePayment := range dbInvoice.Payments {
+		invoicePayment := EncodeInvoicePayment(&dbInvoicePayment)
+		invoice.Payments = append(invoice.Payments, *invoicePayment)
 	}
 
 	return &invoice
@@ -218,6 +224,20 @@ func EncodeInvoiceChange(dbInvoiceChange *database.InvoiceChange) *InvoiceChange
 	invoiceChange.Timestamp = time.Unix(dbInvoiceChange.Timestamp, 0)
 
 	return &invoiceChange
+}
+
+// EncodeInvoicePayment encodes a generic database.InvoicePayment instance into a cockroachdb
+// InvoicePayment.
+func EncodeInvoicePayment(dbInvoicePayment *database.InvoicePayment) *InvoicePayment {
+	invoicePayment := InvoicePayment{}
+
+	invoicePayment.Address = dbInvoicePayment.Address
+	invoicePayment.Amount = uint(dbInvoicePayment.Amount)
+	invoicePayment.TxNotBefore = dbInvoicePayment.TxNotBefore
+	invoicePayment.PollExpiry = dbInvoicePayment.PollExpiry
+	invoicePayment.TxID = dbInvoicePayment.TxID
+
+	return &invoicePayment
 }
 
 // DecodeInvoice decodes a cockroachdb Invoice instance into a generic database.Invoice.
@@ -241,11 +261,22 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	dbInvoice.PublicKey = invoice.PublicKey
 	dbInvoice.UserSignature = invoice.UserSignature
 	dbInvoice.ServerSignature = invoice.ServerSignature
+	dbInvoice.Proposal = invoice.Proposal
+	/*
+		for _, invoiceChange := range invoice.Changes {
+			dbInvoiceChange := DecodeInvoiceChange(&invoiceChange)
+			dbInvoice.Changes = append(dbInvoice.Changes, *dbInvoiceChange)
+		}
+	*/
+	for _, invoicePayment := range invoice.Payments {
+		dbInvoicePayment := DecodeInvoicePayment(&invoicePayment)
+		dbInvoice.Payments = append(dbInvoice.Payments, *dbInvoicePayment)
+	}
 
 	return &dbInvoice, nil
 }
 
-// DecodeInvoiceChange decodes a a cockroachdb InvoiceChange instance into a generic
+// DecodeInvoiceChange decodes a cockroachdb InvoiceChange instance into a generic
 // database.InvoiceChange.
 func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 	dbInvoiceChange := database.InvoiceChange{}
@@ -255,6 +286,20 @@ func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 	dbInvoiceChange.Timestamp = invoiceChange.Timestamp.Unix()
 
 	return &dbInvoiceChange
+}
+
+// DecodeInvoicePayment decodes a cockroachdb InvoicePayment instance into a
+// generic database.InvoicePayment.
+func DecodeInvoicePayment(invoicePayment *InvoicePayment) *database.InvoicePayment {
+	dbInvoicePayment := database.InvoicePayment{}
+
+	dbInvoicePayment.Address = invoicePayment.Address
+	dbInvoicePayment.Amount = uint64(invoicePayment.Amount)
+	dbInvoicePayment.TxNotBefore = invoicePayment.TxNotBefore
+	dbInvoicePayment.PollExpiry = invoicePayment.PollExpiry
+	dbInvoicePayment.TxID = invoicePayment.TxID
+
+	return &dbInvoicePayment
 }
 
 // DecodeInvoices decodes an array of cockroachdb Invoice instances into

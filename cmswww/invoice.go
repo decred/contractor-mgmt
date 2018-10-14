@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil"
 	pd "github.com/decred/politeia/politeiad/api/v1"
 	"github.com/decred/politeia/util"
 
@@ -36,10 +37,11 @@ func validateStatusTransition(dbInvoice *database.Invoice, newStatus v1.InvoiceS
 	}
 }
 
-func (c *cmswww) createInvoiceReview(invoice *v1.InvoiceRecord) (*v1.InvoiceReview, error) {
+func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceReview, error) {
 	invoiceReview := v1.InvoiceReview{
-		UserID:    invoice.UserID,
+		UserID:    strconv.FormatUint(invoice.UserID, 10),
 		Username:  invoice.Username,
+		Token:     invoice.Token,
 		LineItems: make([]v1.InvoiceReviewLineItem, 0, 0),
 	}
 
@@ -70,13 +72,15 @@ func (c *cmswww) createInvoiceReview(invoice *v1.InvoiceRecord) (*v1.InvoiceRevi
 			case 2:
 				lineItem.Description = record[idx]
 			case 3:
+				lineItem.Proposal = record[idx]
+			case 4:
 				lineItem.Hours, err = strconv.ParseUint(record[idx], 10, 64)
 				if err != nil {
 					return nil, err
 				}
 
 				invoiceReview.TotalHours += lineItem.Hours
-			case 4:
+			case 5:
 				lineItem.TotalCost, err = strconv.ParseUint(record[idx], 10, 64)
 				if err != nil {
 					return nil, err
@@ -89,20 +93,17 @@ func (c *cmswww) createInvoiceReview(invoice *v1.InvoiceRecord) (*v1.InvoiceRevi
 		invoiceReview.LineItems = append(invoiceReview.LineItems, lineItem)
 	}
 
-	// TODO: generate user address from paywall
-
-	// TODO: start listening to paywall addresses
-
 	return &invoiceReview, nil
 }
 
-func (c *cmswww) createInvoicePayment(invoice *v1.InvoiceRecord, dcrUSDRate float64) (*v1.InvoicePayment, error) {
+func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate float64) (*v1.InvoicePayment, error) {
 	invoicePayment := v1.InvoicePayment{
-		UserID:   invoice.UserID,
-		Username: invoice.Username,
+		UserID:   strconv.FormatUint(dbInvoice.UserID, 10),
+		Username: dbInvoice.Username,
+		Token:    dbInvoice.Token,
 	}
 
-	b, err := base64.StdEncoding.DecodeString(invoice.File.Payload)
+	b, err := base64.StdEncoding.DecodeString(dbInvoice.File.Payload)
 	if err != nil {
 		return nil, err
 	}
@@ -120,14 +121,14 @@ func (c *cmswww) createInvoicePayment(invoice *v1.InvoiceRecord, dcrUSDRate floa
 	for _, record := range records {
 		for idx := range v1.InvoiceFields {
 			switch idx {
-			case 3:
+			case 4:
 				hours, err := strconv.ParseUint(record[idx], 10, 64)
 				if err != nil {
 					return nil, err
 				}
 
 				invoicePayment.TotalHours += hours
-			case 4:
+			case 5:
 				totalCost, err := strconv.ParseUint(record[idx], 10, 64)
 				if err != nil {
 					return nil, err
@@ -140,11 +141,76 @@ func (c *cmswww) createInvoicePayment(invoice *v1.InvoiceRecord, dcrUSDRate floa
 		invoicePayment.TotalCostDCR = float64(invoicePayment.TotalCostUSD) / dcrUSDRate
 	}
 
-	// TODO: generate user address from paywall
+	// Generate the user's address
+	user, err := c.db.GetUserById(dbInvoice.UserID)
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO: start listening to paywall addresses
+	// Create a new invoice payment in the DB.
+	address, txNotBefore, err := c.derivePaymentInfo(user)
+	if err != nil {
+		return nil, err
+	}
+
+	amount, err := dcrutil.NewAmount(invoicePayment.TotalCostDCR)
+	if err != nil {
+		return nil, err
+	}
+
+	dbInvoicePayment := database.InvoicePayment{
+		Address:     address,
+		TxNotBefore: txNotBefore,
+		Amount:      uint64(amount),
+		PollExpiry:  time.Now().Add(pollExpiryDuration).Unix(),
+	}
+	dbInvoice.Payments = append(dbInvoice.Payments, dbInvoicePayment)
+	err = c.db.UpdateInvoice(dbInvoice)
+	if err != nil {
+		return nil, err
+	}
+
+	invoicePayment.PaymentAddress = address
+
+	//c.addInvoiceForPollingLock(dbInvoice.Token, &dbInvoicePayment)
 
 	return &invoicePayment, nil
+}
+
+func (c *cmswww) fetchInvoiceFileIfNecessary(invoice *database.Invoice) error {
+	if invoice.File != nil {
+		return nil
+	}
+
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return err
+	}
+
+	responseBody, err := c.rpc(http.MethodPost, pd.GetVettedRoute,
+		pd.GetVetted{
+			Token:     invoice.Token,
+			Challenge: hex.EncodeToString(challenge),
+		})
+	if err != nil {
+		return err
+	}
+
+	var pdReply pd.GetVettedReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return fmt.Errorf("Could not unmarshal "+
+			"GetVettedReply: %v", err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	if err != nil {
+		return err
+	}
+
+	invoice.File = convertRecordFilesToDatabaseInvoiceFile(pdReply.Record.Files)
+	return nil
 }
 
 // HandleInvoices returns an array of all invoices.
@@ -172,6 +238,7 @@ func (c *cmswww) HandleInvoices(
 		return nil, err
 	}
 
+	log.Infof("returning v1.InvoicesReply\n")
 	return &v1.InvoicesReply{
 		Invoices: invoices,
 	}, nil
@@ -186,7 +253,7 @@ func (c *cmswww) HandleReviewInvoices(
 ) (interface{}, error) {
 	ri := req.(*v1.ReviewInvoices)
 
-	invoices, err := c.getInvoices(database.InvoicesRequest{
+	invoices, err := c.db.GetInvoices(database.InvoicesRequest{
 		Month: ri.Month,
 		Year:  ri.Year,
 		StatusMap: map[v1.InvoiceStatusT]bool{
@@ -200,35 +267,9 @@ func (c *cmswww) HandleReviewInvoices(
 	var invoiceReviews []v1.InvoiceReview
 
 	for _, invoice := range invoices {
-		if invoice.File == nil {
-			challenge, err := util.Random(pd.ChallengeSize)
-			if err != nil {
-				return nil, err
-			}
-
-			responseBody, err := c.rpc(http.MethodPost, pd.GetVettedRoute,
-				pd.GetVetted{
-					Token:     invoice.CensorshipRecord.Token,
-					Challenge: hex.EncodeToString(challenge),
-				})
-			if err != nil {
-				return nil, err
-			}
-
-			var pdReply pd.GetVettedReply
-			err = json.Unmarshal(responseBody, &pdReply)
-			if err != nil {
-				return nil, fmt.Errorf("Could not unmarshal "+
-					"GetVettedReply: %v", err)
-			}
-
-			// Verify the challenge.
-			err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-			if err != nil {
-				return nil, err
-			}
-
-			invoice.File = convertInvoiceFileFromPD(pdReply.Record.Files)
+		err := c.fetchInvoiceFileIfNecessary(&invoice)
+		if err != nil {
+			return nil, err
 		}
 
 		invoiceReview, err := c.createInvoiceReview(&invoice)
@@ -253,7 +294,7 @@ func (c *cmswww) HandlePayInvoices(
 ) (interface{}, error) {
 	pi := req.(*v1.PayInvoices)
 
-	invoices, err := c.getInvoices(database.InvoicesRequest{
+	invoices, err := c.db.GetInvoices(database.InvoicesRequest{
 		Month: pi.Month,
 		Year:  pi.Year,
 		StatusMap: map[v1.InvoiceStatusT]bool{
@@ -264,38 +305,12 @@ func (c *cmswww) HandlePayInvoices(
 		return nil, err
 	}
 
-	var invoicePayments []v1.InvoicePayment
+	invoicePayments := make([]v1.InvoicePayment, 0, 0)
 
 	for _, invoice := range invoices {
-		if invoice.File == nil {
-			challenge, err := util.Random(pd.ChallengeSize)
-			if err != nil {
-				return nil, err
-			}
-
-			responseBody, err := c.rpc(http.MethodPost, pd.GetVettedRoute,
-				pd.GetVetted{
-					Token:     invoice.CensorshipRecord.Token,
-					Challenge: hex.EncodeToString(challenge),
-				})
-			if err != nil {
-				return nil, err
-			}
-
-			var pdReply pd.GetVettedReply
-			err = json.Unmarshal(responseBody, &pdReply)
-			if err != nil {
-				return nil, fmt.Errorf("Could not unmarshal "+
-					"GetVettedReply: %v", err)
-			}
-
-			// Verify the challenge.
-			err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-			if err != nil {
-				return nil, err
-			}
-
-			invoice.File = convertInvoiceFileFromPD(pdReply.Record.Files)
+		err := c.fetchInvoiceFileIfNecessary(&invoice)
+		if err != nil {
+			return nil, err
 		}
 
 		invoicePayment, err := c.createInvoicePayment(&invoice, pi.DCRUSDRate)

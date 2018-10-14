@@ -9,6 +9,14 @@ import (
 	"github.com/lib/pq"
 )
 
+const (
+	tableNameUser           = "users"
+	tableNameIdentity       = "identities"
+	tableNameInvoice        = "invoices"
+	tableNameInvoiceChange  = "invoice_changes"
+	tableNameInvoicePayment = "invoice_payments"
+)
+
 type User struct {
 	gorm.Model
 	Email                            string         `gorm:"type:varchar(100);unique_index"`
@@ -31,12 +39,20 @@ type User struct {
 	Invoices   []Invoice
 }
 
+func (u User) TableName() string {
+	return tableNameUser
+}
+
 type Identity struct {
 	gorm.Model
 	UserID      uint           `gorm:"not_null"`
 	Key         sql.NullString `gorm:"unique"`
 	Activated   pq.NullTime
 	Deactivated pq.NullTime
+}
+
+func (i Identity) TableName() string {
+	return tableNameIdentity
 }
 
 type Invoice struct {
@@ -53,8 +69,10 @@ type Invoice struct {
 	PublicKey       string `gorm:"not_null"`
 	UserSignature   string `gorm:"not_null"`
 	ServerSignature string `gorm:"not_null"`
+	Proposal        string
 
-	Changes []InvoiceChange
+	Changes  []InvoiceChange
+	Payments []InvoicePayment
 
 	// gorm.Model fields, included manually
 	CreatedAt time.Time
@@ -62,8 +80,29 @@ type Invoice struct {
 	DeletedAt *time.Time
 }
 
+func (i Invoice) TableName() string {
+	return tableNameInvoice
+}
+
 type InvoiceChange struct {
-	AdminPublicKey string    `gorm:"not_null"`
-	NewStatus      uint      `gorm:"not_null"`
-	Timestamp      time.Time `gorm:"not_null"`
+	AdminPublicKey string
+	NewStatus      uint
+	Timestamp      time.Time
+}
+
+func (i InvoiceChange) TableName() string {
+	return tableNameInvoiceChange
+}
+
+type InvoicePayment struct {
+	gorm.Model
+	Address     string `gorm:"not_null"`
+	Amount      uint   `gorm:"not_null"`
+	TxNotBefore int64  `gorm:"not_null"`
+	PollExpiry  int64
+	TxID        string
+}
+
+func (i InvoicePayment) TableName() string {
+	return tableNameInvoicePayment
 }

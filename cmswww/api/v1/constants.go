@@ -82,6 +82,11 @@ var (
 			Required: true,
 		},
 		{
+			Name:     "Politeia proposal",
+			Type:     InvoiceFieldTypeString,
+			Required: false,
+		},
+		{
 			Name:     "Hours worked",
 			Type:     InvoiceFieldTypeUint,
 			Required: true,

@@ -49,6 +49,7 @@ func (cmd *ReviewInvoicesCmd) Execute(args []string) error {
 
 				fmt.Printf("           User ID: %v\n", invoice.UserID)
 				fmt.Printf("          Username: %v\n", invoice.Username)
+				fmt.Printf("             Token: %v\n", invoice.Token)
 				fmt.Printf("   ------------------------------------------\n")
 				for lineItemIdx, lineItem := range invoice.LineItems {
 					if lineItemIdx > 0 {
@@ -61,6 +62,9 @@ func (cmd *ReviewInvoicesCmd) Execute(args []string) error {
 						fmt.Printf("              Subtype: %v\n", lineItem.Subtype)
 					}
 					fmt.Printf("          Description: %v\n", lineItem.Description)
+					if lineItem.Proposal != "" {
+						fmt.Printf("    Politeia proposal: %v\n", lineItem.Proposal)
+					}
 					fmt.Printf("                Hours: %v\n", lineItem.Hours)
 					fmt.Printf("           Total cost: $%v\n", lineItem.TotalCost)
 					fmt.Printf("                 Rate: $%.2f / hr\n", rate)

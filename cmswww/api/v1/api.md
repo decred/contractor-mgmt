@@ -2089,7 +2089,7 @@ Reply:
 | <a name="UserManageExpireRegisterVerification">UserManageExpireRegisterVerification</a> | 1 | Expires the new user verification token. |
 | <a name="UserManageExpireUpdateKeyVerification">UserManageExpireUpdateKeyVerification</a> | 2 | Expires the update key verification token. |
 | <a name="UserManageExpireResetPasswordVerification">UserManageExpireResetPasswordVerification</a> | 3 | Expires the reset password verification token. |
-| <a name="UserManageClearUserPaywall">UserManageClearUserPaywall</a> | 4 | Clears the user's paywall. |
+| <a name="UserManageClearUserPayment">UserManageClearUserPayment</a> | 4 | Clears the user's paywall. |
 | <a name="UserManageUnlock">UserManageUnlock</a> | 5 | Unlocks a user's account. |
 
 ### `User`

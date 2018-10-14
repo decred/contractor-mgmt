@@ -2,6 +2,7 @@ package cockroachdb
 
 import (
 	"fmt"
+	"math/rand"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -36,6 +37,26 @@ func (c *cockroachdb) addWhereClause(db *gorm.DB, paramsMap map[string]interface
 		db = db.Where(k+"= ?", v)
 	}
 	return db
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func (c *cockroachdb) dropTable(tableName string) error {
+	b := make([]byte, 4)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	newTableName := tableName + string(b)
+
+	result := c.db.Exec(fmt.Sprintf("ALTER TABLE IF EXISTS %v RENAME TO %v;",
+		tableName, newTableName))
+	if result.Error != nil {
+		return result.Error
+	}
+
+	result = c.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %v CASCADE;",
+		newTableName))
+	return result.Error
 }
 
 // Store new user.
@@ -235,7 +256,7 @@ func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error)
 	log.Debugf("GetInvoiceByToken: %v", token)
 
 	var invoice Invoice
-	result := c.db.Table("invoices i").Select("i.*, u.username").Joins(
+	result := c.db.Table(fmt.Sprintf("%v i", tableNameInvoice)).Select("i.*, u.username").Joins(
 		"inner join users u on i.user_id = u.id").Where(
 		"i.token = ?", token).Scan(&invoice)
 	if result.Error != nil {
@@ -285,8 +306,8 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 	}
 
 	var invoices []Invoice
-	db := c.db.Table("invoices i").Select("i.*, u.username").Joins(
-		"inner join users u on i.user_id = u.id")
+	db := c.db.Table(fmt.Sprintf("%v i", tableNameInvoice)).Select("i.*, u.username").Joins(
+		fmt.Sprintf("inner join %v u on i.user_id = u.id", tableNameUser))
 	db = c.addWhereClause(db, paramsMap)
 	result := db.Scan(&invoices)
 	if result.Error != nil {
@@ -312,11 +333,11 @@ func (c *cockroachdb) DeleteAllData() error {
 
 	log.Debugf("DeleteAllData")
 
-	c.db.DropTableIfExists(
-		&User{},
-		&Identity{},
-		&Invoice{},
-	)
+	c.dropTable(tableNameInvoicePayment)
+	c.dropTable(tableNameInvoiceChange)
+	c.dropTable(tableNameInvoice)
+	c.dropTable(tableNameIdentity)
+	c.dropTable(tableNameUser)
 	return nil
 }
 
@@ -354,15 +375,22 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 	}
 
 	db.LogMode(true)
-	db.DropTableIfExists(&Invoice{})
-	db.AutoMigrate(
+
+	c := cockroachdb{
+		db: db,
+	}
+
+	err = c.dropTable(tableNameInvoice)
+	if err != nil {
+		return nil, fmt.Errorf("error dropping invoice table: %v", err)
+	}
+	c.db.AutoMigrate(
 		&User{},
 		&Identity{},
 		&Invoice{},
+		&InvoiceChange{},
+		&InvoicePayment{},
 	)
 
-	cdb := cockroachdb{
-		db: db,
-	}
-	return &cdb, nil
+	return &c, nil
 }

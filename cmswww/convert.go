@@ -22,11 +22,19 @@ type BackendInvoiceMetadata struct {
 	Signature string `json:"signature"` // Signature of merkle root
 }
 
-type BackendInvoiceMDChanges struct {
+type BackendInvoiceMDChange struct {
 	Version        uint              `json:"version"`        // Version of the struct
 	AdminPublicKey string            `json:"adminpublickey"` // Identity of the administrator
 	NewStatus      v1.InvoiceStatusT `json:"newstatus"`      // Status
 	Timestamp      int64             `json:"timestamp"`      // Timestamp of the change
+}
+
+type BackendInvoiceMDPayment struct {
+	Version     uint   `json:"version"`     // Version of the struct
+	Address     string `json:"address"`     // Payment address
+	Amount      uint64 `json:"amount"`      // Payment amount in atoms
+	TxNotBefore int64  `json:"txnotbefore"` // Minimum UNIX time for the transaction to be accepted as payment
+	TxID        string `json:"txid"`        // Transaction ID of the actual payment
 }
 
 func convertDatabaseUserToUser(user *database.User) v1.User {
@@ -188,16 +196,30 @@ func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice,
 			f := strings.NewReader(m.Payload)
 			d := json.NewDecoder(f)
 			for {
-				var mdChanges BackendInvoiceMDChanges
-				if err := d.Decode(&mdChanges); err == io.EOF {
+				var mdChange BackendInvoiceMDChange
+				if err := d.Decode(&mdChange); err == io.EOF {
 					break
 				} else if err != nil {
 					return nil, err
 				}
 
 				dbInvoice.Changes = append(dbInvoice.Changes,
-					convertStreamChangeToDatabaseInvoiceChange(mdChanges))
-				dbInvoice.Status = mdChanges.NewStatus
+					convertStreamChangeToDatabaseInvoiceChange(mdChange))
+				dbInvoice.Status = mdChange.NewStatus
+			}
+		case mdStreamPayments:
+			f := strings.NewReader(m.Payload)
+			d := json.NewDecoder(f)
+			for {
+				var mdPayment BackendInvoiceMDPayment
+				if err := d.Decode(&mdPayment); err == io.EOF {
+					break
+				} else if err != nil {
+					return nil, err
+				}
+
+				dbInvoice.Payments = append(dbInvoice.Payments,
+					convertStreamPaymentToDatabaseInvoicePayment(mdPayment))
 			}
 		default:
 			// Log error but proceed
@@ -210,14 +232,25 @@ func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice,
 	return &dbInvoice, nil
 }
 
-func convertStreamChangeToDatabaseInvoiceChange(mdChanges BackendInvoiceMDChanges) database.InvoiceChange {
+func convertStreamChangeToDatabaseInvoiceChange(mdChange BackendInvoiceMDChange) database.InvoiceChange {
 	dbInvoiceChange := database.InvoiceChange{}
 
-	dbInvoiceChange.AdminPublicKey = mdChanges.AdminPublicKey
-	dbInvoiceChange.NewStatus = mdChanges.NewStatus
-	dbInvoiceChange.Timestamp = mdChanges.Timestamp
+	dbInvoiceChange.AdminPublicKey = mdChange.AdminPublicKey
+	dbInvoiceChange.NewStatus = mdChange.NewStatus
+	dbInvoiceChange.Timestamp = mdChange.Timestamp
 
 	return dbInvoiceChange
+}
+
+func convertStreamPaymentToDatabaseInvoicePayment(mdPayment BackendInvoiceMDPayment) database.InvoicePayment {
+	dbInvoicePayment := database.InvoicePayment{}
+
+	dbInvoicePayment.Address = mdPayment.Address
+	dbInvoicePayment.Amount = mdPayment.Amount
+	dbInvoicePayment.TxNotBefore = mdPayment.TxNotBefore
+	dbInvoicePayment.TxID = mdPayment.TxID
+
+	return dbInvoicePayment
 }
 
 func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRecord {

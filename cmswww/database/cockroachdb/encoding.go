@@ -19,6 +19,7 @@ func EncodeUser(dbUser *database.User) *User {
 	user.ExtendedPublicKey = dbUser.ExtendedPublicKey
 	user.Admin = dbUser.Admin
 	user.FailedLoginAttempts = dbUser.FailedLoginAttempts
+	user.PaymentAddressIndex = dbUser.PaymentAddressIndex
 
 	if len(dbUser.Username) > 0 {
 		user.Username.Valid = true
@@ -77,6 +78,7 @@ func DecodeUser(user *User) (*database.User, error) {
 		ExtendedPublicKey:   user.ExtendedPublicKey,
 		Admin:               user.Admin,
 		FailedLoginAttempts: user.FailedLoginAttempts,
+		PaymentAddressIndex: user.PaymentAddressIndex,
 	}
 
 	var err error
@@ -202,12 +204,14 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 
 	for _, dbInvoiceChange := range dbInvoice.Changes {
 		invoiceChange := EncodeInvoiceChange(&dbInvoiceChange)
+		invoiceChange.InvoiceToken = invoice.Token
 		invoice.Changes = append(invoice.Changes, *invoiceChange)
 		invoice.Status = invoiceChange.NewStatus
 	}
 
 	for _, dbInvoicePayment := range dbInvoice.Payments {
 		invoicePayment := EncodeInvoicePayment(&dbInvoicePayment)
+		invoicePayment.InvoiceToken = invoice.Token
 		invoice.Payments = append(invoice.Payments, *invoicePayment)
 	}
 
@@ -231,6 +235,8 @@ func EncodeInvoiceChange(dbInvoiceChange *database.InvoiceChange) *InvoiceChange
 func EncodeInvoicePayment(dbInvoicePayment *database.InvoicePayment) *InvoicePayment {
 	invoicePayment := InvoicePayment{}
 
+	invoicePayment.ID = uint(dbInvoicePayment.ID)
+	invoicePayment.InvoiceToken = dbInvoicePayment.InvoiceToken
 	invoicePayment.Address = dbInvoicePayment.Address
 	invoicePayment.Amount = uint(dbInvoicePayment.Amount)
 	invoicePayment.TxNotBefore = dbInvoicePayment.TxNotBefore
@@ -293,6 +299,8 @@ func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 func DecodeInvoicePayment(invoicePayment *InvoicePayment) *database.InvoicePayment {
 	dbInvoicePayment := database.InvoicePayment{}
 
+	dbInvoicePayment.ID = uint64(invoicePayment.ID)
+	dbInvoicePayment.InvoiceToken = invoicePayment.InvoiceToken
 	dbInvoicePayment.Address = invoicePayment.Address
 	dbInvoicePayment.Amount = uint64(invoicePayment.Amount)
 	dbInvoicePayment.TxNotBefore = invoicePayment.TxNotBefore

@@ -32,10 +32,10 @@ func (c *cmswww) getUserByIDStr(userIDStr string) (*database.User, error) {
 	return user, nil
 }
 
-// logAdminAction logs a string to the admin log file.
+// _logAdminAction logs a string to the admin log file.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) logAdminAction(adminUser *database.User, content string) error {
+func (c *cmswww) _logAdminAction(adminUser *database.User, content string) error {
 	f, err := os.OpenFile(c.cfg.AdminLogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
 	if err != nil {
 		return err
@@ -48,32 +48,42 @@ func (c *cmswww) logAdminAction(adminUser *database.User, content string) error 
 	return err
 }
 
-// logAdminUserAction logs an admin action on a specific user.
+// logAdminAction logs a string to the admin log file.
+//
+// This function must be called WITHOUT the mutex held.
+func (c *cmswww) logAdminAction(adminUser *database.User, content string) error {
+	c.Lock()
+	defer c.Unlock()
+
+	return c._logAdminAction(adminUser, content)
+}
+
+// _logAdminUserAction logs an admin action on a specific user.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) logAdminUserAction(adminUser, user *database.User, action string, reasonForAction string) error {
+func (c *cmswww) _logAdminUserAction(adminUser, user *database.User, action string, reasonForAction string) error {
 	userStr := user.Username
 	if userStr == "" {
 		userStr = user.Email
 	}
 
-	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v,%v,%v",
+	return c._logAdminAction(adminUser, fmt.Sprintf("%v,%v,%v,%v",
 		action, user.ID, userStr, reasonForAction))
 }
 
 // logAdminUserAction logs an admin action on a specific user.
 //
 // This function must be called WITHOUT the mutex held.
-func (c *cmswww) logAdminUserActionLock(adminUser, user *database.User, action string, reasonForAction string) error {
+func (c *cmswww) logAdminUserAction(adminUser, user *database.User, action string, reasonForAction string) error {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.logAdminUserAction(adminUser, user, action, reasonForAction)
+	return c._logAdminUserAction(adminUser, user, action, reasonForAction)
 }
 
 // logAdminInvoiceAction logs an admin action on an invoice.
 //
-// This function must be called WITH the mutex held.
+// This function must be called WITHOUT the mutex held.
 func (c *cmswww) logAdminInvoiceAction(adminUser *database.User, token, action string) error {
 	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v", action, token))
 }
@@ -136,7 +146,7 @@ func (c *cmswww) HandleInviteNewUser(
 		return nil, err
 	}
 
-	err = c.logAdminUserActionLock(adminUser, newUser, "new user invite", "")
+	err = c.logAdminUserAction(adminUser, newUser, "new user invite", "")
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +253,7 @@ func (c *cmswww) HandleManageUser(
 	}
 
 	// Append this action to the admin log file.
-	err = c.logAdminUserActionLock(adminUser, targetUser,
+	err = c.logAdminUserAction(adminUser, targetUser,
 		v1.UserManageAction[mu.Action], mu.Reason)
 	if err != nil {
 		return nil, err

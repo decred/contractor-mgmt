@@ -15,7 +15,8 @@ var (
 type inventoryRecord struct {
 	record    pd.Record                 // actual record
 	invoiceMD BackendInvoiceMetadata    // invoice metadata
-	changes   []BackendInvoiceMDChanges // changes metadata
+	changes   []BackendInvoiceMDChange  // changes metadata
+	payments  []BackendInvoiceMDPayment // payments metadata
 }
 
 // updateInventoryRecord updates an existing Politea record within the database.

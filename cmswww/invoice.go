@@ -96,7 +96,7 @@ func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceRevi
 	return &invoiceReview, nil
 }
 
-func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate float64) (*v1.InvoicePayment, error) {
+func (c *cmswww) createOrUpdateInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate float64) (*v1.InvoicePayment, error) {
 	invoicePayment := v1.InvoicePayment{
 		UserID:   strconv.FormatUint(dbInvoice.UserID, 10),
 		Username: dbInvoice.Username,
@@ -141,13 +141,13 @@ func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate fl
 		invoicePayment.TotalCostDCR = float64(invoicePayment.TotalCostUSD) / dcrUSDRate
 	}
 
-	// Generate the user's address
+	// Generate the user's address.
 	user, err := c.db.GetUserById(dbInvoice.UserID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a new invoice payment in the DB.
+	// Create or update the invoice payment in the DB.
 	address, txNotBefore, err := c.derivePaymentInfo(user)
 	if err != nil {
 		return nil, err
@@ -158,22 +158,88 @@ func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate fl
 		return nil, err
 	}
 
-	dbInvoicePayment := database.InvoicePayment{
+	// Create the payment metadata record.
+	mdPayment := BackendInvoiceMDPayment{
+		Version:     VersionBackendInvoiceMDPayment,
 		Address:     address,
-		TxNotBefore: txNotBefore,
 		Amount:      uint64(amount),
-		PollExpiry:  time.Now().Add(pollExpiryDuration).Unix(),
+		TxNotBefore: txNotBefore,
 	}
-	dbInvoice.Payments = append(dbInvoice.Payments, dbInvoicePayment)
-	err = c.db.UpdateInvoice(dbInvoice)
+
+	blob, err := json.Marshal(mdPayment)
 	if err != nil {
 		return nil, err
 	}
 
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	pdCommand := pd.UpdateVettedMetadata{
+		Challenge: hex.EncodeToString(challenge),
+		Token:     dbInvoice.Token,
+	}
+
+	if len(dbInvoice.Payments) > 0 {
+		pdCommand.MDOverwrite = []pd.MetadataStream{
+			{
+				ID:      mdStreamPayments,
+				Payload: string(blob),
+			},
+		}
+	} else {
+		pdCommand.MDAppend = []pd.MetadataStream{
+			{
+				ID:      mdStreamPayments,
+				Payload: string(blob),
+			},
+		}
+	}
+
+	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
+		pdCommand)
+	if err != nil {
+		return nil, err
+	}
+
+	var pdReply pd.UpdateVettedMetadataReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return nil, fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	if err != nil {
+		return nil, err
+	}
+
+	var dbInvoicePayment database.InvoicePayment
+	if len(dbInvoice.Payments) > 0 {
+		dbInvoicePayment = dbInvoice.Payments[0]
+	}
+
+	dbInvoicePayment.Address = address
+	dbInvoicePayment.TxNotBefore = txNotBefore
+	dbInvoicePayment.Amount = uint64(amount)
+	dbInvoicePayment.PollExpiry = time.Now().Add(pollExpiryDuration).Unix()
+
+	if len(dbInvoice.Payments) > 0 {
+		err = c.db.UpdateInvoicePayment(&dbInvoicePayment)
+	} else {
+		dbInvoice.Payments = append(dbInvoice.Payments, dbInvoicePayment)
+		err = c.db.UpdateInvoice(dbInvoice)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.addInvoiceForPolling(dbInvoice.Token, &dbInvoicePayment)
+
 	invoicePayment.PaymentAddress = address
-
-	//c.addInvoiceForPollingLock(dbInvoice.Token, &dbInvoicePayment)
-
 	return &invoicePayment, nil
 }
 
@@ -307,13 +373,34 @@ func (c *cmswww) HandlePayInvoices(
 
 	invoicePayments := make([]v1.InvoicePayment, 0, 0)
 
-	for _, invoice := range invoices {
-		err := c.fetchInvoiceFileIfNecessary(&invoice)
+	for _, inv := range invoices {
+		invoice, err := c.db.GetInvoiceByToken(inv.Token)
 		if err != nil {
 			return nil, err
 		}
 
-		invoicePayment, err := c.createInvoicePayment(&invoice, pi.DCRUSDRate)
+		err = c.fetchInvoiceFileIfNecessary(invoice)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, invoicePayment := range invoice.Payments {
+			if invoicePayment.TxID != "" {
+				continue
+			}
+
+			invoicePayment.PollExpiry =
+				time.Now().Add(pollExpiryDuration).Unix()
+
+			err = c.db.UpdateInvoicePayment(&invoicePayment)
+			if err != nil {
+				return nil, err
+			}
+
+			c._addInvoiceForPolling(invoice.Token, &invoicePayment)
+		}
+
+		invoicePayment, err := c.createOrUpdateInvoicePayment(invoice, pi.DCRUSDRate)
 		if err != nil {
 			return nil, err
 		}
@@ -388,8 +475,8 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	}
 
 	// Create the change record.
-	changes := BackendInvoiceMDChanges{
-		Version:   VersionBackendInvoiceMDChanges,
+	changes := BackendInvoiceMDChange{
+		Version:   VersionBackendInvoiceMDChange,
 		Timestamp: time.Now().Unix(),
 		NewStatus: sis.Status,
 	}
@@ -431,7 +518,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	var pdReply pd.UpdateVettedMetadataReply
 	err = json.Unmarshal(responseBody, &pdReply)
 	if err != nil {
-		return nil, fmt.Errorf("Could not unmarshal SetUnvettedStatusReply: %v",
+		return nil, fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
 			err)
 	}
 
@@ -623,8 +710,8 @@ func (c *cmswww) HandleSubmitInvoice(
 	}
 
 	// Create change record
-	changes := BackendInvoiceMDChanges{
-		Version:   VersionBackendInvoiceMDChanges,
+	changes := BackendInvoiceMDChange{
+		Version:   VersionBackendInvoiceMDChange,
 		Timestamp: time.Now().Unix(),
 		NewStatus: v1.InvoiceStatusNotReviewed,
 	}

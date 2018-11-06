@@ -43,11 +43,13 @@ const (
 	indexFile = "index.md"
 
 	// mdStream* indicate the metadata stream used for various types
-	mdStreamGeneral = 0 // General information for this invoice
-	mdStreamChanges = 1 // Changes to record
+	mdStreamGeneral  = 0 // General information for this invoice
+	mdStreamChanges  = 1 // Changes to the invoice status
+	mdStreamPayments = 2 // Payments made for this invoice
 
 	VersionBackendInvoiceMetadata  = 1
-	VersionBackendInvoiceMDChanges = 1
+	VersionBackendInvoiceMDChange  = 1
+	VersionBackendInvoiceMDPayment = 1
 )
 
 // cmswww application context.
@@ -344,6 +346,12 @@ func _main() error {
 		return fmt.Errorf("CSRF key corrupt")
 	}
 	fCSRF.Close()
+
+	// Set up the code that checks for invoice payments.
+	err = c.initPaymentChecker()
+	if err != nil {
+		return err
+	}
 
 	// Make sure the cookie path is explicitly set to the root path, to fix
 	// an issue where multiple CSRF tokens were being stored in the cookie.

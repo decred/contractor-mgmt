@@ -37,15 +37,19 @@ func (c *cmswww) derivePaymentInfo(user *database.User) (string, int64, error) {
 	if err != nil {
 		err = fmt.Errorf("Unable to derive payment address "+
 			"for user %v (%v): %v", user.ID, user.Email, err)
+		return "", 0, err
 	}
 
+	// Update the user in the database.
+	user.PaymentAddressIndex++
+	err = c.db.UpdateUser(user)
 	return address, time.Now().Unix(), err
 }
 
-// addInvoiceForPolling adds an invoice's payment info to the in-memory map.
+// _addInvoiceForPolling adds an invoice's payment info to the in-memory map.
 //
 // This function must be called WITH the mutex held.
-func (c *cmswww) addInvoiceForPolling(token string, invoicePayment *database.InvoicePayment) {
+func (c *cmswww) _addInvoiceForPolling(token string, invoicePayment *database.InvoicePayment) {
 	c.polledPayments[token] = polledPayment{
 		address:     invoicePayment.Address,
 		amount:      invoicePayment.Amount,
@@ -54,37 +58,54 @@ func (c *cmswww) addInvoiceForPolling(token string, invoicePayment *database.Inv
 	}
 }
 
-// addInvoiceForPollingLock adds an invoice's payment info to the in-memory map.
+// addInvoiceForPolling adds an invoice's payment info to the in-memory map.
 //
 // This function must be called WITHOUT the mutex held.
-func (c *cmswww) addInvoiceForPollingLock(token string, invoicePayment *database.InvoicePayment) {
+func (c *cmswww) addInvoiceForPolling(token string, invoicePayment *database.InvoicePayment) {
 	c.Lock()
 	defer c.Unlock()
 
-	c.addInvoiceForPolling(token, invoicePayment)
+	c._addInvoiceForPolling(token, invoicePayment)
 }
 
 func (c *cmswww) addInvoicesForPolling() error {
 	c.Lock()
 	defer c.Unlock()
 
-	// Create the in-memory pool of all users who need to pay the payment.
-	invoices, err := c.db.GetInvoices(database.InvoicesRequest{})
+	// Create the in-memory pool of all invoices that need to be paid.
+	invoices, err := c.db.GetInvoices(database.InvoicesRequest{
+		StatusMap: map[v1.InvoiceStatusT]bool{
+			v1.InvoiceStatusApproved: true,
+		},
+	})
 	if err != nil {
 		return err
 	}
 
-	for _, invoice := range invoices {
+	for _, inv := range invoices {
+		invoice, err := c.db.GetInvoiceByToken(inv.Token)
+		if err != nil {
+			return err
+		}
+
 		for _, invoicePayment := range invoice.Payments {
-			if pollHasExpired(invoicePayment.PollExpiry) {
+			if invoicePayment.TxID != "" {
 				continue
 			}
 
-			c.addInvoiceForPolling(invoice.Token, &invoicePayment)
+			invoicePayment.PollExpiry =
+				time.Now().Add(pollExpiryDuration).Unix()
+
+			err = c.db.UpdateInvoicePayment(&invoicePayment)
+			if err != nil {
+				return err
+			}
+
+			c._addInvoiceForPolling(invoice.Token, &invoicePayment)
 		}
 	}
 
-	log.Tracef("Added %v invoices to payment pool", len(c.polledPayments))
+	log.Tracef("Added %v invoices to the payment pool", len(c.polledPayments))
 	return nil
 }
 
@@ -121,7 +142,7 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 
 		if invoice.Status == v1.InvoiceStatusPaid {
 			// The invoice could have been marked as paid by some external
-			// mechanism, so just remove him from polling.
+			// mechanism, so just remove it from polling.
 			tokensToRemove = append(tokensToRemove, token)
 			log.Tracef("  removing from polling, invoice already paid")
 			continue
@@ -144,7 +165,17 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 		if tx != "" {
 			// Update the invoice in the database.
 			invoice.Status = v1.InvoiceStatusPaid
-			// TOOD: add invoice payments table
+			for idx, invoicePayment := range invoice.Payments {
+				if invoicePayment.Address == polledPayment.address &&
+					invoicePayment.Amount == polledPayment.amount &&
+					invoicePayment.TxNotBefore == polledPayment.txNotBefore {
+					invoice.Payments[idx].TxID = tx
+				}
+			}
+			invoice.Changes = append(invoice.Changes, database.InvoiceChange{
+				Timestamp: time.Now().Unix(),
+				NewStatus: v1.InvoiceStatusPaid,
+			})
 			err = c.db.UpdateInvoice(invoice)
 			if err != nil {
 				if err == database.ErrShutdown {
@@ -156,6 +187,8 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 					invoice.Token, err)
 				continue
 			}
+
+			// TODO: Update the invoice metadata in politeiad.
 
 			// Remove this invoice from polling.
 			tokensToRemove = append(tokensToRemove, token)

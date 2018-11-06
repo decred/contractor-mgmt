@@ -34,6 +34,7 @@ type User struct {
 	ResetPasswordVerificationExpiry  pq.NullTime
 	LastLogin                        pq.NullTime
 	FailedLoginAttempts              uint64 `gorm:"not_null"`
+	PaymentAddressIndex              uint64 `gorm:"not_null"`
 
 	Identities []Identity
 	Invoices   []Invoice
@@ -61,7 +62,7 @@ type Invoice struct {
 	Username        string    `gorm:"-"` // Only populated when reading from the database
 	Month           uint      `gorm:"not_null"`
 	Year            uint      `gorm:"not_null"`
-	Timestamp       time.Time `gorm:not_null"`
+	Timestamp       time.Time `gorm:"not_null"`
 	Status          uint      `gorm:"not_null"`
 	FilePayload     string    `gorm:"type:text"`
 	FileMIME        string
@@ -85,6 +86,8 @@ func (i Invoice) TableName() string {
 }
 
 type InvoiceChange struct {
+	gorm.Model
+	InvoiceToken   string
 	AdminPublicKey string
 	NewStatus      uint
 	Timestamp      time.Time
@@ -96,11 +99,12 @@ func (i InvoiceChange) TableName() string {
 
 type InvoicePayment struct {
 	gorm.Model
-	Address     string `gorm:"not_null"`
-	Amount      uint   `gorm:"not_null"`
-	TxNotBefore int64  `gorm:"not_null"`
-	PollExpiry  int64
-	TxID        string
+	InvoiceToken string
+	Address      string `gorm:"not_null"`
+	Amount       uint   `gorm:"not_null"`
+	TxNotBefore  int64  `gorm:"not_null"`
+	PollExpiry   int64
+	TxID         string
 }
 
 func (i InvoicePayment) TableName() string {

@@ -58,6 +58,7 @@ type Database interface {
 	UpdateInvoice(*Invoice) error                   // Update existing invoice
 	GetInvoiceByToken(string) (*Invoice, error)     // Return invoice given its token
 	GetInvoices(InvoicesRequest) ([]Invoice, error) // Return a list of invoices
+	UpdateInvoicePayment(*InvoicePayment) error     // Update an existing invoice's payment
 
 	DeleteAllData() error // Delete all data from all tables
 
@@ -131,11 +132,13 @@ type InvoiceChange struct {
 }
 
 type InvoicePayment struct {
-	Address     string
-	Amount      uint64
-	TxNotBefore int64
-	PollExpiry  int64
-	TxID        string
+	ID           uint64
+	InvoiceToken string
+	Address      string
+	Amount       uint64
+	TxNotBefore  int64
+	PollExpiry   int64
+	TxID         string
 }
 
 func (id *Identity) IsActive() bool {

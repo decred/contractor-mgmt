@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 
 	"github.com/decred/politeia/util"
 	"github.com/gorilla/mux"
@@ -50,11 +51,15 @@ func (c *cmswww) addRoute(
 func (c *cmswww) addGetRoute(
 	route string,
 	handler routeHandlerFunc,
-	req interface{},
+	reqType interface{},
 	perm permission,
 	requiresInventory bool,
 ) {
+	reflectReqType := reflect.TypeOf(reqType)
+
 	wrapper := func(w http.ResponseWriter, r *http.Request) {
+		req := reflect.New(reflectReqType).Interface()
+
 		// Get the command.
 		err := util.ParseGetParams(r, req)
 		if err != nil {
@@ -88,11 +93,15 @@ func (c *cmswww) addGetRoute(
 func (c *cmswww) addPostRoute(
 	route string,
 	handler routeHandlerFunc,
-	req interface{},
+	reqType interface{},
 	perm permission,
 	requiresInventory bool,
 ) {
+	reflectReqType := reflect.TypeOf(reqType)
+
 	wrapper := func(w http.ResponseWriter, r *http.Request) {
+		req := reflect.New(reflectReqType).Interface()
+
 		// Get the command.
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(req); err != nil {
@@ -125,49 +134,51 @@ func (c *cmswww) SetupRoutes() {
 	// Public routes.
 	c.router.HandleFunc("/", closeBody(logging(c.HandleVersion))).Methods(http.MethodGet)
 	c.router.NotFoundHandler = closeBody(c.HandleNotFound)
-	c.addGetRoute(v1.RoutePolicy, c.HandlePolicy, new(v1.Policy),
+	c.addGetRoute(v1.RoutePolicy, c.HandlePolicy, v1.Policy{},
 		permissionPublic, false)
-	c.addPostRoute(v1.RouteRegister, c.HandleRegister, new(v1.Register),
+	c.addPostRoute(v1.RouteRegister, c.HandleRegister, v1.Register{},
 		permissionPublic, false)
-	c.addPostRoute(v1.RouteLogin, c.HandleLogin, new(v1.Login),
+	c.addPostRoute(v1.RouteLogin, c.HandleLogin, v1.Login{},
 		permissionPublic, false)
 	c.addRoute(http.MethodPost, v1.RouteLogout, c.HandleLogout,
 		permissionPublic, false)
 	c.addPostRoute(v1.RouteResetPassword, c.HandleResetPassword,
-		new(v1.ResetPassword), permissionPublic, false)
+		v1.ResetPassword{}, permissionPublic, false)
 
 	// Routes that require being logged in.
 	c.addPostRoute(v1.RouteNewIdentity, c.HandleNewIdentity,
-		new(v1.NewIdentity), permissionLogin, false)
+		v1.NewIdentity{}, permissionLogin, false)
 	c.addPostRoute(v1.RouteVerifyNewIdentity, c.HandleVerifyNewIdentity,
-		new(v1.VerifyNewIdentity), permissionLogin, false)
+		v1.VerifyNewIdentity{}, permissionLogin, false)
 	c.addPostRoute(v1.RouteChangePassword, c.HandleChangePassword,
-		new(v1.ChangePassword), permissionLogin, false)
+		v1.ChangePassword{}, permissionLogin, false)
 	c.addPostRoute(v1.RouteSubmitInvoice, c.HandleSubmitInvoice,
-		new(v1.SubmitInvoice), permissionLogin, true)
+		v1.SubmitInvoice{}, permissionLogin, true)
 	c.addGetRoute(v1.RouteInvoiceDetails, c.HandleInvoiceDetails,
-		new(v1.InvoiceDetails), permissionLogin, true)
+		v1.InvoiceDetails{}, permissionLogin, true)
 	c.addGetRoute(v1.RouteUserInvoices, c.HandleMyInvoices,
-		new(v1.MyInvoices), permissionLogin, true)
-	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, new(v1.EditUser),
+		v1.MyInvoices{}, permissionLogin, true)
+	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, v1.EditUser{},
 		permissionLogin, false)
-	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, new(v1.UserDetails),
+	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, v1.UserDetails{},
 		permissionLogin, false)
 	c.addPostRoute(v1.RouteEditUserExtendedPublicKey,
-		c.HandleEditUserExtendedPublicKey, new(v1.EditUserExtendedPublicKey),
+		c.HandleEditUserExtendedPublicKey, v1.EditUserExtendedPublicKey{},
 		permissionLogin, false)
 
 	// Routes that require being logged in as an admin user.
 	c.addPostRoute(v1.RouteInviteNewUser, c.HandleInviteNewUser,
-		new(v1.InviteNewUser), permissionAdmin, false)
-	c.addPostRoute(v1.RouteManageUser, c.HandleManageUser, new(v1.ManageUser),
+		v1.InviteNewUser{}, permissionAdmin, false)
+	c.addPostRoute(v1.RouteManageUser, c.HandleManageUser, v1.ManageUser{},
 		permissionAdmin, false)
 	c.addGetRoute(v1.RouteInvoices, c.HandleInvoices,
-		new(v1.Invoices), permissionAdmin, true)
+		v1.Invoices{}, permissionAdmin, true)
 	c.addPostRoute(v1.RouteSetInvoiceStatus, c.HandleSetInvoiceStatus,
-		new(v1.SetInvoiceStatus), permissionAdmin, true)
+		v1.SetInvoiceStatus{}, permissionAdmin, true)
 	c.addPostRoute(v1.RouteReviewInvoices, c.HandleReviewInvoices,
-		new(v1.ReviewInvoices), permissionAdmin, true)
+		v1.ReviewInvoices{}, permissionAdmin, true)
 	c.addPostRoute(v1.RoutePayInvoices, c.HandlePayInvoices,
-		new(v1.PayInvoices), permissionAdmin, true)
+		v1.PayInvoices{}, permissionAdmin, true)
+	c.addGetRoute(v1.RouteUsers, c.HandleUsers, v1.Users{},
+		permissionAdmin, false)
 }

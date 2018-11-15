@@ -26,6 +26,7 @@ type BackendInvoiceMDChange struct {
 	Version        uint              `json:"version"`        // Version of the struct
 	AdminPublicKey string            `json:"adminpublickey"` // Identity of the administrator
 	NewStatus      v1.InvoiceStatusT `json:"newstatus"`      // Status
+	Reason         *string           `json:"reason"`         // Reason
 	Timestamp      int64             `json:"timestamp"`      // Timestamp of the change
 }
 
@@ -237,6 +238,9 @@ func convertStreamChangeToDatabaseInvoiceChange(mdChange BackendInvoiceMDChange)
 
 	dbInvoiceChange.AdminPublicKey = mdChange.AdminPublicKey
 	dbInvoiceChange.NewStatus = mdChange.NewStatus
+	if mdChange.Reason != nil {
+		dbInvoiceChange.Reason = *mdChange.Reason
+	}
 	dbInvoiceChange.Timestamp = mdChange.Timestamp
 
 	return dbInvoiceChange

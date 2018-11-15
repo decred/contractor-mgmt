@@ -35,6 +35,7 @@ const (
 	ErrorStatusMissingInvoiceFile             ErrorStatusT = 25
 	ErrorStatusUserAlreadyExists              ErrorStatusT = 26
 	ErrorStatusReasonNotProvided              ErrorStatusT = 27
+	ErrorStatusMalformedInvoiceFile           ErrorStatusT = 28
 
 	// Invoice status codes
 	InvoiceStatusInvalid     InvoiceStatusT = 0 // Invalid status
@@ -86,6 +87,7 @@ var (
 		ErrorStatusMissingInvoiceFile:             "invoice file is missing",
 		ErrorStatusUserAlreadyExists:              "user already exists",
 		ErrorStatusReasonNotProvided:              "reason for action not provided",
+		ErrorStatusMalformedInvoiceFile:           "malformed invoice file",
 	}
 
 	// InvoiceStatus converts propsal status codes to human readable text

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -84,8 +85,8 @@ func (c *cmswww) logAdminUserAction(adminUser, user *database.User, action strin
 // logAdminInvoiceAction logs an admin action on an invoice.
 //
 // This function must be called WITHOUT the mutex held.
-func (c *cmswww) logAdminInvoiceAction(adminUser *database.User, token, action string) error {
-	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v", action, token))
+func (c *cmswww) logAdminInvoiceAction(adminUser *database.User, token, action, reasonForAction string) error {
+	return c.logAdminAction(adminUser, fmt.Sprintf("%v,%v,%v", action, token, reasonForAction))
 }
 
 // HandleInviteNewUser creates a new user in the db if it doesn't already
@@ -299,4 +300,38 @@ func (c *cmswww) resendInvite(adminUser, targetUser *database.User) (string, err
 		return encodedToken, nil
 	}
 	return "", nil
+}
+
+// HandleUsers returns a list of users given a set of filters.
+func (c *cmswww) HandleUsers(
+	req interface{},
+	adminUser *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	u := req.(*v1.Users)
+	var ur v1.UsersReply
+
+	users, numMatches, err := c.db.GetUsers(u.Username, v1.ListPageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	ur.TotalMatches = uint64(numMatches)
+	ur.Users = make([]v1.AbridgedUser, 0, len(users))
+	for _, user := range users {
+		ur.Users = append(ur.Users, v1.AbridgedUser{
+			ID:       strconv.FormatUint(user.ID, 10),
+			Email:    user.Email,
+			Username: user.Username,
+			Admin:    user.Admin,
+		})
+	}
+
+	// Sort results alphabetically.
+	sort.Slice(ur.Users, func(i, j int) bool {
+		return ur.Users[i].Username < ur.Users[j].Username
+	})
+
+	return &ur, nil
 }

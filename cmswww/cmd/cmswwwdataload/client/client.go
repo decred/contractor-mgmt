@@ -371,7 +371,7 @@ func (c *Client) ApproveInvoice(token string) error {
 	)
 }
 
-func (c *Client) RejectInvoice(token string) error {
+func (c *Client) RejectInvoice(token, reason string) error {
 	fmt.Printf("Rejecting invoice: %v\n", token)
 
 	var sisr v1.SetInvoiceStatusReply
@@ -383,6 +383,7 @@ func (c *Client) RejectInvoice(token string) error {
 		"setinvoicestatus",
 		token,
 		"rejected",
+		reason,
 	)
 }
 

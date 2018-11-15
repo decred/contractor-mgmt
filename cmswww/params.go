@@ -61,7 +61,7 @@ var simNetParams = params{
 func netName(chainParams *params) string {
 	switch chainParams.Net {
 	case wire.TestNet3:
-		return "testNet3"
+		return "testnet3"
 	default:
 		return chainParams.Name
 	}

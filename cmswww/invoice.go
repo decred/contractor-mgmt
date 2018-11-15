@@ -19,22 +19,57 @@ import (
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
-func validateStatusTransition(dbInvoice *database.Invoice, newStatus v1.InvoiceStatusT) error {
-	if dbInvoice.Status == v1.InvoiceStatusNotReviewed ||
-		dbInvoice.Status == v1.InvoiceStatusRejected {
-		if newStatus == v1.InvoiceStatusApproved ||
-			newStatus == v1.InvoiceStatusRejected {
-			return nil
-		}
-	} else if dbInvoice.Status == v1.InvoiceStatusApproved {
-		if newStatus == v1.InvoiceStatusPaid {
-			return nil
+var (
+	validStatusTransitions = map[v1.InvoiceStatusT][]v1.InvoiceStatusT{
+		v1.InvoiceStatusNotReviewed: {
+			v1.InvoiceStatusApproved,
+			v1.InvoiceStatusRejected,
+		},
+		v1.InvoiceStatusRejected: {
+			v1.InvoiceStatusApproved,
+		},
+		v1.InvoiceStatusApproved: {
+			v1.InvoiceStatusPaid,
+		},
+	}
+)
+
+func statusInSlice(arr []v1.InvoiceStatusT, status v1.InvoiceStatusT) bool {
+	for _, s := range arr {
+		if status == s {
+			return true
 		}
 	}
 
-	return v1.UserError{
-		ErrorCode: v1.ErrorStatusInvalidInvoiceStatusTransition,
+	return false
+}
+
+func validateStatusTransition(
+	dbInvoice *database.Invoice,
+	newStatus v1.InvoiceStatusT,
+	reason *string,
+) error {
+	validStatuses, ok := validStatusTransitions[dbInvoice.Status]
+	if !ok {
+		log.Errorf("status not supported: %v", dbInvoice.Status)
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusInvalidInvoiceStatusTransition,
+		}
 	}
+
+	if !statusInSlice(validStatuses, newStatus) {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusInvalidInvoiceStatusTransition,
+		}
+	}
+
+	if newStatus == v1.InvoiceStatusRejected && reason == nil {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusReasonNotProvided,
+		}
+	}
+
+	return nil
 }
 
 func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceReview, error) {
@@ -288,7 +323,7 @@ func (c *cmswww) HandleInvoices(
 ) (interface{}, error) {
 	i := req.(*v1.Invoices)
 
-	var statusMap map[v1.InvoiceStatusT]bool
+	statusMap := make(map[v1.InvoiceStatusT]bool, 0)
 	if i.Status != v1.InvoiceStatusInvalid {
 		statusMap[i.Status] = true
 	}
@@ -469,7 +504,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 		return nil, err
 	}
 
-	err = validateStatusTransition(dbInvoice, sis.Status)
+	err = validateStatusTransition(dbInvoice, sis.Status, sis.Reason)
 	if err != nil {
 		return nil, err
 	}
@@ -479,6 +514,7 @@ func (c *cmswww) HandleSetInvoiceStatus(
 		Version:   VersionBackendInvoiceMDChange,
 		Timestamp: time.Now().Unix(),
 		NewStatus: sis.Status,
+		Reason:    sis.Reason,
 	}
 
 	var ok bool
@@ -541,9 +577,13 @@ func (c *cmswww) HandleSetInvoiceStatus(
 	}
 
 	// Log the action in the admin log.
+	var reason string
+	if sis.Reason != nil {
+		reason = *sis.Reason
+	}
 	c.logAdminInvoiceAction(user, sis.Token,
-		fmt.Sprintf("set invoice status to %v",
-			v1.InvoiceStatus[sis.Status]))
+		fmt.Sprintf("set invoice status to %v,%v",
+			v1.InvoiceStatus[sis.Status]), reason)
 
 	// Return the reply.
 	sisr := v1.SetInvoiceStatusReply{
@@ -667,7 +707,7 @@ func (c *cmswww) HandleSubmitInvoice(
 		return nil, err
 	}
 
-	// Assemble metdata record
+	// Assemble metadata record
 	ts := time.Now().Unix()
 	md, err := json.Marshal(BackendInvoiceMetadata{
 		Month:     ni.Month,
@@ -709,7 +749,7 @@ func (c *cmswww) HandleSubmitInvoice(
 		return nil, err
 	}
 
-	// Create change record
+	// Create change record.
 	changes := BackendInvoiceMDChange{
 		Version:   VersionBackendInvoiceMDChange,
 		Timestamp: time.Now().Unix(),

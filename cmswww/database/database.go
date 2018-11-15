@@ -45,13 +45,14 @@ type InvoicesRequest struct {
 // Database interface that is required by the web server.
 type Database interface {
 	// User functions
-	CreateUser(*User) error                      // Create new user
-	UpdateUser(*User) error                      // Update existing user
-	GetUserByEmail(string) (*User, error)        // Return user record given the email address
-	GetUserByUsername(string) (*User, error)     // Return user record given the username
-	GetUserById(uint64) (*User, error)           // Return user record given its id
-	AllUsers(callbackFn func(u *User)) error     // Iterate all users
-	GetUserIdByPublicKey(string) (uint64, error) // Return user id by public key
+	CreateUser(*User) error                                      // Create new user
+	UpdateUser(*User) error                                      // Update existing user
+	GetUserByEmail(string) (*User, error)                        // Return user record given the email address
+	GetUserByUsername(string) (*User, error)                     // Return user record given the username
+	GetUserById(uint64) (*User, error)                           // Return user record given its id
+	GetUserIdByPublicKey(string) (uint64, error)                 // Return user id by public key
+	GetAllUsers(callbackFn func(u *User)) error                  // Iterate all users
+	GetUsers(username string, maxUsers int) ([]User, int, error) // Returns a list of users and total count that match the provided username.
 
 	// Invoice functions
 	CreateInvoice(*Invoice) error                   // Create new invoice
@@ -128,6 +129,7 @@ type File struct {
 type InvoiceChange struct {
 	AdminPublicKey string
 	NewStatus      v1.InvoiceStatusT
+	Reason         string
 	Timestamp      int64
 }
 

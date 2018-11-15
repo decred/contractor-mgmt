@@ -20,7 +20,7 @@ func (c *cmswww) InitUserPubkeys() error {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.db.AllUsers(func(u *database.User) {
+	return c.db.GetAllUsers(func(u *database.User) {
 		id := strconv.FormatUint(u.ID, 10)
 		for _, v := range u.Identities {
 			key := v.Key

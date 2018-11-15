@@ -17,6 +17,7 @@ const (
 	RouteManageUser                = "/user/manage"
 	RouteEditUser                  = "/user/edit"
 	RouteEditUserExtendedPublicKey = "/user/edit/xpublickey"
+	RouteUsers                     = "/users"
 	RouteLogin                     = "/login"
 	RouteLogout                    = "/logout"
 	RouteInvoices                  = "/invoices"
@@ -241,6 +242,7 @@ type InvoiceDetailsReply struct {
 type SetInvoiceStatus struct {
 	Token     string         `json:"token"`
 	Status    InvoiceStatusT `json:"status"`
+	Reason    *string        `json:"reason"`
 	Signature string         `json:"signature"` // Signature of Token+string(InvoiceStatus)
 	PublicKey string         `json:"publickey"` // Public key of admin
 }
@@ -435,6 +437,25 @@ type EditUserExtendedPublicKey struct {
 // command.
 type EditUserExtendedPublicKeyReply struct {
 	VerificationToken string `json:"verificationtoken"`
+}
+
+// Users is used to request a list of users given a filter.
+type Users struct {
+	Username string `json:"username"` // String which should match or partially match a username
+}
+
+// UsersReply is a reply to the Users command, replying with a list of users.
+type UsersReply struct {
+	TotalMatches uint64         `json:"totalmatches"` // Total number of users that match the filters
+	Users        []AbridgedUser `json:"users"`        // List of users that match the filters
+}
+
+// AbridgedUser is a shortened version of User that's used for the admin list.
+type AbridgedUser struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Admin    bool   `json:"isadmin"`
 }
 
 // User represents an individual user.

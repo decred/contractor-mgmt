@@ -12,8 +12,9 @@ import (
 
 type SetInvoiceStatusCmd struct {
 	Args struct {
-		Token  string `positional-arg-name:"token"`
-		Status string `positional-arg-name:"status"`
+		Token  string  `positional-arg-name:"token"`
+		Status string  `positional-arg-name:"status"`
+		Reason *string `positional-arg-name:"reason"`
 	} `positional-args:"true" optional:"true"`
 }
 
@@ -39,6 +40,7 @@ func (cmd *SetInvoiceStatusCmd) Execute(args []string) error {
 	sis := v1.SetInvoiceStatus{
 		Token:     cmd.Args.Token,
 		Status:    status,
+		Reason:    cmd.Args.Reason,
 		PublicKey: hex.EncodeToString(id.Public.Key[:]),
 		Signature: hex.EncodeToString(signature[:]),
 	}

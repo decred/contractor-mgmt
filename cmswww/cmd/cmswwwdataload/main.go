@@ -157,12 +157,12 @@ func approveInvoice(email, password, token string) error {
 	return c.Logout()
 }
 
-func rejectInvoice(email, password, token string) error {
+func rejectInvoice(email, password, token, reason string) error {
 	if _, err := c.Login(email, password); err != nil {
 		return err
 	}
 
-	err := c.RejectInvoice(token)
+	err := c.RejectInvoice(token, reason)
 	if err != nil {
 		return err
 	}
@@ -437,7 +437,8 @@ func _main() error {
 		return err
 	}
 
-	err = rejectInvoice(cfg.AdminEmail, cfg.AdminPass, invoiceToRejectToken)
+	err = rejectInvoice(cfg.AdminEmail, cfg.AdminPass, invoiceToRejectToken,
+		"Reason for rejection")
 	if err != nil {
 		return err
 	}

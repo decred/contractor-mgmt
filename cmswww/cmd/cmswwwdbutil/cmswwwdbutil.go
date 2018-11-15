@@ -56,7 +56,7 @@ func dumpUserAction() error {
 	}
 
 	fmt.Printf("---------------------------------------\n")
-	return db.AllUsers(func(user *database.User) {
+	return db.GetAllUsers(func(user *database.User) {
 		dumpUser(user)
 	})
 }

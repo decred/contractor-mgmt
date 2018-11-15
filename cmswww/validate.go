@@ -3,9 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/hex"
+	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/decred/politeia/util"
@@ -128,6 +132,30 @@ func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 	if !pk.VerifyMessage([]byte(hex.EncodeToString(digest)), sig) {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidSignature,
+		}
+	}
+
+	// Validate that the invoice shows the month and date in a comment.
+	t := time.Date(int(ni.Year), time.Month(ni.Month), 1, 0, 0, 0, 0, time.UTC)
+	str := fmt.Sprintf("%v %v", v1.PolicyInvoiceCommentChar,
+		t.Format("2006-01"))
+	if strings.HasPrefix(string(data), str) ||
+		strings.Contains(string(data), "\n"+str) {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusMalformedInvoiceFile,
+		}
+	}
+
+	// Validate that the invoice is CSV-formatted.
+	csvReader := csv.NewReader(strings.NewReader(string(data)))
+	csvReader.Comma = v1.PolicyInvoiceFieldDelimiterChar
+	csvReader.Comment = v1.PolicyInvoiceCommentChar
+	csvReader.TrimLeadingSpace = true
+
+	_, err = csvReader.ReadAll()
+	if err != nil {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusMalformedInvoiceFile,
 		}
 	}
 

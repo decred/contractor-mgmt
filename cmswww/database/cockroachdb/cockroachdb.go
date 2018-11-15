@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/badoux/checkmail"
@@ -180,8 +181,8 @@ func (c *cockroachdb) GetUserIdByPublicKey(publicKey string) (uint64, error) {
 
 // Executes a callback on every user in the database.
 //
-// AllUsers satisfies the backend interface.
-func (c *cockroachdb) AllUsers(callbackFn func(u *database.User)) error {
+// GetAllUsers satisfies the backend interface.
+func (c *cockroachdb) GetAllUsers(callbackFn func(u *database.User)) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -189,7 +190,7 @@ func (c *cockroachdb) AllUsers(callbackFn func(u *database.User)) error {
 		return database.ErrShutdown
 	}
 
-	log.Debugf("AllUsers")
+	log.Debugf("GetAllUsers")
 
 	var users []User
 	result := c.db.Find(&users)
@@ -207,6 +208,51 @@ func (c *cockroachdb) AllUsers(callbackFn func(u *database.User)) error {
 	}
 
 	return nil
+}
+
+// Returns a list of users and the total count that match the provided username.
+//
+// GetUsers satisfies the backend interface.
+func (c *cockroachdb) GetUsers(username string, maxUsers int) ([]database.User, int, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.shutdown {
+		return nil, 0, database.ErrShutdown
+	}
+
+	log.Debugf("GetUsers")
+
+	query := "? = '' OR (lower(username) like lower(?) || '%')"
+	username = strings.TrimSpace(username)
+
+	var users []User
+	result := c.db.Limit(maxUsers).Find(&users, query, username, username)
+	if result.Error != nil {
+		return nil, 0, result.Error
+	}
+
+	dbUsers := make([]database.User, 0, len(users))
+	for _, user := range users {
+		dbUser, err := DecodeUser(&user)
+		if err != nil {
+			return nil, 0, err
+		}
+		dbUsers = append(dbUsers, *dbUser)
+	}
+
+	// If the number of users returned equals the max users,
+	// find the count of all users that match the query.
+	numMatches := len(users)
+	if len(users) == maxUsers {
+		result = c.db.Model(&User{}).Where(query, username,
+			username).Count(&numMatches)
+		if result.Error != nil {
+			return nil, 0, result.Error
+		}
+	}
+
+	return dbUsers, numMatches, nil
 }
 
 // Create new invoice.

@@ -24,6 +24,33 @@ JSON REST RPC commands only.
 
 Make sure each of these are in the PATH.
 
+#### 2. Setup and start CockroachDB.
+
+CockroachDB is used by cmswww as storage for users, invoices and other data. Some data,
+such as invoices, are pulled from politeiad when cmswww starts and are added to the database.
+
+To set up CockroachDB for use with cmswww, follow these steps:
+
+##### 1. Install [CockroachDB](https://www.cockroachlabs.com/docs/stable/install-cockroachdb-windows.html).
+
+##### 2. Create the root client and a node on localhost.
+
+Replace `<install dir>` with the installation location for CockroachDB on your machine:
+
+    cd <install dir>
+    mkdir ~/cmswww/data/testnet3/cockroachdb
+
+    cockroach cert create-ca --certs-dir="~/cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key" --allow-ca-key-reuse
+
+    cockroach cert create-client root --certs-dir="~/cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key"
+
+    ./cockroach cert create-node localhost --certs-dir="~/cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key"
+
+##### 3. Start CockroachDB.
+
+    cd <install dir>
+    cockroach start --host=localhost --http-host=localhost --certs-dir="~/cmswww/data/testnet3/cockroachdb"
+
 #### 2. Clone this repository and [decred/politeia](https://github.com/decred/politeia).
 
 #### 3. Setup configuration files:
@@ -119,8 +146,6 @@ The result should look something like this:
 
 At this point, you can:
 
-* Follow the instructions at [decred/politeiagui](https://github.com/decred/politeiagui)
-to setup Politeia and access it through the UI.
 * Use the [cmswwwcli](https://github.com/decred/contractor-mgmt/tree/master/cmswww/cmd/cmswwwcli) tool to interact with cmswww.
 * Use the [politeia](https://github.com/decred/politeia/tree/master/politeiad/cmd/politeia) tool to interact directly with politeiad.
 * Use any other tools or clients that are listed above.
@@ -130,4 +155,4 @@ to setup Politeia and access it through the UI.
 
 ## Library and interfaces
 
-* `cmswww/api/v1` - JSON REST API for politeiawww clients.
+* `cmswww/api/v1` - JSON REST API for cmswww clients.

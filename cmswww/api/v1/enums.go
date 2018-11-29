@@ -38,12 +38,13 @@ const (
 	ErrorStatusMalformedInvoiceFile           ErrorStatusT = 28
 
 	// Invoice status codes
-	InvoiceStatusInvalid     InvoiceStatusT = 0 // Invalid status
-	InvoiceStatusNotFound    InvoiceStatusT = 1 // Invoice not found
-	InvoiceStatusNotReviewed InvoiceStatusT = 2 // Invoice has not been reviewed
-	InvoiceStatusRejected    InvoiceStatusT = 3 // Invoice needs to be revised
-	InvoiceStatusApproved    InvoiceStatusT = 4 // Invoice has been approved
-	InvoiceStatusPaid        InvoiceStatusT = 5 // Invoice has been paid
+	InvoiceStatusInvalid           InvoiceStatusT = 0 // Invalid status
+	InvoiceStatusNotFound          InvoiceStatusT = 1 // Invoice not found
+	InvoiceStatusNotReviewed       InvoiceStatusT = 2 // Invoice has not been reviewed
+	InvoiceStatusUnreviewedChanges InvoiceStatusT = 3 // Invoice has unreviewed changes
+	InvoiceStatusRejected          InvoiceStatusT = 4 // Invoice needs to be revised
+	InvoiceStatusApproved          InvoiceStatusT = 5 // Invoice has been approved
+	InvoiceStatusPaid              InvoiceStatusT = 6 // Invoice has been paid
 
 	// User manage actions
 	UserManageInvalid                              UserManageActionT = 0 // Invalid action type
@@ -92,12 +93,13 @@ var (
 
 	// InvoiceStatus converts propsal status codes to human readable text
 	InvoiceStatus = map[InvoiceStatusT]string{
-		InvoiceStatusInvalid:     "invalid invoice status",
-		InvoiceStatusNotFound:    "not found",
-		InvoiceStatusNotReviewed: "unreviewed",
-		InvoiceStatusRejected:    "rejected",
-		InvoiceStatusApproved:    "approved",
-		InvoiceStatusPaid:        "paid",
+		InvoiceStatusInvalid:           "invalid invoice status",
+		InvoiceStatusNotFound:          "not found",
+		InvoiceStatusNotReviewed:       "unreviewed",
+		InvoiceStatusUnreviewedChanges: "unreviewed changes",
+		InvoiceStatusRejected:          "rejected",
+		InvoiceStatusApproved:          "approved",
+		InvoiceStatusPaid:              "paid",
 	}
 
 	// UserManageAction converts user manage actions to human readable text

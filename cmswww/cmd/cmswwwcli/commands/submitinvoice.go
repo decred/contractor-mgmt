@@ -167,7 +167,7 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		return err
 	}
 
-	filename, err = config.GetInvoiceSubmissionRecordFilename(month, year)
+	filename, err = config.GetInvoiceSubmissionRecordFilename(month, year, "1")
 	if err != nil {
 		return err
 	}

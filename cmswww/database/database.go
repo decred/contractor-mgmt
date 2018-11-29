@@ -115,6 +115,7 @@ type Invoice struct {
 	UserSignature   string
 	ServerSignature string
 	Proposal        string // Optional link to a Politeia proposal
+	Version         string // Version number of this invoice
 
 	Changes  []InvoiceChange
 	Payments []InvoicePayment

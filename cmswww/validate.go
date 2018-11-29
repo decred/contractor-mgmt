@@ -93,11 +93,15 @@ func checkSignature(id []byte, signature string, elements ...string) error {
 	return nil
 }
 
-func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
+func validateInvoice(
+	signature, publicKey, payload string,
+	month, year int,
+	user *database.User,
+) error {
 	log.Tracef("validateInvoice")
 
 	// Obtain signature
-	sig, err := util.ConvertSignature(ni.Signature)
+	sig, err := util.ConvertSignature(signature)
 	if err != nil {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidSignature,
@@ -105,7 +109,7 @@ func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 	}
 
 	// Verify public key
-	id, err := checkPublicKey(user, ni.PublicKey)
+	id, err := checkPublicKey(user, publicKey)
 	if err != nil {
 		return err
 	}
@@ -116,13 +120,13 @@ func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 	}
 
 	// Check for the presence of the file.
-	if ni.File.Payload == "" {
+	if payload == "" {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidInput,
 		}
 	}
 
-	data, err := base64.StdEncoding.DecodeString(ni.File.Payload)
+	data, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
 		return err
 	}
@@ -136,7 +140,7 @@ func validateInvoice(ni *v1.SubmitInvoice, user *database.User) error {
 	}
 
 	// Validate that the invoice shows the month and date in a comment.
-	t := time.Date(int(ni.Year), time.Month(ni.Month), 1, 0, 0, 0, 0, time.UTC)
+	t := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	str := fmt.Sprintf("%v %v", v1.PolicyInvoiceCommentChar,
 		t.Format("2006-01"))
 	if strings.HasPrefix(string(data), str) ||

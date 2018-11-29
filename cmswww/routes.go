@@ -154,6 +154,8 @@ func (c *cmswww) SetupRoutes() {
 		v1.ChangePassword{}, permissionLogin, false)
 	c.addPostRoute(v1.RouteSubmitInvoice, c.HandleSubmitInvoice,
 		v1.SubmitInvoice{}, permissionLogin, true)
+	c.addPostRoute(v1.RouteEditInvoice, c.HandleEditInvoice,
+		v1.EditInvoice{}, permissionLogin, true)
 	c.addGetRoute(v1.RouteInvoiceDetails, c.HandleInvoiceDetails,
 		v1.InvoiceDetails{}, permissionLogin, true)
 	c.addGetRoute(v1.RouteUserInvoices, c.HandleMyInvoices,

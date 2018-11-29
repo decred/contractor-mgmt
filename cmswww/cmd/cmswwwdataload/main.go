@@ -144,6 +144,19 @@ func submitInvoice(email, password, filepath string) (string, error) {
 	return token, c.Logout()
 }
 
+func editInvoice(email, password, token, filepath string) error {
+	if _, err := c.Login(email, password); err != nil {
+		return err
+	}
+
+	err := c.EditInvoice(token, filepath)
+	if err != nil {
+		return err
+	}
+
+	return c.Logout()
+}
+
 func approveInvoice(email, password, token string) error {
 	if _, err := c.Login(email, password); err != nil {
 		return err
@@ -443,7 +456,29 @@ func _main() error {
 		return err
 	}
 
-	invoiceToApproveFilepath, err := createInvoiceFile(10, 2018, 5)
+	invoiceToRejectAndReviseFilepath, err := createInvoiceFile(10, 2018, 5)
+	if err != nil {
+		return err
+	}
+	invoiceToRejectAndReviseToken, err := submitInvoice(cfg.ContractorEmail,
+		cfg.ContractorPass, invoiceToRejectAndReviseFilepath)
+	if err != nil {
+		return err
+	}
+
+	err = rejectInvoice(cfg.AdminEmail, cfg.AdminPass,
+		invoiceToRejectAndReviseToken, "Reason for rejection")
+	if err != nil {
+		return err
+	}
+
+	err = editInvoice(cfg.ContractorEmail, cfg.ContractorPass,
+		invoiceToRejectAndReviseToken, invoiceToRejectAndReviseFilepath)
+	if err != nil {
+		return err
+	}
+
+	invoiceToApproveFilepath, err := createInvoiceFile(11, 2018, 5)
 	if err != nil {
 		return err
 	}
@@ -458,7 +493,7 @@ func _main() error {
 		return err
 	}
 
-	invoiceToPayFilepath, err := createInvoiceFile(11, 2018, 5)
+	invoiceToPayFilepath, err := createInvoiceFile(12, 2018, 5)
 	if err != nil {
 		return err
 	}
@@ -473,7 +508,7 @@ func _main() error {
 		return err
 	}
 
-	err = payApprovedInvoices(cfg.AdminEmail, cfg.AdminPass, 11, 2018, 20.0)
+	err = payApprovedInvoices(cfg.AdminEmail, cfg.AdminPass, 12, 2018, 20.0)
 	if err != nil {
 		return err
 	}

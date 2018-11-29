@@ -163,6 +163,7 @@ func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
 		Signature:        md.Signature,
 		File:             convertInvoiceFileFromPD(p.Files),
 		CensorshipRecord: convertInvoiceCensorFromPD(p.CensorshipRecord),
+		Version:          p.Version,
 	}
 }
 
@@ -171,6 +172,7 @@ func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice,
 		File:            convertRecordFilesToDatabaseInvoiceFile(p.Files),
 		Token:           p.CensorshipRecord.Token,
 		ServerSignature: p.CensorshipRecord.Signature,
+		Version:         p.Version,
 	}
 	for _, m := range p.Metadata {
 		switch m.ID {
@@ -268,6 +270,7 @@ func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRec
 	invoice.Username = dbInvoice.Username
 	invoice.PublicKey = dbInvoice.PublicKey
 	invoice.Signature = dbInvoice.UserSignature
+	invoice.Version = dbInvoice.Version
 	if dbInvoice.File != nil {
 		invoice.File = &v1.File{
 			MIME:    dbInvoice.File.MIME,

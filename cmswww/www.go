@@ -79,13 +79,13 @@ type cmswww struct {
 func RespondWithError(
 	w http.ResponseWriter,
 	r *http.Request,
-	userHttpCode int,
+	userHTTPCode int,
 	format string,
 	args ...interface{},
 ) {
 	if userErr, ok := args[0].(v1.UserError); ok {
-		if userHttpCode == 0 {
-			userHttpCode = http.StatusBadRequest
+		if userHTTPCode == 0 {
+			userHTTPCode = http.StatusBadRequest
 		}
 
 		if len(userErr.ErrorContext) == 0 {
@@ -99,7 +99,7 @@ func RespondWithError(
 				strings.Join(userErr.ErrorContext, ", "))
 		}
 
-		util.RespondWithJSON(w, userHttpCode,
+		util.RespondWithJSON(w, userHTTPCode,
 			v1.ErrorReply{
 				ErrorCode:    int64(userErr.ErrorCode),
 				ErrorContext: userErr.ErrorContext,

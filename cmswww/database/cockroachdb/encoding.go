@@ -201,6 +201,7 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.UserSignature = dbInvoice.UserSignature
 	invoice.ServerSignature = dbInvoice.ServerSignature
 	invoice.Proposal = dbInvoice.Proposal
+	invoice.Version = dbInvoice.Version
 
 	for _, dbInvoiceChange := range dbInvoice.Changes {
 		invoiceChange := EncodeInvoiceChange(&dbInvoiceChange)
@@ -268,6 +269,7 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	dbInvoice.UserSignature = invoice.UserSignature
 	dbInvoice.ServerSignature = invoice.ServerSignature
 	dbInvoice.Proposal = invoice.Proposal
+	dbInvoice.Version = invoice.Version
 	/*
 		for _, invoiceChange := range invoice.Changes {
 			dbInvoiceChange := DecodeInvoiceChange(&invoiceChange)

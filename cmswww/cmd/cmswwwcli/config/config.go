@@ -88,9 +88,10 @@ func GetInvoiceFilename(month, year uint16) (string, error) {
 	return filename, nil
 }
 
-func GetInvoiceSubmissionRecordFilename(month, year uint16) (string, error) {
+func GetInvoiceSubmissionRecordFilename(month, year uint16, version string) (string, error) {
 	filename := filepath.Join(GetInvoiceDirectory(),
-		fmt.Sprintf("submission_record_%v.json", GetInvoiceMonthStr(month, year)))
+		fmt.Sprintf("submission_record_%v_%v.json",
+			GetInvoiceMonthStr(month, year), version))
 
 	if !FileExists(filename) {
 		dirpath := filepath.Dir(filename)

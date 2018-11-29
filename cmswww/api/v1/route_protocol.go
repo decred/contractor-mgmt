@@ -24,6 +24,7 @@ const (
 	RouteReviewInvoices            = "/invoices/review"
 	RoutePayInvoices               = "/invoices/pay"
 	RouteSubmitInvoice             = "/invoice/submit"
+	RouteEditInvoice               = "/invoice/edit"
 	RouteInvoiceDetails            = "/invoice"
 	RouteSetInvoiceStatus          = "/invoice/setstatus"
 	RoutePolicy                    = "/policy"
@@ -71,6 +72,7 @@ type InvoiceRecord struct {
 	PublicKey string         `json:"publickey"` // User's public key, used to verify signature.
 	Signature string         `json:"signature"` // Signature of file digest
 	File      *File          `json:"file"`      // Actual invoice file
+	Version   string         `json:"version"`   // Record version
 
 	CensorshipRecord CensorshipRecord `json:"censorshiprecord"`
 }
@@ -226,6 +228,20 @@ type SubmitInvoice struct {
 // SubmitInvoiceReply is used to reply to the SubmitInvoice command.
 type SubmitInvoiceReply struct {
 	CensorshipRecord CensorshipRecord `json:"censorshiprecord"`
+}
+
+// EditInvoice attempts to submit an edit to an existing invoice.
+type EditInvoice struct {
+	Token     string `json:"token"`     // Invoice token
+	File      File   `json:"file"`      // Invoice file
+	PublicKey string `json:"publickey"` // Key used to verify signature
+	Signature string `json:"signature"` // Signature of file hash
+
+}
+
+// EditInvoiceReply is used to reply to the EditInvoice command.
+type EditInvoiceReply struct {
+	Invoice InvoiceRecord `json:"invoice"`
 }
 
 // InvoiceDetails is used to retrieve an invoice.

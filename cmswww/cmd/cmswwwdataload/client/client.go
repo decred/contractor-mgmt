@@ -356,6 +356,25 @@ func (c *Client) SubmitInvoice(file string) (string, error) {
 	return sir.CensorshipRecord.Token, err
 }
 
+func (c *Client) EditInvoice(token, file string) error {
+	fmt.Printf("Editing invoice\n")
+
+	file = filepath.ToSlash(file)
+
+	var eir v1.EditInvoiceReply
+	err := c.ExecuteCliCommand(
+		&eir,
+		func() bool {
+			return eir.Invoice.CensorshipRecord.Token != ""
+		},
+		"editinvoice",
+		token,
+		file,
+	)
+
+	return err
+}
+
 func (c *Client) ApproveInvoice(token string) error {
 	fmt.Printf("Approving invoice: %v\n", token)
 

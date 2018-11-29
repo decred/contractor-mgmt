@@ -27,6 +27,11 @@ var (
 		},
 		v1.InvoiceStatusRejected: {
 			v1.InvoiceStatusApproved,
+			v1.InvoiceStatusUnreviewedChanges,
+		},
+		v1.InvoiceStatusUnreviewedChanges: {
+			v1.InvoiceStatusApproved,
+			v1.InvoiceStatusRejected,
 		},
 		v1.InvoiceStatusApproved: {
 			v1.InvoiceStatusPaid,
@@ -696,7 +701,8 @@ func (c *cmswww) HandleSubmitInvoice(
 ) (interface{}, error) {
 	ni := req.(*v1.SubmitInvoice)
 
-	err := validateInvoice(ni, user)
+	err := validateInvoice(ni.Signature, ni.PublicKey, ni.File.Payload,
+		int(ni.Month), int(ni.Year), user)
 	if err != nil {
 		return nil, err
 	}
@@ -797,12 +803,13 @@ func (c *cmswww) HandleSubmitInvoice(
 		return nil, err
 	}
 
-	// Add the new proposal to the database.
+	// Add the new invoice to the database.
 	err = c.newInventoryRecord(pd.Record{
 		Timestamp:        ts,
 		CensorshipRecord: pdNewRecordReply.CensorshipRecord,
 		Metadata:         pdSetUnvettedStatusReply.Record.Metadata,
 		Files:            n.Files,
+		Version:          "1",
 	})
 	if err != nil {
 		return nil, err
@@ -811,4 +818,100 @@ func (c *cmswww) HandleSubmitInvoice(
 	nir.CensorshipRecord = convertInvoiceCensorFromPD(
 		pdNewRecordReply.CensorshipRecord)
 	return &nir, nil
+}
+
+// HandleEditInvoice handles the incoming new invoice command.
+func (c *cmswww) HandleEditInvoice(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	ei := req.(*v1.EditInvoice)
+
+	dbInvoice, err := c.db.GetInvoiceByToken(ei.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateInvoice(ei.Signature, ei.PublicKey, ei.File.Payload,
+		int(dbInvoice.Month), int(dbInvoice.Year), user)
+	if err != nil {
+		return nil, err
+	}
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assemble metadata record
+	ts := time.Now().Unix()
+	md, err := json.Marshal(BackendInvoiceMetadata{
+		Month:     dbInvoice.Month,
+		Year:      dbInvoice.Year,
+		Version:   VersionBackendInvoiceMetadata,
+		Timestamp: ts,
+		PublicKey: ei.PublicKey,
+		Signature: ei.Signature,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the change record.
+	changes, err := json.Marshal(BackendInvoiceMDChange{
+		Version:   VersionBackendInvoiceMDChange,
+		Timestamp: ts,
+		NewStatus: v1.InvoiceStatusUnreviewedChanges,
+	})
+
+	u := pd.UpdateRecord{
+		Token:     ei.Token,
+		Challenge: hex.EncodeToString(challenge),
+		MDOverwrite: []pd.MetadataStream{{
+			ID:      mdStreamGeneral,
+			Payload: string(md),
+		}},
+		MDAppend: []pd.MetadataStream{{
+			ID:      mdStreamChanges,
+			Payload: string(changes),
+		}},
+		FilesAdd: convertInvoiceFileFromWWW(&ei.File),
+	}
+
+	var pdUpdateRecordReply pd.UpdateRecordReply
+	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedRoute, u)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(responseBody, &pdUpdateRecordReply)
+	if err != nil {
+		return nil, fmt.Errorf("Unmarshal UpdateRecordReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge,
+		pdUpdateRecordReply.Response)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the database with the metadata changes.
+	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
+		Timestamp: ts,
+		NewStatus: v1.InvoiceStatusUnreviewedChanges,
+	})
+	dbInvoice.Version = pdUpdateRecordReply.Record.Version
+	dbInvoice.Status = v1.InvoiceStatusUnreviewedChanges
+	err = c.db.UpdateInvoice(dbInvoice)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &v1.EditInvoiceReply{
+		Invoice: convertRecordToInvoice(pdUpdateRecordReply.Record),
+	}
+	return reply, nil
 }

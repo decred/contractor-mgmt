@@ -71,6 +71,7 @@ type Invoice struct {
 	UserSignature   string `gorm:"not_null"`
 	ServerSignature string `gorm:"not_null"`
 	Proposal        string
+	Version         string
 
 	Changes  []InvoiceChange
 	Payments []InvoicePayment

@@ -26,7 +26,7 @@ var (
 	dbHost                     = flag.String("dbhost", sharedconfig.DefaultDBHost, "Specify the database host.")
 	dumpDb                     = flag.Bool("dump", false, "Dump the entire users table contents or contents for a specific user. Parameters: [email]")
 	deleteData                 = flag.Bool("deletedata", false, "Drops all tables in the cmswww database. Parameters: \""+understandTheRisksMagicStr+"\"")
-	testnet                    = flag.Bool("testnet", false, "Whether to check the testnet database or not.")
+	testnet                    = flag.Bool("testnet", false, "Whether to interact with the testnet database or not.")
 	dbDir                      = ""
 	db                         database.Database
 )

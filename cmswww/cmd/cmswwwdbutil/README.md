@@ -1,35 +1,44 @@
-# cmswww_dbutil
+# cmswwwdbutil
 
-cmswww_dbutil is a tool that allows you to interact with the cmswww
+`cmswwwdbutil` is a convenience tool for interacting with the cmswww
 database.
-
-**Note**: You currently have to shut down cmswww before using this tool.
 
 
 ## Usage
 
-You can specify the following options:
+You can specify the following configuration options:
 
 ```
-    --testnet
+    -testnet
     Whether to interact with the testnet or mainnet database
 
-    --datadir <dir>
-    Specify a different directory where the database is stored
+    -dbhost <host>
+    Specify the database host. Default: localhost:26257
 
-    --dump [email]
-    Print the contents of the entire database to the console, or the
-    contents of the user, if provided.
+    -dbname <name>
+    Specify the database name. Default: cmswww
 
-    --setadmin <email> <true/false>
-    Sets or removes the given user as admin.
+    -dbusername <username>
+    Specify the database username. Default: cmswwwuser
 
-    --addcredits <email> <quantity>
-    Adds proposal credits to the given user.
+    -datadir <dir>
+    Specify the directory where the database is stored. Default: ~/cmswww/data
+
+And the following actions:
+
+    -dump [email]
+    Print the contents of the entire set of users to the console, or the
+    contents of a specific user, if email is provided.
+
+    -createadmin <email> <username> <password>
+    Creates an admin user.
+
+    -deletedata i-understand-the-risks-of-this-action
+    Drops all tables in the database.
 ```
 
 Example:
 
 ```
-cmswww_dataload --setadmin user@example.com true
+cmswwwdbutil -createadmin user@example.com user password
 ```

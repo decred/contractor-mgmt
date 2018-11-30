@@ -53,5 +53,7 @@ If you encounter an error while running `cmswwwdataload`, it's possible that
 some program this depends on is out of date. Before opening a Github issue,
 make sure to pull the latest from master and build all programs:
 
-    cd $GOPATH/src/github.com/decred/contractor-mgmt
-    dep ensure && go install -v ./...
+```
+cd $GOPATH/src/github.com/decred/contractor-mgmt
+dep ensure && go install -v ./...
+```

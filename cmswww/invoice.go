@@ -363,7 +363,8 @@ func (c *cmswww) HandleReviewInvoices(
 		Month: ri.Month,
 		Year:  ri.Year,
 		StatusMap: map[v1.InvoiceStatusT]bool{
-			v1.InvoiceStatusNotReviewed: true,
+			v1.InvoiceStatusNotReviewed:       true,
+			v1.InvoiceStatusUnreviewedChanges: true,
 		},
 	})
 	if err != nil {

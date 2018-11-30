@@ -32,7 +32,12 @@ type Version struct {
 
 func (c *cockroachdb) addWhereClause(db *gorm.DB, paramsMap map[string]interface{}) *gorm.DB {
 	for k, v := range paramsMap {
-		db = db.Where(k+"= ?", v)
+		_, ok := v.([]uint)
+		if ok {
+			db = db.Where(k+" in ( ? )", v)
+		} else {
+			db = db.Where(k+" = ?", v)
+		}
 	}
 	return db
 }

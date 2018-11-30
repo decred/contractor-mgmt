@@ -3,41 +3,141 @@
 `cmswwwcli` is a command line tool that allows you to interact with the Politeia API.
 
 ## Available Commands
+
+Execute `cmswwwcli --help` for a list of available commands.
+
+## Flows
+
+### All users
+
+#### Login
+
 ```
-activevotes        Retrieve all proposals being actively voted on
-castvotes          Cast ticket votes for a specific proposal
-changepassword     change the password for the currently logged in user
-changeusername     change the username for the currently logged in user
-commentsvotes      fetch all the comments voted by the user on a proposal
-faucet             use the Decred testnet faucet to send DCR to an address
-getcomments        fetch a proposal's comments
-getproposal        fetch a proposal
-getunvetted        fetch unvetted proposals
-getvetted          fetch vetted proposals
-login              login to Politeia
-logout             logout of Politeia
-me                 return the user information of the currently logged in user
-newcomment         comment on a proposal
-newproposal        submit a new proposal to Politeia
-newuser            create a new Politeia user
-policy             fetch server policy
-proposalvotes      fetch vote results for a specific proposal
-resetpassword      change the password for a user that is not currently logged in
-secret
-setproposalstatus  (admin only) set the status of a proposal
-startvote          (admin only) start the voting period on a proposal
-usernamesbyid      fetch usernames by their user ids
-userproposals      fetch all proposals submitted by a specific user
-verifyuser         verify user's email address
-verifyuserpayment  check if the user has paid their user registration fee
-version            fetch server info and CSRF token
-votecomment        vote on a comment
+cmswwwcli login <email> <password>
 ```
+
+#### Logout
+
+```
+cmswwwcli logout
+```
+
+### Admins
+
+#### Invite a contractor to register
+
+```
+cmswwwcli invite <contractor email>
+```
+
+#### Generate a list of unreviewed invoices
+
+```
+cmswwwcli reviewinvoices dec 2018 > 2018-12_reviews.txt
+```
+
+#### Approve or reject an invoice
+
+```
+cmswwwcli setinvoicestatus <invoice token> approved
+or
+cmswwwcli setinvoicestatus <invoice token> rejected <reason for rejection>
+```
+
+#### Generate a list of approved invoices (to be paid)
+
+```
+cmswwwcli payinvoices dec 2018 <DCR-USD rate> > 2018-12_payouts.txt
+```
+
+### Contractors
+
+#### Register
+
+Use the token from your invitation email to register and follow the instructions:
+
+```
+cmswwwcli register <email> <token>
+
+Create a username: <username>
+Create a password: <password>
+Enter your full name: <name>
+Enter your location: <location>
+Enter the extended public key for your payment account: <extended pubkey>
+```
+
+#### Submit an invoice
+
+Invoices must be in the following CSV format:
+
+```
+# 2018-12
+# Type of work, Subtype of work, Description of work, Link to Politeia proposal, Hours worked, Total cost (in USD)
+Development,,decred/politeia issue#36,,4,160
+Development,,decred/politeia issue#38,,3,120
+...
+```
+
+You can either create the file manually, or have the CLI create and update a file
+for you, using the `logwork` command:
+
+```
+cmswwwcli logwork dec 2018
+
+Type of work: Development
+Subtype of work (optional):
+Description of work: decred/politeia issue#36
+Politeia proposal (optional):
+Hours worked: 4
+Total cost (in USD): 160
+Work logged successfully.
+```
+
+When you're ready to submit the invoice for review, you can either submit the
+one created and maintained by the CLI via the `logwork` command:
+
+```
+cmswwwcli submitinvoice dec 2018
+```
+
+Or submit your own CSV file:
+
+```
+cmswwwcli submitinvoice --invoice=<path to invoice CSV>
+
+Invoice submitted successfully! The censorship record has been stored in ~/cmswww/cli/invoices/<email>/submission_record_2018-12_1.json for your future reference.
+```
+
+#### Editing a rejected invoice
+
+If your invoice is rejected, you can edit and re-submit it:
+
+```
+cmswwwcli editinvoice <invoice token> <path to invoice CSV>
+
+Invoice submitted successfully! The censorship record has been stored in ~/cmswww/cli/invoices/<email>/submission_record_2018-12_2.json for your future reference.
+```
+
+#### Setting email notification preferences
+
+Contractors have the ability to get email notifications for changes to their invoices:
+
+```
+cmswwwcli edituser --emailnotifications=<num>
+```
+
+`<num>` is the result of adding the corresponding numbers for any combination of the following notification types:
+
+* Invoice has been approved: `1`
+* Invoice has been rejected: `2`
+* Payment received for invoice: `4`
+
+For example, to only get notifications for when your invoices are approved or rejected, you will substitute `3` for `<num>` in the above command.
 
 ## Application Options
 ```
-    --host=    cmswww host (default: https://proposals.decred.org)
--j, --json     Print JSON
+    --host     cmswww host (default: https://127.0.0.1:4443)
+    --jsonout  Print JSON
 -v, --verbose  Print request and response details
 
 ```

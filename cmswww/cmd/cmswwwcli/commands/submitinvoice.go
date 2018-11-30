@@ -36,8 +36,8 @@ type SubmissionRecord struct {
 func validateInvoiceFile(filename string) error {
 	// Verify invoice file exists.
 	if !config.FileExists(filename) {
-		return fmt.Errorf("The invoice file (%v) does not exist. Please first"+
-			"create it, either manually or using the logwork command.",
+		return fmt.Errorf("The invoice file (%v) does not exist. Please first "+
+			"create it, either manually or through the logwork command.",
 			filename)
 	}
 

@@ -15,7 +15,7 @@ import (
 type RegisterCmd struct {
 	Args struct {
 		Email string `positional-arg-name:"email"`
-		Token string `positional-arg-name:"email"`
+		Token string `positional-arg-name:"token"`
 	} `positional-args:"true" required:"true"`
 	Username          string `long:"username" optional:"true" description:"Username"`
 	Password          string `long:"password" optional:"true" description:"Password"`

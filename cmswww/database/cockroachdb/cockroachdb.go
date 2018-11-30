@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/badoux/checkmail"
 	"github.com/jinzhu/gorm"
@@ -22,9 +21,7 @@ var (
 
 // cockroachdb implements the database interface.
 type cockroachdb struct {
-	sync.RWMutex
-	shutdown bool // Backend is shutdown
-	db       *gorm.DB
+	db *gorm.DB
 }
 
 // Version contains the database version.
@@ -64,13 +61,6 @@ func (c *cockroachdb) dropTable(tableName string) error {
 //
 // CreateUser satisfies the backend interface.
 func (c *cockroachdb) CreateUser(dbUser *database.User) error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	user := EncodeUser(dbUser)
 	log.Debugf("NewUser: %v", user.Email)
 
@@ -85,13 +75,6 @@ func (c *cockroachdb) CreateUser(dbUser *database.User) error {
 //
 // UpdateUser satisfies the backend interface.
 func (c *cockroachdb) UpdateUser(dbUser *database.User) error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	user := EncodeUser(dbUser)
 	log.Debugf("UpdateUser: %v", user.Email)
 	return c.db.Model(&User{}).Updates(*user).Error
@@ -101,13 +84,6 @@ func (c *cockroachdb) UpdateUser(dbUser *database.User) error {
 //
 // GetUser satisfies the backend interface.
 func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return nil, database.ErrShutdown
-	}
-
 	var user User
 	result := c.db.Where("email = ?", email).Preload("Identities").First(&user)
 	if result.Error != nil {
@@ -124,13 +100,6 @@ func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
 //
 // GetUserByUsername satisfies the backend interface.
 func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return nil, database.ErrShutdown
-	}
-
 	var user User
 	result := c.db.Where("username = ?", username).Preload("Identities").First(&user)
 	if result.Error != nil {
@@ -147,13 +116,6 @@ func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error)
 //
 // GetUserById satisfies the backend interface.
 func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return nil, database.ErrShutdown
-	}
-
 	var user User
 	result := c.db.Preload("Identities").First(&user, id)
 	if result.Error != nil {
@@ -183,13 +145,6 @@ func (c *cockroachdb) GetUserIdByPublicKey(publicKey string) (uint64, error) {
 //
 // GetAllUsers satisfies the backend interface.
 func (c *cockroachdb) GetAllUsers(callbackFn func(u *database.User)) error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	log.Debugf("GetAllUsers")
 
 	var users []User
@@ -214,13 +169,6 @@ func (c *cockroachdb) GetAllUsers(callbackFn func(u *database.User)) error {
 //
 // GetUsers satisfies the backend interface.
 func (c *cockroachdb) GetUsers(username string, maxUsers int) ([]database.User, int, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return nil, 0, database.ErrShutdown
-	}
-
 	log.Debugf("GetUsers")
 
 	query := "? = '' OR (lower(username) like lower(?) || '%')"
@@ -259,13 +207,6 @@ func (c *cockroachdb) GetUsers(username string, maxUsers int) ([]database.User, 
 //
 // CreateInvoice satisfies the backend interface.
 func (c *cockroachdb) CreateInvoice(dbInvoice *database.Invoice) error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	invoice := EncodeInvoice(dbInvoice)
 
 	log.Debugf("CreateInvoice: %v", invoice.Token)
@@ -276,13 +217,6 @@ func (c *cockroachdb) CreateInvoice(dbInvoice *database.Invoice) error {
 //
 // CreateInvoice satisfies the backend interface.
 func (c *cockroachdb) UpdateInvoice(dbInvoice *database.Invoice) error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	invoice := EncodeInvoice(dbInvoice)
 
 	log.Debugf("UpdateInvoice: %v", invoice.Token)
@@ -292,13 +226,6 @@ func (c *cockroachdb) UpdateInvoice(dbInvoice *database.Invoice) error {
 
 // Return invoice by its token.
 func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return nil, database.ErrShutdown
-	}
-
 	log.Debugf("GetInvoiceByToken: %v", token)
 
 	var invoice Invoice
@@ -323,13 +250,6 @@ func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error)
 
 // Return a list of invoices.
 func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]database.Invoice, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return nil, database.ErrShutdown
-	}
-
 	log.Debugf("GetInvoices")
 
 	paramsMap := make(map[string]interface{})
@@ -373,13 +293,6 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 }
 
 func (c *cockroachdb) UpdateInvoicePayment(dbInvoicePayment *database.InvoicePayment) error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	invoicePayment := EncodeInvoicePayment(dbInvoicePayment)
 
 	log.Debugf("UpdateInvoicePayment: %v", invoicePayment.InvoiceToken)
@@ -391,13 +304,6 @@ func (c *cockroachdb) UpdateInvoicePayment(dbInvoicePayment *database.InvoicePay
 //
 // DeleteAllData satisfies the backend interface.
 func (c *cockroachdb) DeleteAllData() error {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.shutdown {
-		return database.ErrShutdown
-	}
-
 	log.Debugf("DeleteAllData")
 
 	c.dropTable(tableNameInvoicePayment)
@@ -408,15 +314,10 @@ func (c *cockroachdb) DeleteAllData() error {
 	return nil
 }
 
-// Close shuts down the database.  All interface functions MUST return with
-// errShutdown if the backend is shutting down.
+// Close shuts down the database.
 //
 // Close satisfies the backend interface.
 func (c *cockroachdb) Close() error {
-	c.Lock()
-	defer c.Unlock()
-
-	c.shutdown = true
 	return c.db.Close()
 }
 

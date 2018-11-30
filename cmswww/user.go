@@ -227,6 +227,9 @@ func (c *cmswww) HandleEditUser(
 	if eu.Location != nil {
 		user.Location = *eu.Location
 	}
+	if eu.EmailNotifications != nil {
+		user.EmailNotifications = *eu.EmailNotifications
+	}
 
 	err := c.db.UpdateUser(user)
 	return &v1.EditUserReply{}, err

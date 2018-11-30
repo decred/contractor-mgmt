@@ -63,16 +63,17 @@ type CensorshipRecord struct {
 
 // InvoiceRecord is an entire invoice and its content.
 type InvoiceRecord struct {
-	Status    InvoiceStatusT `json:"status"`    // Current status of invoice
-	Timestamp int64          `json:"timestamp"` // Last update of invoice
-	Month     uint16         `json:"month"`     // The month that this invoice applies to
-	Year      uint16         `json:"year"`      // The year that this invoice applies to
-	UserID    string         `json:"userid"`    // ID of user who submitted invoice
-	Username  string         `json:"username"`  // Username of user who submitted invoice
-	PublicKey string         `json:"publickey"` // User's public key, used to verify signature.
-	Signature string         `json:"signature"` // Signature of file digest
-	File      *File          `json:"file"`      // Actual invoice file
-	Version   string         `json:"version"`   // Record version
+	Status             InvoiceStatusT `json:"status"`                       // Current status of invoice
+	StatusChangeReason string         `json:"statuschangereason,omitempty"` // Reason (if any) for the current status
+	Timestamp          int64          `json:"timestamp"`                    // Last update of invoice
+	Month              uint16         `json:"month"`                        // The month that this invoice applies to
+	Year               uint16         `json:"year"`                         // The year that this invoice applies to
+	UserID             string         `json:"userid"`                       // ID of user who submitted invoice
+	Username           string         `json:"username"`                     // Username of user who submitted invoice
+	PublicKey          string         `json:"publickey"`                    // User's public key, used to verify signature.
+	Signature          string         `json:"signature"`                    // Signature of file digest
+	File               *File          `json:"file"`                         // Actual invoice file
+	Version            string         `json:"version"`                      // Record version
 
 	CensorshipRecord CensorshipRecord `json:"censorshiprecord"`
 }
@@ -436,8 +437,9 @@ type ManageUserReply struct {
 
 // EditUser allows a user to make changes to his profile.
 type EditUser struct {
-	Name     *string `json:"name"`
-	Location *string `json:"location"`
+	Name               *string `json:"name"`
+	Location           *string `json:"location"`
+	EmailNotifications *uint64 `json:"emailnotifications"` // Notify the user via emails
 }
 
 // EditUserReply is the reply for the EditUser command.
@@ -494,6 +496,7 @@ type User struct {
 	LastLogin                                 int64           `json:"lastlogin"`
 	FailedLoginAttempts                       uint64          `json:"failedloginattempts"`
 	Locked                                    bool            `json:"islocked"`
+	EmailNotifications                        uint64          `json:"emailnotifications"` // Notify the user via emails
 	Identities                                []UserIdentity  `json:"identities"`
 	Invoices                                  []InvoiceRecord `json:"invoices"`
 }

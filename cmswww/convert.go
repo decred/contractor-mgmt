@@ -54,6 +54,7 @@ func convertDatabaseUserToUser(user *database.User) v1.User {
 		LastLogin:                        user.LastLogin,
 		FailedLoginAttempts:              user.FailedLoginAttempts,
 		Locked:                           IsUserLocked(user.FailedLoginAttempts),
+		EmailNotifications:               user.EmailNotifications,
 		Identities:                       convertDatabaseIdentitiesToIdentities(user.Identities),
 	}
 }
@@ -122,51 +123,6 @@ func convertInvoiceCensorFromPD(f pd.CensorshipRecord) v1.CensorshipRecord {
 	}
 }
 
-func convertInvoiceFromInventoryRecord(r *inventoryRecord, userPubkeys map[string]string) v1.InvoiceRecord {
-	invoice := convertRecordToInvoice(r.record)
-
-	// Set the most up-to-date status.
-	for _, v := range r.changes {
-		invoice.Status = v.NewStatus
-	}
-
-	// Set the user id.
-	var ok bool
-	invoice.UserID, ok = userPubkeys[invoice.PublicKey]
-	if !ok {
-		log.Errorf("user not found for public key %v, for invoice %v",
-			invoice.PublicKey, invoice.CensorshipRecord.Token)
-	}
-
-	return invoice
-}
-
-func convertRecordToInvoice(p pd.Record) v1.InvoiceRecord {
-	md := &BackendInvoiceMetadata{}
-	for _, v := range p.Metadata {
-		if v.ID != mdStreamGeneral {
-			continue
-		}
-		err := json.Unmarshal([]byte(v.Payload), md)
-		if err != nil {
-			log.Errorf("could not decode metadata '%v' token '%v': %v",
-				p.Metadata, p.CensorshipRecord.Token, err)
-			break
-		}
-	}
-
-	return v1.InvoiceRecord{
-		Timestamp:        md.Timestamp,
-		Month:            md.Month,
-		Year:             md.Year,
-		PublicKey:        md.PublicKey,
-		Signature:        md.Signature,
-		File:             convertInvoiceFileFromPD(p.Files),
-		CensorshipRecord: convertInvoiceCensorFromPD(p.CensorshipRecord),
-		Version:          p.Version,
-	}
-}
-
 func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
 	dbInvoice := database.Invoice{
 		File:            convertRecordFilesToDatabaseInvoiceFile(p.Files),
@@ -209,6 +165,11 @@ func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice,
 				dbInvoice.Changes = append(dbInvoice.Changes,
 					convertStreamChangeToDatabaseInvoiceChange(mdChange))
 				dbInvoice.Status = mdChange.NewStatus
+				if mdChange.Reason != nil {
+					dbInvoice.StatusChangeReason = *mdChange.Reason
+				} else {
+					dbInvoice.StatusChangeReason = ""
+				}
 			}
 		case mdStreamPayments:
 			f := strings.NewReader(m.Payload)

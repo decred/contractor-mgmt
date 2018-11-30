@@ -638,23 +638,5 @@ func loadConfig() (*config, []string, error) {
 		log.Warnf("%v", configFileError)
 	}
 
-	// Ensure the templates are evaluating with dummy data.
-	newUserTplData := RegisterEmailTemplateData{
-		Email: "test@example.com",
-		Token: "undefined",
-	}
-	if err := ExecuteTemplate(templateRegisterEmail, newUserTplData); err != nil {
-		return nil, nil, err
-	}
-
-	newIdentityTplData := NewIdentityEmailTemplateData{
-		Email:     "test@example.com",
-		Token:     "undefined",
-		PublicKey: "public_key",
-	}
-	if err = ExecuteTemplate(templateNewIdentityEmail, newIdentityTplData); err != nil {
-		return nil, nil, err
-	}
-
 	return &cfg, remainingArgs, nil
 }

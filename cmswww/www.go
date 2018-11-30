@@ -63,7 +63,8 @@ type cmswww struct {
 
 	db             database.Database
 	params         *chaincfg.Params
-	client         *http.Client             // politeiad client
+	client         *http.Client // politeiad client
+	eventManager   *EventManager
 	userPubkeys    map[string]string        // [pubkey][userid]
 	polledPayments map[string]polledPayment // [token][polledPayment]
 
@@ -300,6 +301,9 @@ func _main() error {
 	if err != nil {
 		return err
 	}
+
+	// Setup events
+	c.initEventManager()
 
 	// Try to load inventory but do not fail.
 	log.Infof("Attempting to load invoice inventory")

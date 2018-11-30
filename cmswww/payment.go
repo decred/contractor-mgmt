@@ -126,7 +126,7 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 	var tokensToRemove []string
 
 	for token, polledPayment := range polledPayments {
-		invoice, err := c.db.GetInvoiceByToken(token)
+		dbInvoice, err := c.db.GetInvoiceByToken(token)
 		if err != nil {
 			if err == database.ErrShutdown {
 				// The database is shutdown, so stop the thread.
@@ -140,7 +140,7 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 		log.Tracef("Checking the payment address for invoice %v...",
 			token)
 
-		if invoice.Status == v1.InvoiceStatusPaid {
+		if dbInvoice.Status == v1.InvoiceStatusPaid {
 			// The invoice could have been marked as paid by some external
 			// mechanism, so just remove it from polling.
 			tokensToRemove = append(tokensToRemove, token)
@@ -149,7 +149,7 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 		}
 
 		if pollHasExpired(polledPayment.pollExpiry) {
-			tokensToRemove = append(tokensToRemove, invoice.Token)
+			tokensToRemove = append(tokensToRemove, dbInvoice.Token)
 			log.Tracef("  removing from polling, poll has expired")
 			continue
 		}
@@ -164,19 +164,19 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 
 		if tx != "" {
 			// Update the invoice in the database.
-			invoice.Status = v1.InvoiceStatusPaid
-			for idx, invoicePayment := range invoice.Payments {
+			dbInvoice.Status = v1.InvoiceStatusPaid
+			for idx, invoicePayment := range dbInvoice.Payments {
 				if invoicePayment.Address == polledPayment.address &&
 					invoicePayment.Amount == polledPayment.amount &&
 					invoicePayment.TxNotBefore == polledPayment.txNotBefore {
-					invoice.Payments[idx].TxID = tx
+					dbInvoice.Payments[idx].TxID = tx
 				}
 			}
-			invoice.Changes = append(invoice.Changes, database.InvoiceChange{
+			dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
 				Timestamp: time.Now().Unix(),
 				NewStatus: v1.InvoiceStatusPaid,
 			})
-			err = c.db.UpdateInvoice(invoice)
+			err = c.db.UpdateInvoice(dbInvoice)
 			if err != nil {
 				if err == database.ErrShutdown {
 					// The database is shutdown, so stop the thread.
@@ -184,11 +184,18 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 				}
 
 				log.Errorf("cannot update invoice with token %v: %v",
-					invoice.Token, err)
+					dbInvoice.Token, err)
 				continue
 			}
 
 			// TODO: Update the invoice metadata in politeiad.
+
+			c.fireEvent(EventTypeInvoicePaid,
+				EventDataInvoicePaid{
+					Invoice: dbInvoice,
+					TxID:    tx,
+				},
+			)
 
 			// Remove this invoice from polling.
 			tokensToRemove = append(tokensToRemove, token)

@@ -35,6 +35,7 @@ type User struct {
 	LastLogin                        pq.NullTime
 	FailedLoginAttempts              uint64 `gorm:"not_null"`
 	PaymentAddressIndex              uint64 `gorm:"not_null"`
+	EmailNotifications               uint64 `gorm:"not_null"`
 
 	Identities []Identity
 	Invoices   []Invoice
@@ -57,21 +58,22 @@ func (i Identity) TableName() string {
 }
 
 type Invoice struct {
-	Token           string    `gorm:"primary_key"`
-	UserID          uint      `gorm:"not_null"`
-	Username        string    `gorm:"-"` // Only populated when reading from the database
-	Month           uint      `gorm:"not_null"`
-	Year            uint      `gorm:"not_null"`
-	Timestamp       time.Time `gorm:"not_null"`
-	Status          uint      `gorm:"not_null"`
-	FilePayload     string    `gorm:"type:text"`
-	FileMIME        string
-	FileDigest      string
-	PublicKey       string `gorm:"not_null"`
-	UserSignature   string `gorm:"not_null"`
-	ServerSignature string `gorm:"not_null"`
-	Proposal        string
-	Version         string
+	Token              string    `gorm:"primary_key"`
+	UserID             uint      `gorm:"not_null"`
+	Username           string    `gorm:"-"` // Only populated when reading from the database
+	Month              uint      `gorm:"not_null"`
+	Year               uint      `gorm:"not_null"`
+	Timestamp          time.Time `gorm:"not_null"`
+	Status             uint      `gorm:"not_null"`
+	StatusChangeReason string
+	FilePayload        string `gorm:"type:text"`
+	FileMIME           string
+	FileDigest         string
+	PublicKey          string `gorm:"not_null"`
+	UserSignature      string `gorm:"not_null"`
+	ServerSignature    string `gorm:"not_null"`
+	Proposal           string
+	Version            string
 
 	Changes  []InvoiceChange
 	Payments []InvoicePayment

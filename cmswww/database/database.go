@@ -88,6 +88,7 @@ type User struct {
 	LastLogin                                 int64
 	FailedLoginAttempts                       uint64
 	PaymentAddressIndex                       uint64
+	EmailNotifications                        uint64
 
 	Identities []Identity
 }
@@ -103,19 +104,20 @@ type Identity struct {
 }
 
 type Invoice struct {
-	Token           string
-	UserID          uint64
-	Username        string // Only populated when reading from the database
-	Month           uint16
-	Year            uint16
-	Timestamp       int64
-	Status          v1.InvoiceStatusT
-	File            *File
-	PublicKey       string
-	UserSignature   string
-	ServerSignature string
-	Proposal        string // Optional link to a Politeia proposal
-	Version         string // Version number of this invoice
+	Token              string
+	UserID             uint64
+	Username           string // Only populated when reading from the database
+	Month              uint16
+	Year               uint16
+	Timestamp          int64
+	Status             v1.InvoiceStatusT
+	StatusChangeReason string
+	File               *File
+	PublicKey          string
+	UserSignature      string
+	ServerSignature    string
+	Proposal           string // Optional link to a Politeia proposal
+	Version            string // Version number of this invoice
 
 	Changes  []InvoiceChange
 	Payments []InvoicePayment

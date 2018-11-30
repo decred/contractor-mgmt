@@ -4,6 +4,7 @@ type ErrorStatusT int
 type InvoiceStatusT int
 type UserManageActionT int
 type InvoiceFieldTypeT int
+type EmailNotificationT int
 
 const (
 	// Error status codes
@@ -56,6 +57,11 @@ const (
 	InvoiceFieldTypeInvalid InvoiceFieldTypeT = 0
 	InvoiceFieldTypeString  InvoiceFieldTypeT = 1
 	InvoiceFieldTypeUint    InvoiceFieldTypeT = 2
+
+	// Email notification types
+	NotificationEmailMyInvoiceApproved EmailNotificationT = 1 << 0
+	NotificationEmailMyInvoiceRejected EmailNotificationT = 1 << 1
+	NotificationEmailMyInvoicePaid     EmailNotificationT = 1 << 2
 )
 
 var (

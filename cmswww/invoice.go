@@ -437,7 +437,7 @@ func (c *cmswww) HandlePayInvoices(
 				return nil, err
 			}
 
-			c._addInvoiceForPolling(invoice.Token, &invoicePayment)
+			c.addInvoiceForPolling(invoice.Token, &invoicePayment)
 		}
 
 		invoicePayment, err := c.createOrUpdateInvoicePayment(invoice, pi.DCRUSDRate)
@@ -576,19 +576,23 @@ func (c *cmswww) HandleSetInvoiceStatus(
 		NewStatus:      changes.NewStatus,
 	})
 	dbInvoice.Status = changes.NewStatus
+	if changes.Reason != nil {
+		dbInvoice.Changes[len(dbInvoice.Changes)-1].Reason = *changes.Reason
+		dbInvoice.StatusChangeReason = *changes.Reason
+	} else {
+		dbInvoice.StatusChangeReason = ""
+	}
 	err = c.db.UpdateInvoice(dbInvoice)
 	if err != nil {
 		return nil, err
 	}
 
-	// Log the action in the admin log.
-	var reason string
-	if sis.Reason != nil {
-		reason = *sis.Reason
-	}
-	c.logAdminInvoiceAction(user, sis.Token,
-		fmt.Sprintf("set invoice status to %v,%v",
-			v1.InvoiceStatus[sis.Status]), reason)
+	c.fireEvent(EventTypeInvoiceStatusChange,
+		EventDataInvoiceStatusChange{
+			Invoice:   dbInvoice,
+			AdminUser: user,
+		},
+	)
 
 	// Return the reply.
 	sisr := v1.SetInvoiceStatusReply{
@@ -630,63 +634,30 @@ func (c *cmswww) HandleInvoiceDetails(
 		return nil, err
 	}
 
-	var (
-		isVettedInvoice bool
-		route           string
-		requestObject   interface{}
+	responseBody, err := c.rpc(http.MethodPost, pd.GetVettedRoute,
+		pd.GetVetted{
+			Token:     id.Token,
+			Challenge: hex.EncodeToString(challenge),
+		},
 	)
-	if invoice.Status == v1.InvoiceStatusApproved {
-		isVettedInvoice = true
-		route = pd.GetVettedRoute
-		requestObject = pd.GetVetted{
-			Token:     id.Token,
-			Challenge: hex.EncodeToString(challenge),
-		}
-	} else {
-		isVettedInvoice = false
-		route = pd.GetUnvettedRoute
-		requestObject = pd.GetUnvetted{
-			Token:     id.Token,
-			Challenge: hex.EncodeToString(challenge),
-		}
-	}
-
-	responseBody, err := c.rpc(http.MethodPost, route, requestObject)
 	if err != nil {
 		return nil, err
 	}
 
-	var response string
-	var fullRecord pd.Record
-	if isVettedInvoice {
-		var pdReply pd.GetVettedReply
-		err = json.Unmarshal(responseBody, &pdReply)
-		if err != nil {
-			return nil, fmt.Errorf("Could not unmarshal "+
-				"GetVettedReply: %v", err)
-		}
-
-		response = pdReply.Response
-		fullRecord = pdReply.Record
-	} else {
-		var pdReply pd.GetUnvettedReply
-		err = json.Unmarshal(responseBody, &pdReply)
-		if err != nil {
-			return nil, fmt.Errorf("Could not unmarshal "+
-				"GetUnvettedReply: %v", err)
-		}
-
-		response = pdReply.Response
-		fullRecord = pdReply.Record
+	var pdReply pd.GetVettedReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return nil, fmt.Errorf("Could not unmarshal "+
+			"GetVettedReply: %v", err)
 	}
 
 	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, response)
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
 	if err != nil {
 		return nil, err
 	}
 
-	invoice.File = convertInvoiceFileFromPD(fullRecord.Files)
+	invoice.File = convertInvoiceFileFromPD(pdReply.Record.Files)
 	invoice.Username = c.getUsernameByID(invoice.UserID)
 	idr.Invoice = *invoice
 	return &idr, nil
@@ -910,8 +881,15 @@ func (c *cmswww) HandleEditInvoice(
 		return nil, err
 	}
 
+	c.fireEvent(EventTypeInvoiceStatusChange,
+		EventDataInvoiceStatusChange{
+			Invoice:   dbInvoice,
+			AdminUser: nil,
+		},
+	)
+
 	reply := &v1.EditInvoiceReply{
-		Invoice: convertRecordToInvoice(pdUpdateRecordReply.Record),
+		Invoice: *convertDatabaseInvoiceToInvoice(dbInvoice),
 	}
 	return reply, nil
 }

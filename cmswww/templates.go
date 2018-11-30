@@ -5,91 +5,62 @@
 package main
 
 const templateRegisterEmailRaw = `
-<div>
-	You are invited to join Decred as a contractor! To complete your registration,
-	you will need to download <a href="#">this command-line program</a>
-	 and execute it as follows:
-</div>
-<div style="margin: 20px 0 0 10px">
-	<pre><code>
-$ cmswwwcli register {{.Email}} &lt;username> &lt;password> {{.Token}}
-	</code></pre>
-</div>
-<div style="margin-top: 20px">
-	You are receiving this email because <span style="font-weight: bold">{{.Email}}</span>
-	 was invited to join Decred. If you have no knowledge of this invitation,
-	 please ignore this email.
-</div>
+You are invited to join Decred as a contractor! To complete your registration, you will need to download and build cmswwwcli (from https://github.com/decred/contractor-mgmt/tree/master/cmswww/cmd/cmswwwcli) and execute it as follows:
+
+$ cmswwwcli register {{.Email}} <username> <password> {{.Token}}
+
+You are receiving this email because {{.Email}} was invited to join Decred. If you have no knowledge of this invitation, please ignore this email.
 `
 
 const templateNewIdentityEmailRaw = `
-<div>
-	You have generated a new identity. To verify and start using it,
-	you will need to execute the following:
-</div>
-<div style="margin: 20px 0 0 10px">
-	<pre><code>
-$ cmswwwcli login {{.Email}} &lt;password>
+You have generated a new identity. To verify and start using it, you will need to execute the following:
+
+$ cmswwwcli login {{.Email}} <password>
 $ cmswwwcli verifyidentity {{.Token}}
-	</code></pre>
-</div>
-<div style="margin-top: 20px">
-	You are receiving this email because a new identity (public key:
-	 {{.PublicKey}}) was generated for <span style="font-weight: bold">{{.Email}}</span>
-	 on Decred Contractor Management. If you did not perform this action,
-	 please notify the administrators.</div>
-</div>
+
+You are receiving this email because a new identity (public key: {{.PublicKey}}) was generated for {{.Email}} on Decred Contractor Management. If you did not perform this action, please notify the administrators.
 `
 
 const templateUserLockedResetPasswordRaw = `
-<div>
-	Your account was locked due to too many login attempts. You need to
-	reset your password in order to unlock your account by executing
-	the following:
-</div>
-<div style="margin: 20px 0 0 10px">
-	<pre><code>
+Your account was locked due to too many login attempts. You need to reset your password in order to unlock your account by executing the following:
+
 $ cmswwwcli resetpassword {{.Email}}
-	</code></pre>
-</div>
-<div style="margin-top: 20px">
-	You are receiving this email because someone made too many login attempts
-	 for <span style="font-weight: bold">{{.Email}}</span> on Decred Contractor
-	 Management. If that was not you, please notify the administrators.
-</div>
+
+You are receiving this email because someone made too many login attempts for {{.Email}} on Decred Contractor Management. If that was not you, please notify the administrators.
 `
 
 const templateResetPasswordEmailRaw = `
-<div>
-	You have reset your password. To verify your password reset,
-	you will need to execute the following:
-</div>
-<div style="margin: 20px 0 0 10px">
-	<pre><code>
-$ cmswwwcli resetpassword {{.Email}} --token={{.Token}} --newpassword=&lt;your new password>
-	</code></pre>
-</div>
-<div style="margin-top: 20px">
-	You are receiving this email because the password has been reset for
-	 <span style="font-weight: bold">{{.Email}}</span> on Decred Contractor
-	 Management. If you did not perform this action, please notify the
-	 administrators.</div>
-</div>
+You have reset your password. To verify your password reset, you will need to execute the following:
+
+$ cmswwwcli resetpassword {{.Email}} --token={{.Token}} --newpassword=<your new password>
+
+You are receiving this email because the password has been reset for {{.Email}} on Decred Contractor Management. If you did not perform this action, please notify the administrators.
 `
 
 const templateUpdateExtendedPublicKeyEmailRaw = `
-<div>
-	To update your extended public key, you will need to execute the following:
-</div>
-<div style="margin: 20px 0 0 10px">
-	<pre><code>
-$ cmswwwcli updatexpublickey --token={{.Token}} --xpublickey=&lt;your extended public key>
-	</code></pre>
-</div>
-<div style="margin-top: 20px">
-	You are receiving this email because it has been requested to update the
-	 extended public key for <span style="font-weight: bold">{{.Email}}</span>
-	 on Decred Contractor Management. If you did not perform this action,
-	 please notify the administrators.</div>
-</div>
+To update your extended public key, you will need to execute the following:
+
+$ cmswwwcli updatexpublickey --token={{.Token}} --xpublickey=<your extended public key>
+
+You are receiving this email because it has been requested to update the extended public key for {{.Email}} on Decred Contractor Management. If you did not perform this action, please notify the administrators.
+`
+
+const templateInvoiceApprovedEmailRaw = `
+Your {{.Date}} invoice has just been approved! You will soon receive payment in DCR for the billed amount at the DCR/USD rate for {{.Date}}.
+
+Invoice token: {{.Token}}
+`
+
+const templateInvoiceRejectedEmailRaw = `
+Your {{.Date}} invoice has been rejected, please re-submit it with the requested revision(s).
+
+Invoice token: {{.Token}}
+Reason for rejection: {{.Reason}}
+`
+
+const templateInvoicePaidEmailRaw = `
+You have received payment for your {{.Date}} invoice!
+
+Invoice token: {{.Token}}
+Transaction: {{.TxID}}
 `

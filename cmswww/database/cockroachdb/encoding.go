@@ -20,6 +20,7 @@ func EncodeUser(dbUser *database.User) *User {
 	user.Admin = dbUser.Admin
 	user.FailedLoginAttempts = dbUser.FailedLoginAttempts
 	user.PaymentAddressIndex = dbUser.PaymentAddressIndex
+	user.EmailNotifications = dbUser.EmailNotifications
 
 	if len(dbUser.Username) > 0 {
 		user.Username.Valid = true
@@ -60,8 +61,8 @@ func EncodeUser(dbUser *database.User) *User {
 		user.LastLogin.Time = time.Unix(dbUser.LastLogin, 0)
 	}
 
-	for _, dbId := range dbUser.Identities {
-		user.Identities = append(user.Identities, *EncodeIdentity(&dbId))
+	for _, dbID := range dbUser.Identities {
+		user.Identities = append(user.Identities, *EncodeIdentity(&dbID))
 	}
 
 	return &user
@@ -79,6 +80,7 @@ func DecodeUser(user *User) (*database.User, error) {
 		Admin:               user.Admin,
 		FailedLoginAttempts: user.FailedLoginAttempts,
 		PaymentAddressIndex: user.PaymentAddressIndex,
+		EmailNotifications:  user.EmailNotifications,
 	}
 
 	var err error
@@ -119,36 +121,36 @@ func DecodeUser(user *User) (*database.User, error) {
 	}
 
 	for _, id := range user.Identities {
-		dbId, err := DecodeIdentity(&id)
+		dbID, err := DecodeIdentity(&id)
 		if err != nil {
 			return nil, err
 		}
-		dbUser.Identities = append(dbUser.Identities, *dbId)
+		dbUser.Identities = append(dbUser.Identities, *dbID)
 	}
 
 	return &dbUser, nil
 }
 
 // EncodeIdentity encodes a generic database.Identity instance into a cockroachdb Identity.
-func EncodeIdentity(dbId *database.Identity) *Identity {
+func EncodeIdentity(dbID *database.Identity) *Identity {
 	id := Identity{}
 
-	id.ID = uint(dbId.ID)
-	id.UserID = uint(dbId.UserID)
+	id.ID = uint(dbID.ID)
+	id.UserID = uint(dbID.UserID)
 
-	if len(dbId.Key) != 0 {
+	if len(dbID.Key) != 0 {
 		id.Key.Valid = true
-		id.Key.String = hex.EncodeToString(dbId.Key[:])
+		id.Key.String = hex.EncodeToString(dbID.Key[:])
 	}
 
-	if dbId.Activated != 0 {
+	if dbID.Activated != 0 {
 		id.Activated.Valid = true
-		id.Activated.Time = time.Unix(dbId.Activated, 0)
+		id.Activated.Time = time.Unix(dbID.Activated, 0)
 	}
 
-	if dbId.Deactivated != 0 {
+	if dbID.Deactivated != 0 {
 		id.Deactivated.Valid = true
-		id.Deactivated.Time = time.Unix(dbId.Deactivated, 0)
+		id.Deactivated.Time = time.Unix(dbID.Deactivated, 0)
 	}
 
 	return &id
@@ -156,10 +158,10 @@ func EncodeIdentity(dbId *database.Identity) *Identity {
 
 // DecodeIdentity decodes a cockroachdb Identity instance into a generic database.Identity.
 func DecodeIdentity(id *Identity) (*database.Identity, error) {
-	dbId := database.Identity{}
+	dbID := database.Identity{}
 
-	dbId.ID = uint64(id.ID)
-	dbId.UserID = uint64(id.UserID)
+	dbID.ID = uint64(id.ID)
+	dbID.UserID = uint64(id.UserID)
 
 	if id.Key.Valid {
 		pk, err := hex.DecodeString(id.Key.String)
@@ -167,18 +169,18 @@ func DecodeIdentity(id *Identity) (*database.Identity, error) {
 			return nil, err
 		}
 
-		copy(dbId.Key[:], pk)
+		copy(dbID.Key[:], pk)
 	}
 
 	if id.Activated.Valid {
-		dbId.Activated = id.Activated.Time.Unix()
+		dbID.Activated = id.Activated.Time.Unix()
 	}
 
 	if id.Deactivated.Valid {
-		dbId.Deactivated = id.Deactivated.Time.Unix()
+		dbID.Deactivated = id.Deactivated.Time.Unix()
 	}
 
-	return &dbId, nil
+	return &dbID, nil
 }
 
 // EncodeInvoice encodes a generic database.Invoice instance into a cockroachdb
@@ -191,6 +193,7 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.Month = uint(dbInvoice.Month)
 	invoice.Year = uint(dbInvoice.Year)
 	invoice.Status = uint(dbInvoice.Status)
+	invoice.StatusChangeReason = dbInvoice.StatusChangeReason
 	invoice.Timestamp = time.Unix(dbInvoice.Timestamp, 0)
 	if dbInvoice.File != nil {
 		invoice.FilePayload = dbInvoice.File.Payload
@@ -257,6 +260,7 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	dbInvoice.Month = uint16(invoice.Month)
 	dbInvoice.Year = uint16(invoice.Year)
 	dbInvoice.Status = v1.InvoiceStatusT(invoice.Status)
+	dbInvoice.StatusChangeReason = invoice.StatusChangeReason
 	dbInvoice.Timestamp = invoice.Timestamp.Unix()
 	if invoice.FilePayload != "" {
 		dbInvoice.File = &database.File{

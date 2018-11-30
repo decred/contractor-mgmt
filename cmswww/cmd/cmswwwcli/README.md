@@ -139,7 +139,7 @@ $ cmswwwcli payinvoices dec 2018 <DCR-USD rate> > 2018-12_payouts.txt
 ## Application Options
 ```
     --host     cmswww host (default: https://127.0.0.1:4443)
-    --jsonout  Print JSON
+    --jsonout  Only output JSON
 -v, --verbose  Print request and response details
 
 ```

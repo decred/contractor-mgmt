@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
+	pd "github.com/decred/politeia/politeiad/api/v1"
 	"github.com/decred/politeia/util"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -163,6 +167,59 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 		}
 
 		if tx != "" {
+			// Create the payment metadata record.
+			mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
+				Version:     VersionBackendInvoiceMDPayment,
+				Address:     polledPayment.address,
+				Amount:      polledPayment.amount,
+				TxNotBefore: polledPayment.txNotBefore,
+				TxID:        tx,
+			})
+			if err != nil {
+				log.Errorf("cannot marshal backend payment: %v", err)
+				continue
+			}
+
+			challenge, err := util.Random(pd.ChallengeSize)
+			if err != nil {
+				log.Errorf("could not create challenge: %v", err)
+				continue
+			}
+
+			pdCommand := pd.UpdateVettedMetadata{
+				Challenge: hex.EncodeToString(challenge),
+				Token:     dbInvoice.Token,
+				MDOverwrite: []pd.MetadataStream{
+					{
+						ID:      mdStreamPayments,
+						Payload: string(mdPayment),
+					},
+				},
+			}
+
+			responseBody, err := c.rpc(http.MethodPost,
+				pd.UpdateVettedMetadataRoute, pdCommand)
+			if err != nil {
+				log.Errorf("problem communicating with politeiad: %v", err)
+				continue
+			}
+
+			var pdReply pd.UpdateVettedMetadataReply
+			err = json.Unmarshal(responseBody, &pdReply)
+			if err != nil {
+				log.Errorf("could not unmarshal UpdateVettedMetadataReply: %v",
+					err)
+				continue
+			}
+
+			// Verify the challenge.
+			err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+			if err != nil {
+				log.Errorf("could not verify challenge: %v",
+					err)
+				continue
+			}
+
 			// Update the invoice in the database.
 			dbInvoice.Status = v1.InvoiceStatusPaid
 			for idx, invoicePayment := range dbInvoice.Payments {
@@ -187,8 +244,6 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 					dbInvoice.Token, err)
 				continue
 			}
-
-			// TODO: Update the invoice metadata in politeiad.
 
 			c.fireEvent(EventTypeInvoicePaid,
 				EventDataInvoicePaid{

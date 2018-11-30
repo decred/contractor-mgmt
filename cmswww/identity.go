@@ -2,33 +2,11 @@ package main
 
 import (
 	"bufio"
-	"encoding/hex"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/decred/politeia/util"
-
-	"github.com/decred/contractor-mgmt/cmswww/database"
 )
-
-// initUserPubkeys initializes the userPubkeys map with all the pubkey-userid
-// associations that are found in the database.
-//
-// This function must be called WITHOUT the lock held.
-func (c *cmswww) InitUserPubkeys() error {
-	c.Lock()
-	defer c.Unlock()
-
-	return c.db.GetAllUsers(func(u *database.User) {
-		id := strconv.FormatUint(u.ID, 10)
-		for _, v := range u.Identities {
-			key := v.Key
-			encodedKey := hex.EncodeToString(key[:])
-			c.userPubkeys[encodedKey] = id
-		}
-	})
-}
 
 // Fetch remote identity
 func (c *cmswww) RemoteIdentity() error {
@@ -66,26 +44,4 @@ func (c *cmswww) RemoteIdentity() error {
 	log.Infof("Identity saved to: %v", c.cfg.RPCIdentityFile)
 
 	return nil
-}
-
-// SetUserPubkeyAssociaton associates a public key with a user id in
-// the userPubkeys cache.
-//
-// This function must be called WITHOUT the lock held.
-func (c *cmswww) SetUserPubkeyAssociaton(user *database.User, publicKey string) {
-	c.Lock()
-	defer c.Unlock()
-
-	c.userPubkeys[publicKey] = strconv.FormatUint(user.ID, 10)
-}
-
-// RemoveUserPubkeyAssociaton removes a public key from the
-// userPubkeys cache.
-//
-// This function must be called WITHOUT the lock held.
-func (c *cmswww) RemoveUserPubkeyAssociaton(user *database.User, publicKey string) {
-	c.Lock()
-	defer c.Unlock()
-
-	delete(c.userPubkeys, publicKey)
 }

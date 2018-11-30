@@ -12,7 +12,7 @@ type EventT int
 
 // EventManager manages listeners (channels) for different event types.
 type EventManager struct {
-	Listeners map[EventT][]chan interface{}
+	listeners map[EventT][]chan interface{}
 }
 
 const (
@@ -45,20 +45,6 @@ func (c *cmswww) getInvoiceContractor(dbInvoice *database.Invoice) (*database.Us
 	}
 
 	return contractor, nil
-}
-
-func (c *cmswww) getInvoiceAndContractor(token string) (*database.Invoice, *database.User, error) {
-	invoice, err := c.db.GetInvoiceByToken(token)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	contractor, err := c.getInvoiceContractor(invoice)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return invoice, contractor, nil
 }
 
 // fireEvent is a convenience wrapper for EventManager._fireEvent which
@@ -164,12 +150,6 @@ func (c *cmswww) _setupInvoiceStatusChangeLogging() {
 				continue
 			}
 
-			if data.AdminUser == nil {
-				// Some status changes can occur based on events, such as
-				// a payment being confirmed on the blockchain.
-				continue
-			}
-
 			// Log the action in the admin log.
 			err := c.logAdminInvoiceAction(data.AdminUser, data.Invoice.Token,
 				fmt.Sprintf("set invoice status to %v,%v",
@@ -210,14 +190,14 @@ func (c *cmswww) _setupUserManageLogging() {
 //
 // This function must be called WITH the mutex held.
 func (e *EventManager) _register(eventType EventT, listenerToAdd chan interface{}) {
-	if e.Listeners == nil {
-		e.Listeners = make(map[EventT][]chan interface{})
+	if e.listeners == nil {
+		e.listeners = make(map[EventT][]chan interface{})
 	}
 
-	if _, ok := e.Listeners[eventType]; ok {
-		e.Listeners[eventType] = append(e.Listeners[eventType], listenerToAdd)
+	if _, ok := e.listeners[eventType]; ok {
+		e.listeners[eventType] = append(e.listeners[eventType], listenerToAdd)
 	} else {
-		e.Listeners[eventType] = []chan interface{}{listenerToAdd}
+		e.listeners[eventType] = []chan interface{}{listenerToAdd}
 	}
 }
 
@@ -225,15 +205,15 @@ func (e *EventManager) _register(eventType EventT, listenerToAdd chan interface{
 //
 // This function must be called WITH the mutex held.
 func (e *EventManager) _unregister(eventType EventT, listenerToRemove chan interface{}) {
-	listeners, ok := e.Listeners[eventType]
+	listeners, ok := e.listeners[eventType]
 	if !ok {
 		return
 	}
 
 	for i, listener := range listeners {
 		if listener == listenerToRemove {
-			e.Listeners[eventType] = append(e.Listeners[eventType][:i],
-				e.Listeners[eventType][i+1:]...)
+			e.listeners[eventType] = append(e.listeners[eventType][:i],
+				e.listeners[eventType][i+1:]...)
 			break
 		}
 	}
@@ -244,7 +224,7 @@ func (e *EventManager) _unregister(eventType EventT, listenerToRemove chan inter
 //
 // This function must be called WITH the mutex held.
 func (e *EventManager) _fireEvent(eventType EventT, data interface{}) {
-	listeners, ok := e.Listeners[eventType]
+	listeners, ok := e.listeners[eventType]
 	if !ok {
 		return
 	}

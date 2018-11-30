@@ -102,9 +102,11 @@ $ cmswwwcli edituser --emailnotifications=<num>
 
 `<num>` is the result of adding the corresponding numbers for any combination of the following notification types:
 
-* Invoice has been approved: `1`
-* Invoice has been rejected: `2`
-* Payment received for invoice: `4`
+| Description | Value |
+|-|-|
+| Invoice has been approved | `1` |
+| Invoice has been rejected | `2` |
+| Payment received for invoice | `4` |
 
 For example, to only get notifications for when your invoices are approved or rejected, you will substitute `3` for `<num>` in the above command.
 

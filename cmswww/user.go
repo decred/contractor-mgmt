@@ -189,9 +189,6 @@ func (c *cmswww) HandleRegister(
 		return nil, err
 	}
 
-	// Associate the user id with the new public key.
-	c.SetUserPubkeyAssociaton(user, nu.PublicKey)
-
 	// Update the user in the db.
 	user.RegisterVerificationToken = []byte{}
 	user.RegisterVerificationExpiry = 0
@@ -470,9 +467,6 @@ func (c *cmswww) HandleVerifyNewIdentity(
 			ErrorCode: v1.ErrorStatusInvalidSignature,
 		}
 	}
-
-	// Associate the user id with the new public key.
-	c.SetUserPubkeyAssociaton(user, pi.String())
 
 	// Clear out the verification token fields in the db and activate
 	// the key and deactivate the one it's replacing.

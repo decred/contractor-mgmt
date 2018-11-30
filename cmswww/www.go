@@ -65,7 +65,6 @@ type cmswww struct {
 	params         *chaincfg.Params
 	client         *http.Client // politeiad client
 	eventManager   *EventManager
-	userPubkeys    map[string]string        // [pubkey][userid]
 	polledPayments map[string]polledPayment // [token][polledPayment]
 
 	// Following entries require locks
@@ -279,7 +278,6 @@ func _main() error {
 	c := &cmswww{
 		cfg:            loadedCfg,
 		params:         activeNetParams.Params,
-		userPubkeys:    make(map[string]string),
 		polledPayments: make(map[string]polledPayment),
 	}
 
@@ -292,12 +290,6 @@ func _main() error {
 	cockroachdb.UseLogger(cockroachdbLog)
 	c.db, err = cockroachdb.New(c.cfg.DataDir, c.cfg.CockroachDBName,
 		c.cfg.CockroachDBUsername, c.cfg.CockroachDBHost)
-	if err != nil {
-		return err
-	}
-
-	// Setup pubkey-userid map.
-	err = c.InitUserPubkeys()
 	if err != nil {
 		return err
 	}

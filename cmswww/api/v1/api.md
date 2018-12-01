@@ -9,17 +9,15 @@ API.  It does not render HTML.
 **Methods**
 
 - [`Version`](#version)
-- [`New user`](#new-user)
-- [`Verify user`](#verify-user)
+- [`Invite new user`](#invite-new-user)
+- [`Register`](#register)
 - [`Resend verification`](#resend-verification)
-- [`Me`](#me)
 - [`Login`](#login)
 - [`Logout`](#logout)
-- [`Verify user payment`](#verify-user-payment)
 - [`User details`](#user-details)
 - [`Edit user`](#edit-user)
-- [`Update user key`](#update-user-key)
-- [`Verify update user key`](#verify-update-user-key)
+- [`New identity`](#new-identity)
+- [`Verify new identity`](#verify-new-identity)
 - [`Change username`](#change-username)
 - [`Change password`](#change-password)
 - [`Reset password`](#reset-password)
@@ -32,17 +30,6 @@ API.  It does not render HTML.
 - [`Invoice details`](#invoice-details)
 - [`Set invoice status`](#set-invoice-status)
 - [`Policy`](#policy)
-- [`New comment`](#new-comment)
-- [`Get comments`](#get-comments)
-- [`Like comment`](#like-comment)
-- [`Start vote`](#start-vote)
-- [`Active votes`](#active-votes)
-- [`Cast votes`](#cast-votes)
-- [`Invoice vote status`](#invoice-vote-status)
-- [`Invoices vote status`](#invoices-vote-status)
-- [`Vote results`](#vote-results)
-- [`Usernames by id`](#usernames-by-id)
-- [`User Comments votes`](#user-comments-votes)
 
 **Error status codes**
 
@@ -120,11 +107,12 @@ when an unexpected server error has occurred. The format of errors is as follows
 
 ### `Version`
 
-Obtain version, route information and signing identity from server.  This call
-shall **ALWAYS** be the first contact with the server.  This is done in order
-to get the CSRF token for the session and to ensure API compatability.
+Obtain version, route information and signing identity from server, as well as
+the user info for the current session, if there is one.  This call shall
+**ALWAYS** be the first contact with the server.  This is done in order to get
+the CSRF token for the session and to ensure API compatability.
 
-**Route**: `GET /` and `GET /version`
+**Route**: `GET /`
 
 **Params**: none
 
@@ -136,6 +124,7 @@ to get the CSRF token for the session and to ensure API compatability.
 | route | string | Route that should be prepended to all calls. For example, "/v1". |
 | pubkey | string | The public key for the corresponding private key that signs various tokens to ensure server authenticity and to prevent replay attacks. |
 | testnet | boolean | Value to inform either its running on testnet or not |
+| user | [`Login reply`](#login-reply) | Information about the currently logged in user |
 
 **Example**
 
@@ -151,88 +140,44 @@ Reply:
 {
   "version": 1,
   "route": "/v1",
-  "identity": "99e748e13d7ecf70ef6b5afa376d692cd7cb4dbb3d26fa83f417d29e44c6bb6c"
+  "identity": "99e748e13d7ecf70ef6b5afa376d692cd7cb4dbb3d26fa83f417d29e44c6bb6c",
+  "testnet": true,
+  "user": {
+    "isadmin": false,
+    "userid": "2238723947237",
+    "email": "69af376cca42cd9c@example.com",
+    "username": "foobar",
+    "publickey": "5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+    "lastlogin": 0
+  }
 }
 ```
 
-### `Me`
+### `Invite new user`
 
-Return pertinent user information of the current logged in user.
+Create a new user on the cmswww server with a registration token and email
+an invitation to them to register.
 
-**Route**: `GET /v1/user/me`
+Note: This call requires admin privileges.
 
-**Params**: none
-
-**Results**: See the [`Login reply`](#login-reply).
-
-On failure the call shall return `403 Forbidden` and one of the following
-error codes:
-- [`ErrorStatusInvalidEmailOrPassword`](#ErrorStatusInvalidEmailOrPassword)
-
-**Example**
-
-Request:
-
-```json
-{}
-```
-
-Reply:
-
-```json
-{
-  "isadmin":false,
-  "userid":"12",
-  "email":"69af376cca42cd9c@example.com",
-  "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
-  "paywalladdress":"Tsgs7qb1Gnc43D9EY3xx9ou8Lbo8rB7me6M",
-  "paywallamount": 10000000,
-  "paywalltxnotbefore": 1528821554
-}
-```
-
-### `New user`
-
-Create a new user on the cmswww server.
-
-**Route:** `POST /v1/user/new`
+**Route:** `POST /v1/user/invite`
 
 **Params:**
 
 | Parameter | Type | Description | Required |
 |-|-|-|-|
-| email | string | Email is used as the web site user identity for a user. When a user changes email addresses the server shall maintain a mapping between the old and new address. | Yes |
-| username | string | Unique username that the user wishes to use. | Yes |
-| password | string | The password that the user wishes to use. This password travels in the clear in order to enable JS-less systems. The server shall never store passwords in the clear. | Yes |
-| publickey | string | User ed25519 public key. | Yes |
+| email | string | Email is used as the web site user identity for a user. | Yes |
 
 **Results:**
 
 | Parameter | Type | Description |
 |-|-|-|
-| paywalladdress | String | The address in which to send the transaction containing the `paywallamount`. |
-| paywallamount | Int64 | The amount of DCR (in atoms) to send to `paywalladdress`. |
-| paywalltxnotbefore | Int64 | The minimum UNIX time (in seconds) required for the block containing the transaction sent to `paywalladdress`. |
-| verificationtoken | String | The verification token which is required when calling [`Verify user`](#verify-user). If an email server is set up, this property will be empty or nonexistent; the token will be sent to the email address sent in the request.|
+| verificationtoken | String | The verification token which is required when calling [`Register`](#register). If an email server is set up, this property will be empty or nonexistent; the token will be sent to the email address sent in the request.|
 
 This call can return one of the following error codes:
 
-- [`ErrorStatusMalformedEmail`](#ErrorStatusMalformedEmail)
-- [`ErrorStatusMalformedUsername`](#ErrorStatusMalformedUsername)
-- [`ErrorStatusDuplicateUsername`](#ErrorStatusDuplicateUsername)
-- [`ErrorStatusMalformedPassword`](#ErrorStatusMalformedPassword)
-- [`ErrorStatusInvalidPublicKey`](#ErrorStatusInvalidPublicKey)
-- [`ErrorStatusDuplicatePublicKey`](#ErrorStatusDuplicatePublicKey)
-
-The email shall include a link in the following format:
-
-```
-/user/verify?email=69af376cca42cd9c@example.com&verificationtoken=fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55f
-```
-
-The call may return `500 Internal Server Error` which is accompanied by
-an error code that allows the server operator to correlate issues with user
-reports.
+- [`ErrorStatusUserAlreadyExists`](#ErrorStatusUserAlreadyExists)
+- [`ErrorStatusVerificationTokenUnexpired`](#ErrorStatusVerificationTokenUnexpired)
 
 * **Example**
 
@@ -240,10 +185,7 @@ Request:
 
 ```json
 {
-  "email": "69af376cca42cd9c@example.com",
-  "password": "69af376cca42cd9c",
-  "username": "foobar",
-  "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b"
+  "email": "69af376cca42cd9c@example.com"
 }
 ```
 
@@ -255,40 +197,56 @@ Reply:
 }
 ```
 
-### `Verify user`
+### `Register`
 
-Verify email address of a previously created user.
+Verifies email address of a user account invited via
+[`Invite new user`](#invite-new-user) and supply details for new user registration.
 
-**Route:** `GET /v1/user/verify`
+**Route:** `POST /v1/user/new`
 
 **Params:**
 
 | Parameter | Type | Description | Required |
 |-|-|-|-|
-| email | string | Email address of previously created user. | Yes |
+| email | string | Email address of the user. | Yes |
 | verificationtoken | string | The token that was provided by email to the user. | Yes |
+| publickey | string | The user's ed25519 public key. | Yes |
 | signature | string | The ed25519 signature of the string representation of the verification token. | Yes |
+| username | string | A unique username for the user. | Yes |
+| password | string | A password for the user. | Yes |
+| name | string | The user's full name. | Yes |
+| location | string | The user's geographical location. | Yes |
+| xpublickey | string | The extended public key for the user's payment account. | Yes |
 
 **Results:** none
 
-On success the call shall return `200 OK`.
+This call can return one of the following error codes:
 
-On failure the call shall return `400 Bad Request` and one of the following error codes:
 - [`ErrorStatusVerificationTokenInvalid`](#ErrorStatusVerificationTokenInvalid)
 - [`ErrorStatusVerificationTokenExpired`](#ErrorStatusVerificationTokenExpired)
-- [`ErrorStatusNoPublicKey`](#ErrorStatusNoPublicKey)
 - [`ErrorStatusInvalidPublicKey`](#ErrorStatusInvalidPublicKey)
-- [`ErrorStatusInvalidSignature`](#ErrorStatusInvalidSignature)
-- [`ErrorStatusInvalidInput`](#ErrorStatusInvalidInput)
+- [`ErrorStatusMalformedUsername`](#ErrorStatusMalformedUsername)
+- [`ErrorStatusDuplicateUsername`](#ErrorStatusDuplicateUsername)
+- [`ErrorStatusMalformedPassword`](#ErrorStatusMalformedPassword)
+- [`ErrorStatusDuplicatePublicKey`](#ErrorStatusDuplicatePublicKey)
+- [`ErrorStatusInvalidSignature`](#ErrorStatusInvalidSignature
 
 **Example:**
 
 Request:
 
-The request params should be provided within the URL:
-
-```
-/v1/user/verify?email=abc@example.com&verificationtoken=f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde&signature=9e4b1018913610c12496ec3e482f2fb42129197001c5d35d4f5848b77d2b5e5071f79b18bcab4f371c5b378280bb478c153b696003ac3a627c3d8a088cd5f00d
+```json
+{
+  "email": "69af376cca42cd9c@example.com",
+  "verificationtoken": "fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55f",
+  "publickey": "5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+  "signature":"9e4b1018913610c12496ec3e482f2fb42129197001c5d35d4f5848b77d2b5e5071f79b18bcab4f371c5b378280bb478c153b696003ac3a627c3d8a088cd5f00d",
+  "username": "foobar",
+  "password": "69af376cca42cd9c",
+  "name": "John Smith",
+  "location": "Atlanta, GA, USA",
+  "xpublickey": "9e4b1018913610c12496ec3e482f2fb42129197001c5d35d4f5848b77d2b5e5071f79b18bcab4f371c5b378280bb478c153b696003ac3a627c3d8a088cd5f00d"
+}
 ```
 
 Reply:
@@ -326,10 +284,6 @@ The email shall include a link in the following format:
 ```
 /user/verify?email=69af376cca42cd9c@example.com&verificationtoken=fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55f
 ```
-
-The call may return `500 Internal Server Error` which is accompanied by
-an error code that allows the server operator to correlate issues with user
-reports.
 
 * **Example**
 
@@ -377,8 +331,8 @@ Request:
 
 ```json
 {
-  "email":"26c5687daca2f5d8@example.com",
-  "password":"26c5687daca2f5d8"
+  "email":"69af376cca42cd9c@example.com",
+  "password":"69af376cca42cd9c"
 }
 ```
 
@@ -386,13 +340,12 @@ Reply:
 
 ```json
 {
-  "isadmin":true,
-  "userid":"0",
-  "email":"26c5687daca2f5d8@example.com",
-  "publickey":"ec88b934fd9f334a9ed6d2e719da2bdb2061de5370ff20a38b0e1e3c9538199a",
-  "paywalladdress":"",
-  "paywallamount":"",
-  "paywalltxnotbefore":""
+  "isadmin": false,
+  "userid": "2238723947237",
+  "email": "69af376cca42cd9c@example.com",
+  "username": "foobar",
+  "publickey": "5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+  "lastlogin": 0
 }
 ```
 
@@ -418,46 +371,6 @@ Reply:
 
 ```json
 {}
-```
-
-### `Verify user payment`
-
-Checks that a user has paid his user registration fee.
-
-**Route:** `GET /v1/user/verifypayment`
-
-**Params:** none
-
-**Results:**
-
-| Parameter | Type | Description |
-|-|-|-|
-| haspaid | boolean | Whether or not a transaction on the blockchain that was sent to the `paywalladdress` |
-| paywalladdress | String | The address in which to send the transaction containing the `paywallamount`.  If the user has already paid, this field will be empty or not present. |
-| paywallamount | Int64 | The amount of DCR (in atoms) to send to `paywalladdress`.  If the user has already paid, this field will be empty or not present. |
-| paywalltxnotbefore | Int64 | The minimum UNIX time (in seconds) required for the block containing the transaction sent to `paywalladdress`.  If the user has already paid, this field will be empty or not present. |
-
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
-- [`ErrorStatusCannotVerifyPayment`](#ErrorStatusCannotVerifyPayment)
-
-**Example**
-
-Request:
-
-```
-/v1/user/verifypayment
-```
-
-Reply:
-
-```json
-{
-  "haspaid": true,
-  "paywalladdress":"",
-  "paywallamount":"",
-  "paywalltxnotbefore":""
-}
 ```
 
 ### `User details`
@@ -561,11 +474,11 @@ Reply:
 {}
 ```
 
-### `Update user key`
+### `New identity`
 
-Updates the user's active key pair.
+Sets a new active key pair for a user.
 
-**Route:** `POST /v1/user/key`
+**Route:** `POST /v1/user/identity`
 
 **Params:**
 
@@ -577,22 +490,13 @@ Updates the user's active key pair.
 
 | Parameter | Type | Description |
 |-|-|-|
-| verificationtoken | String | The verification token which is required when calling [`Verify update user key`](#verify-update-user-key). If an email server is set up, this property will be empty or nonexistent; the token will be sent to the email address sent in the request. |
+| verificationtoken | String | The verification token which is required when calling [`Verify new identity`](#verify-new-identity). If an email server is set up, this property will be empty or nonexistent; the token will be sent to the email address sent in the request. |
 
 This call can return one of the following error codes:
 
 - [`ErrorStatusInvalidPublicKey`](#ErrorStatusInvalidPublicKey)
+- [`ErrorStatusDuplicatePublicKey`](#ErrorStatusDuplicatePublicKey)
 - [`ErrorStatusVerificationTokenUnexpired`](#ErrorStatusVerificationTokenUnexpired)
-
-The email shall include a link in the following format:
-
-```
-/v1/user/key/verify?verificationtoken=fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55
-```
-
-The call may return `500 Internal Server Error` which is accompanied by
-an error code that allows the server operator to correlate issues with user
-reports.
 
 * **Example**
 
@@ -612,11 +516,11 @@ Reply:
 }
 ```
 
-### `Verify update user key`
+### `Verify new identity`
 
 Verify the new key pair for the user.
 
-**Route:** `POST /v1/user/key/verify`
+**Route:** `POST /v1/user/identity/verify`
 
 **Params:**
 
@@ -627,15 +531,11 @@ Verify the new key pair for the user.
 
 **Results:** none
 
-On success the call shall return `200 OK`.
+This call can return one of the following error codes:
 
-On failure the call shall return `400 Bad Request` and one of the following error codes:
 - [`ErrorStatusVerificationTokenInvalid`](#ErrorStatusVerificationTokenInvalid)
 - [`ErrorStatusVerificationTokenExpired`](#ErrorStatusVerificationTokenExpired)
-- [`ErrorStatusNoPublicKey`](#ErrorStatusNoPublicKey)
-- [`ErrorStatusInvalidPublicKey`](#ErrorStatusInvalidPublicKey)
 - [`ErrorStatusInvalidSignature`](#ErrorStatusInvalidSignature)
-- [`ErrorStatusInvalidInput`](#ErrorStatusInvalidInput)
 
 **Example:**
 
@@ -1288,742 +1188,6 @@ Reply:
 }
 ```
 
-### `New comment`
-
-Submit comment on given invoice.  ParentID value "0" means "comment on
-invoice"; if the value is not empty it means "reply to comment".
-
-**Route:** `POST /v1/comments/new`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-| - | - | - | - |
-| token | string | Censorship token | Yes |
-| parentid | string | Parent comment identifier | Yes |
-| comment | string | Comment | Yes |
-| signature | string | Signature of Token, ParentID and Comment | Yes |
-| publickey | string | Public key from the client side, sent to cmswww for verification | Yes |
-
-**Results:**
-
-| | Type | Description |
-| - | - | - |
-| userid | string | Unique user identifier |
-| timestamp | int64 | UNIX time when comment was accepted |
-| commentid | string | Unique comment identifier |
-| parentid | string | Parent comment identifier |
-| token | string | Censorship token |
-| comment | string | Comment text |
-| publickey | string | Public key from the client side, sent to cmswww for verification |
-| signature | string | Signature of Token, ParentID and Comment |
-| receipt | string | Server signature of the client Signature |
-| totalvotes | uint64 | Total number of up/down votes |
-| resultvotes | int64 | Vote score |
-
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
-
-- [`ErrorStatusCommentLengthExceededPolicy`](#ErrorStatusCommentLengthExceededPolicy)
-- [`ErrorStatusUserNotPaid`](#ErrorStatusUserNotPaid)
-
-**Example**
-
-Request:
-
-```json
-{
-  "token":"abf0fd1fc1b8c1c9535685373dce6c54948b7eb018e17e3a8cea26a3c9b85684",
-  "parentid":"0",
-  "comment":"I dont like this prop",
-  "signature":"af969d7f0f711e25cb411bdbbe3268bbf3004075cde8ebaee0fc9d988f24e45013cc2df6762dca5b3eb8abb077f76e0b016380a7eba2d46839b04c507d86290d",
-  "publickey":"4206fa1f45c898f1dee487d7a7a82e0ed293858313b8b022a6a88f2bcae6cdd7"
-}
-```
-
-Reply:
-
-```json
-{
-  "comment": "I dont like this prop",
-  "commentid": "4",
-  "parentid": "0",
-  "publickey": "4206fa1f45c898f1dee487d7a7a82e0ed293858313b8b022a6a88f2bcae6cdd7",
-  "receipt": "96f3956ea3decb75ee129e6ee4e77c6c608f0b5c99ff41960a4e6078d8bb74e8ad9d2545c01fff2f8b7e0af38ee9de406aea8a0b897777d619e93d797bc1650a",
-  "signature":"af969d7f0f711e25cb411bdbbe3268bbf3004075cde8ebaee0fc9d988f24e45013cc2df6762dca5b3eb8abb077f76e0b016380a7eba2d46839b04c507d86290d",
-  "timestamp": 1527277504,
-  "token": "abf0fd1fc1b8c1c9535685373dce6c54948b7eb018e17e3a8cea26a3c9b85684",
-  "userid": "124",
-  "totalvotes": 0,
-  "resultvotes": 0
-}
-```
-
-### `Get comments`
-
-Retrieve all comments for given invoice.  Not that the comments are not
-sorted.
-
-**Route:** `GET /v1/invoices/{token}/comments`
-
-**Params:**
-
-**Results:**
-
-| | Type | Description |
-| - | - | - |
-| Comments | Comment | Unsorted array of all comments |
-
-**Comment:**
-
-| | Type | Description |
-| - | - | - |
-| userid | string | Unique user identifier |
-| timestamp | int64 | UNIX time when comment was accepted |
-| commentid | string | Unique comment identifier |
-| parentid | string | Parent comment identifier |
-| token | string | Censorship token |
-| comment | string | Comment text |
-| publickey | string | Public key from the client side, sent to cmswww for verification |
-| signature | string | Signature of Token, ParentID and Comment |
-| receipt | string | Server signature of the client Signature |
-| totalvotes | uint64 | Total number of up/down votes |
-| resultvotes | int64 | Vote score |
-
-**Example**
-
-Request:
-
-The request params should be provided within the URL:
-
-```
-/v1/invoices/f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde/comments
-```
-
-Reply:
-
-```json
-{
-  "comments": [{
-    "comment": "I dont like this prop",
-    "commentid": "4",
-    "parentid": "0",
-    "publickey": "4206fa1f45c898f1dee487d7a7a82e0ed293858313b8b022a6a88f2bcae6cdd7",
-    "receipt": "96f3956ea3decb75ee129e6ee4e77c6c608f0b5c99ff41960a4e6078d8bb74e8ad9d2545c01fff2f8b7e0af38ee9de406aea8a0b897777d619e93d797bc1650a",
-    "signature":"af969d7f0f711e25cb411bdbbe3268bbf3004075cde8ebaee0fc9d988f24e45013cc2df6762dca5b3eb8abb077f76e0b016380a7eba2d46839b04c507d86290d",
-    "timestamp": 1527277504,
-    "token": "abf0fd1fc1b8c1c9535685373dce6c54948b7eb018e17e3a8cea26a3c9b85684",
-    "userid": "124",
-    "totalvotes": 4,
-    "resultvotes": 3
-  },{
-    "comment":"you are right!",
-    "commentid": "4",
-    "parentid": "0",
-    "publickey": "4206fa1f45c898f1dee487d7a7a82e0ed293858313b8b022a6a88f2bcae6cdd7",
-    "receipt": "96f3956ea3decb75ee129e6ee4e77c6c608f0b5c99ff41960a4e6078d8bb74e8ad9d2545c01fff2f8b7e0af38ee9de406aea8a0b897777d619e93d797bc1650a",
-    "signature":"af969d7f0f711e25cb411bdbbe3268bbf3004075cde8ebaee0fc9d988f24e45013cc2df6762dca5b3eb8abb077f76e0b016380a7eba2d46839b04c507d86290d",
-    "timestamp": 1527277504,
-    "token": "abf0fd1fc1b8c1c9535685373dce6c54948b7eb018e17e3a8cea26a3c9b85684",
-    "userid": "124",
-    "totalvotes": 4,
-    "resultvotes": 3
-  },{
-    "comment":"you are crazy!",
-    "commentid": "4",
-    "parentid": "0",
-    "publickey": "4206fa1f45c898f1dee487d7a7a82e0ed293858313b8b022a6a88f2bcae6cdd7",
-    "receipt": "96f3956ea3decb75ee129e6ee4e77c6c608f0b5c99ff41960a4e6078d8bb74e8ad9d2545c01fff2f8b7e0af38ee9de406aea8a0b897777d619e93d797bc1650a",
-    "signature":"af969d7f0f711e25cb411bdbbe3268bbf3004075cde8ebaee0fc9d988f24e45013cc2df6762dca5b3eb8abb077f76e0b016380a7eba2d46839b04c507d86290d",
-    "timestamp": 1527277504,
-    "token": "abf0fd1fc1b8c1c9535685373dce6c54948b7eb018e17e3a8cea26a3c9b85684",
-    "userid": "124",
-    "totalvotes": 4,
-    "resultvotes": 3
-  }]
-}
-```
-
-### `Like comment`
-
-Allows a user to up or down vote a comment
-
-**Route:** `POST v1/comments/like`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| token | string | Censorship token | yes |
-| commentid | string | Unique comment identifier | yes |
-| action | string | Up or downvote (1, -1) | yes |
-| signature | string | Signature of Token, CommentId and Action | yes |
-| publickey | string | Public key used for Signature |
-
-**Results:**
-
-| | Type | Description |
-|-|-|-|
-| total | uint64 | Total number of up and down votes |
-| result | int64 | Vote score |
-| receipt | string | Server signature of client signature |
-| error | Error if something went wront during liking a comment
-**Example:**
-
-Request:
-
-```json
-{
-  "token": "abf0fd1fc1b8c1c9535685373dce6c54948b7eb018e17e3a8cea26a3c9b85684",
-  "commentid": "4",
-  "action": "1",
-  "signature": "af969d7f0f711e25cb411bdbbe3268bbf3004075cde8ebaee0fc9d988f24e45013cc2df6762dca5b3eb8abb077f76e0b016380a7eba2d46839b04c507d86290d",
-  "publickey": "4206fa1f45c898f1dee487d7a7a82e0ed293858313b8b022a6a88f2bcae6cdd7"
-}
-```
-
-Reply:
-
-```json
-{
-  "total": 4,
-  "result": 3,
-  "receipt": "96f3956ea3decb75ee129e6ee4e77c6c608f0b5c99ff41960a4e6078d8bb74e8ad9d2545c01fff2f8b7e0af38ee9de406aea8a0b897777d619e93d797bc1650a"
-}
-```
-
-### `Start vote`
-
-Call a vote on the given invoice.
-
-Note that the webserver does not interpret the plugin structures. These are
-forwarded as-is to the politeia daemon.
-
-**Route:** `POST /v1/invoices/startvote`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| publickey | string | Public key used to sign the vote | Yes |
-| vote | Vote | Vote details | Yes |
-| signature | string | Signature of the Vote | Yes |
-
-**Results (StartVoteReply):**
-
-| | Type | Description |
-| - | - | - |
-| startblockheight | string | String encoded start block height of the vote |
-| startblockhash | string | String encoded start block hash of the vote |
-| endheight | string | String encoded final block height of the vote |
-| eligibletickets | array of string | String encoded tickets that are eligible to vote |
-
-**Vote:**
-
-| | Type | Description |
-| - | - | - |
-| token | string | Censorship token |
-| mask | uint64 | Mask for valid vote bits |
-| duration | uint32 | Duration of the vote in blocks |
-| options | array of VoteOption | Vote options |
-
-**VoteOption:**
-
-| | Type | Description |
-| - | - | - |
-| Id | string | Single unique word that identifies this option, e.g. "yes" |
-| Description | string | Human readable description of this option |
-| Bits | uint64 | Bits that make up this choice, e.g. 0x01 |
-
-**Example**
-
-Request:
-
-``` json
-{
-  "publickey": "d64d80c36441255e41fc1e7b6cd30259ff9a2b1276c32c7de1b7a832dff7f2c6",
-  "vote": {
-    "token": "127ea26cf994dabc27e115da0eb90a5657590e2ccc4e7c23c7f80c6fe4afaa59",
-    "mask": 3,
-    "duration": 2016,
-    "Options": [{
-      "id": "no",
-      "description": "Don't approve invoice",
-      "bits": 1
-    },{
-      "id": "yes",
-      "description": "Approve invoice",
-      "bits": 2
-    }]
-  },
-  "signature": "5a40d699cdfe5ee31472ec252982e60265a345cd58e4a07b183cf06447b3942d06981e1bfaf8430195109d51428458449446fbfa1d7059aebedc4df769ddb300"
-}
-```
-
-Reply:
-
-```json
-{
-  "startblockheight":"282899",
-  "startblockhash":"00000000017236b62ff1ce136328e6fb4bcd171801a281ce0a662e63cbc4c4fa",
-  "endheight":"284915",
-  "eligibletickets":[
-    "000011e329fe0359ea1d2070d927c93971232c1118502dddf0b7f1014bf38d97",
-    "0004b0f8b2883a2150749b2c8ba05652b02220e98895999fd96df790384888f9",
-    "00107166c5fc5c322ecda3748a1896f4a2de6672aae25014123d2cedc83e8f42",
-    "002272cf4788c3f726c30472f9c97d2ce66b997b5762ff4df6a05c4761272413"
-  ]
-}
-```
-
-Note: eligibletickets is abbreviated for readability.
-
-### `Active votes`
-
-Retrieve all active votes
-
-Note that the webserver does not interpret the plugin structures. These are
-forwarded as-is to the politeia daemon.
-
-**Route:** `POST /v1/invoices/activevote`
-
-**Params:**
-
-**Results:**
-
-| | Type | Description |
-| - | - | - |
-| votes | array of InvoiceVoteTuple | All current active votes |
-
-**InvoiceVoteTuple:**
-
-| | Type | Description |
-| - | - | - |
-| invoice | InvoiceRecord | Invoice record |
-| startvote | Vote | Vote bits, mask etc |
-| starvotereply | StartVoteReply | Vote details (eligible tickets, start block etc |
-
-**Example**
-
-Request:
-
-``` json
-{}
-```
-
-Reply:
-
-```json
-{
-  "votes": [{
-    "invoice": {
-      "name":"This is a description",
-      "status":4,
-      "timestamp":1523902523,
-      "userid":"",
-      "publickey":"d64d80c36441255e41fc1e7b6cd30259ff9a2b1276c32c7de1b7a832dff7f2c6",
-      "signature":"3554f74c112c5da49c6ee1787770c21fe1ae16f7f1205f105e6df1b5bdeaa2439fff6c477445e248e21bcf081c31bbaa96bfe03acace1629494e795e5d296e04",
-      "files":[],
-      "numcomments":0,
-      "censorshiprecord": {
-        "token":"8d14c77d9a28a1764832d0fcfb86b6af08f6b327347ab4af4803f9e6f7927225",
-        "merkle":"0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-        "signature":"97b1bf0d63d7689a2c6e66e32358d48e98d84e5389f455cc135b3401277d3a37518827da0f2bc892b535937421418e7e8ba6a4f940dfcf19a219867fa8c3e005"
-      }
-    }
-  }],
-  "vote": {
-    "token":"8d14c77d9a28a1764832d0fcfb86b6af08f6b327347ab4af4803f9e6f7927225",
-    "mask":3,
-    "duration":2016,
-    "Options": [{
-      "id":"no",
-      "description":"Don't approve invoice",
-      "bits":1
-    },{
-      "id":"yes",
-      "description":"Approve invoice",
-      "bits":2
-    }]
-  },
-  "votedetails": {
-    "startblockheight":"282893",
-    "startblockhash":"000000000227ff9b6bf3af53accb81e4fd1690ae44d521a665cb988bcd02ad94",
-    "endheight":"284909",
-    "eligibletickets": [
-      "000011e329fe0359ea1d2070d927c93971232c1118502dddf0b7f1014bf38d97",
-      "0004b0f8b2883a2150749b2c8ba05652b02220e98895999fd96df790384888f9",
-      "00107166c5fc5c322ecda3748a1896f4a2de6672aae25014123d2cedc83e8f42",
-      "002272cf4788c3f726c30472f9c97d2ce66b997b5762ff4df6a05c4761272413"
-    ]
-  }
-}
-```
-
-Note: eligibletickets is abbreviated for readability.
-
-
-### `Cast votes`
-
-This is a batched call that casts multiple votes to multiple invoices.
-
-Note that the webserver does not interpret the plugin structures. These are
-forwarded as-is to the politeia daemon.
-
-**Route:** `POST /v1/invoices/castvotes`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| votes | array of CastVote | All votes | Yes |
-
-**CastVote:**
-
-| | Type | Description |
-| - | - | - |
-| token | string | Censorship token |
-| ticket | string | Ticket hash |
-| votebit | string | String encoded vote bit |
-| signature | string | signature of Token+Ticket+VoteBit |
-
-**Results:**
-
-| | Type | Description |
-| - | - | - |
-| receipts | array of CastVoteReply  | Receipts for all cast votes. This appears in the same order and index as the votes that went in. |
-
-**CastVoteReply:**
-
-| | Type | Description |
-| - | - | - |
-| clientsignature | string | Signature that was sent in via CastVote |
-| signature | string | Signature of ClientSignature |
-| error | string | Error, "" if there was no error |
-
-**Example**
-
-Request:
-
-``` json
-{
-  "votes": [{
-    "token":"642eb2f3798090b3234d8787aaba046f1f4409436d40994643213b63cb3f41da",
-    "ticket":"1257089bfa5223739c27dd10150de71962442f57ee176389c79932c22536b31b",
-    "votebit":"2",
-    "signature":"1f05c95fd0c59b0ee68733bbc645437124702e2af40fe37f01f15784a161b8ebae432fcfc5c9388e8f7409e6f02976182eda3bffa5df5de968f40faf2d993a9992"
-    },{
-      "token":"642eb2f3798090b3234d8787aaba046f1f4409436d40994643213b63cb3f41da",
-      "ticket":"1c1e0b6968813f8321e721598f9510afae6acaa8576b64297e34fd5777d8d417",
-      "votebit":"2",
-      "signature":"1ff92d0025ea7ff283e4991b6fcdd6c87958f5ba5ba34863c075650a8b16dc23906f639ab83d034d6146de109afca7c0c92a00c60f36640846f679fb6ff2d7f966"
-    }
-  ]
-}
-```
-
-Reply:
-
-```json
-{
-  "receipts": [{
-    "clientsignature":"1f05c95fd0c59b0ee68733bbc645437124702e2af40fe37f01f15784a161b8ebae432fcfc5c9388e8f7409e6f02976182eda3bffa5df5de968f40faf2d993a9992",
-    "signature":"1bc19bf3ee2da7b0a9a54ae944e42e7b9e8953fce0c122b0a0a540e900535ea7ae3c5f2bba8266025d797b0dd4e37f0d21ed2f974b246528ae162a3719ed0808",
-    "error":""
-  },{
-    "clientsignature":"1ff92d0025ea7ff283e4991b6fcdd6c87958f5ba5ba34863c075650a8b16dc23906f639ab83d034d6146de109afca7c0c92a00c60f36640846f679fb6ff2d7f966",
-    "signature":"dbd24b1205c3c81a1d8a5736d769e1d6fd37ea517c15934e4b2042df65567e8c4029137eec8fb03fdcf40ecfe5a5eaa2bd36f485c6597328f543d5c283de5e0a",
-    "error":""
-  }]
-}
-```
-
-### `Vote results`
-
-Retrieve vote results for a specified censorship token.
-
-Note that the webserver does not interpret the plugin structures. These are
-forwarded as-is to the politeia daemon.
-
-**Route:** `GET /v1/invoices/{token}/votes`
-
-**Params:** none
-
-**Results:**
-
-| | Type | Description |
-| - | - | - |
-| vote | Vote | Vote details |
-| castvotes | array of CastVote  | Cast vote details |
-| startvotereply | StartVoteReply | Vote details (eligible tickets, start block etc) |
-
-**Example**
-
-Request:
-`GET /V1/invoices/642eb2f3798090b3234d8787aaba046f1f4409436d40994643213b63cb3f41da/votes`
-
-
-Reply:
-
-```json
-{
-  "vote": {
-    "token":"642eb2f3798090b3234d8787aaba046f1f4409436d40994643213b63cb3f41da",
-    "mask":3,
-    "duration":2016,
-    "Options": [{
-      "id":"no",
-      "description":"Don't approve invoice",
-      "bits":1
-    },{
-      "id":"yes",
-      "description":"Approve invoice",
-      "bits":2
-    }]
-  },
-  "castvotes": [{
-    "token":"642eb2f3798090b3234d8787aaba046f1f4409436d40994643213b63cb3f41da",
-    "ticket":"91832123c3f04c0783fb51d93bffd6f641ce3e951c30a29e15fb9986f23817c0",
-    "votebit":"2",
-    "signature":"208e614662fd7719df82687b72578cfb1f5e54fd05287e67683397b77e1819d4ff5c2029117d1d01bfa5c4637b7661ad95319f455c264ed4b4637382ffee5d5d9e"
-  },{
-    "token":"642eb2f3798090b3234d8787aaba046f1f4409436d40994643213b63cb3f41da",
-    "ticket":"cf3943767a35136252f69118b291b47006308e4215de41673ab118736e26605e",
-    "votebit":"2",
-    "signature":"1f8b3c8207fa67d91a65d8742e5026044ccebd6b4865579a1f75d6e9a40a56f9a96e091397d2ec9f8fca773c68e961b93fe380a694aceecfd8f9b972f1e4d59db9"
-  }],
-  "startvotereply": {
-    "startblockheight":"282899",
-    "startblockhash":"00000000017236b62ff1ce136328e6fb4bcd171801a281ce0a662e63cbc4c4fa",
-    "endheight":"284915",
-    "eligibletickets":[
-      "000011e329fe0359ea1d2070d927c93971232c1118502dddf0b7f1014bf38d97",
-      "0004b0f8b2883a2150749b2c8ba05652b02220e98895999fd96df790384888f9",
-      "00107166c5fc5c322ecda3748a1896f4a2de6672aae25014123d2cedc83e8f42",
-      "002272cf4788c3f726c30472f9c97d2ce66b997b5762ff4df6a05c4761272413"
-    ]
-  }
-}
-```
-
-### `Invoice vote status`
-
-Returns the vote status for a single public invoice
-
-**Route:** `GET /V1/invoices/{token}/votestatus`
-
-**Params:** none
-
-**Result:**
-
-| | Type | Description |
-|-|-|-|
-| token | string  | Censorship token |
-| status | int | Status identifier |
-| optionsresult | array of VoteOptionResult | Option description along with the number of votes it has received |
-| totalvotes | int | Invoice's total number of votes |
-
-**VoteOptionResult:**
-| | Type | Description |
-|-|-|-|
-| option | VoteOption  | Option description |
-| votesreceived | uint64 | Number of votes reiceved |
-
-
-**Invoice vote status map:**
-| status | value |
-|-|-|
-| Vote status invalid | 0 |
-| Vote status not started | 1 |
-| Vote status started | 2 |
-| Vote status finished | 3 |
-| Vote status doesn't exist | 4 |
-
-**Example:**
-
-Request:
-
-`GET /V1/invoices/b09dc5ac9d450b4d1ec6e8f80c763771f29413a5d1bf287054fc00c52ccc87c9/votestatus`
-
-Reply:
-
-```json
-{
-  "token":"b09dc5ac9d450b4d1ec6e8f80c763771f29413a5d1bf287054fc00c52ccc87c9",
-  "status":0,
-  "totalvotes":0,
-  "optionsresult":[
-    {
-        "option":{
-          "id":"no",
-          "description":"Don't approve invoice",
-          "bits":1
-        },
-        "votesreceived":0
-    },
-    {
-        "option":{
-          "id":"yes",
-          "description":"Approve invoice",
-          "bits":2
-        },
-        "votesreceived":0
-    }
-  ]
-}
-```
-
-### `Invoices vote status`
-
-Returns the vote status of all public invoices
-
-**Route:** `GET /V1/invoices/votestatus`
-
-**Params:** none
-
-**Result:**
-
-| | Type | Description |
-|-|-|-|
-| votesstatus | array of VoteStatusReply  | Vote status of each public invoice |
-
-**VoteStatusReply:**
-
-| | Type | Description |
-|-|-|-|
-| token | string  | Censorship token |
-| status | int | Status identifier |
-| optionsresult | array of VoteOptionResult | Option description along with the number of votes it has received |
-| totalvotes | int | Invoice's total number of votes |
-
-**Example:**
-
-Request:
-
-`GET /V1/invoices/votestatus`
-
-Reply:
-
-```json
-{
-   "votesstatus":[
-      {
-         "token":"427af6d79f495e8dad2fb0a2a47594daa505b9fbfbd084f13678fa91882aef9f",
-         "status":2,
-         "optionsresult":[
-            {
-               "option":{
-                  "id":"no",
-                  "description":"Don't approve invoice",
-                  "bits":1
-               },
-               "votesreceived":0
-            },
-            {
-               "option":{
-                  "id":"yes",
-                  "description":"Approve invoice",
-                  "bits":2
-               },
-               "votesreceived":0
-            }
-         ],
-         "totalvotes":0
-      },
-      {
-         "token":"b6d058cd1eed03d7fc9400f55384a8da33edb73743b7501d354392a6f9885078",
-         "status":1,
-         "optionsresult":null,
-         "totalvotes":0
-      }
-   ]
-}
-```
-
-
-
-### `Usernames by id`
-
-Retrieve usernames given an array of user ids.
-
-**Route:** `POST /v1/usernames`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| userids | array of strings | User ids | Yes |
-
-**Results:**
-
-| | Type | Description |
-|-|-|-|
-| usernames | array of strings  | Array of usernames, in the same order of the provided user ids |
-
-**Example**
-
-Request:
-
-``` json
-{
-  "userids": ["0"]
-}
-```
-
-Reply:
-
-```json
-{
-  "usernames": ["foobar"]
-}
-```
-
-### `User Comments Votes`
-
-Retrieve the comment votes for the current logged in user given an invoice token
-
-**Route:** `GET v1/user/invoices/{token}/commentsvotes`
-
-**Params:** none
-
-**Results:**
-
-| | Type | Description |
-| - | - | - |
-| commentsvotes | array of CommentVote | Votes issued by the current user |
-
-**CommentVote:**
-
-| | Type | Description |
-| - | - | - |
-| action | string | Up or downvote (1, -1) |
-| commentid | string | Comment ID |
-| token | string | Invoice censorship token |
-
-**Example:**
-
-Request:
-Path: `v1/user/invoices/8a11057fb910564a7d2506430505c3991f59e35f8a7757b8000a032505b254d8/commentsvotes`
-
-Reply:
-```json
-  {
-    "commentsvotes":
-    [
-      {
-        "action":"-1",
-        "commentid":"1",
-        "token":"8a11057fb910564a7d2506430505c3991f59e35f8a7757b8000a032505b254d8"
-      },
-      {
-        "action":"1",
-        "commentid":"2",
-        "token":"8a11057fb910564a7d2506430505c3991f59e35f8a7757b8000a032505b254d8"
-      }
-    ]
-  }
-```
-
 ### Error codes
 
 | Status | Value | Description |
@@ -2159,25 +1323,13 @@ Reply:
 ### `Login reply`
 
 This object will be sent in the result body on a successful [`Login`](#login)
-or [`Me`](#me) call.
+call, or as part of the [`Version`](#version) call.
 
 | Parameter | Type | Description |
 |-|-|-|
 | isadmin | boolean | This indicates if the user has publish/censor privileges. |
 | userid | string | Unique user identifier. |
 | email | string | Current user email address. |
+| username | string | Unique username. |
 | publickey | string | Current public key. |
-| paywalladdress | String | The address in which to send the transaction containing the `paywallamount`.  If the user has already paid, this field will be empty or not present. |
-| paywallamount | Int64 | The amount of DCR (in atoms) to send to `paywalladdress`.  If the user has already paid, this field will be empty or not present. |
-| paywalltxnotbefore | Int64 | The minimum UNIX time (in seconds) required for the block containing the transaction sent to `paywalladdress`.  If the user has already paid, this field will be empty or not present. |
 | lastlogin | int64 | The UNIX timestamp of the last login date; it will be 0 if the user has not logged in before. |
-
-### `Invoice credit`
-A invoice credit allows the user to submit a new invoice.  Invoice credits are a spam prevention measure.  Credits are created when a user sends a payment to an invoice paywall. The user can request invoice paywall details using the [`Invoice paywall details`](#invoice-paywall-details) endpoint.  A credit is automatically spent every time a user submits a new invoice.
-
-| | Type | Description |
-|-|-|-|
-| paywallid | uint64 | The ID of the invoice paywall that created this credit. |
-| price | uint64 | The price that the credit was purchased at in atoms. |
-| datepurchased | int64 | A Unix timestamp of the purchase data. |
-| txid | string | The txID of the Decred transaction that paid for this credit. |

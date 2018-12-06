@@ -64,7 +64,6 @@ func (cmd *EditInvoiceCmd) Execute(args []string) error {
 	ei := v1.EditInvoice{
 		Token: token,
 		File: v1.File{
-			MIME:    "text/plain; charset=utf-8",
 			Digest:  digest,
 			Payload: base64.StdEncoding.EncodeToString(payload),
 		},

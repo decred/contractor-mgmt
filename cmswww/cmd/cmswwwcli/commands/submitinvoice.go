@@ -137,7 +137,6 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		Month: month,
 		Year:  year,
 		File: v1.File{
-			MIME:    "text/plain; charset=utf-8",
 			Digest:  digest,
 			Payload: base64.StdEncoding.EncodeToString(payload),
 		},

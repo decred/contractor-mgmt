@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/politeia/politeiad/api/v1/mime"
 	"github.com/decred/politeia/util"
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -207,7 +206,9 @@ func (c *cmswww) HandlePolicy(
 		MaxUsernameLength:      v1.PolicyMaxUsernameLength,
 		UsernameSupportedChars: v1.PolicyUsernameSupportedChars,
 		ListPageSize:           v1.ListPageSize,
-		ValidMIMETypes:         mime.ValidMimeTypes(),
+		ValidMIMETypes: []string{
+			"text/plain; charset=utf-8",
+		},
 		Invoice: v1.InvoicePolicy{
 			FieldDelimiterChar: v1.PolicyInvoiceFieldDelimiterChar,
 			CommentChar:        v1.PolicyInvoiceCommentChar,

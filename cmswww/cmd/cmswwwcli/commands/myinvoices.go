@@ -64,11 +64,11 @@ func fetchSubmittedInvoices(statusStr string) ([]invoice, error) {
 		}
 	}
 
-	mi := v1.MyInvoices{
+	mi := v1.UserInvoices{
 		Status: status,
 	}
 
-	var mir v1.MyInvoicesReply
+	var mir v1.UserInvoicesReply
 	err := Ctx.Get(v1.RouteUserInvoices, mi, &mir)
 	if err != nil {
 		return nil, err

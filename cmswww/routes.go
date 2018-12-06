@@ -158,8 +158,8 @@ func (c *cmswww) SetupRoutes() {
 		v1.EditInvoice{}, permissionLogin, true)
 	c.addGetRoute(v1.RouteInvoiceDetails, c.HandleInvoiceDetails,
 		v1.InvoiceDetails{}, permissionLogin, true)
-	c.addGetRoute(v1.RouteUserInvoices, c.HandleMyInvoices,
-		v1.MyInvoices{}, permissionLogin, true)
+	c.addGetRoute(v1.RouteUserInvoices, c.HandleUserInvoices,
+		v1.UserInvoices{}, permissionLogin, true)
 	c.addPostRoute(v1.RouteEditUser, c.HandleEditUser, v1.EditUser{},
 		permissionLogin, false)
 	c.addGetRoute(v1.RouteUserDetails, c.HandleUserDetails, v1.UserDetails{},

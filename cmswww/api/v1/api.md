@@ -11,22 +11,22 @@ API.  It does not render HTML.
 - [`Version`](#version)
 - [`Invite new user`](#invite-new-user)
 - [`Register`](#register)
-- [`Resend verification`](#resend-verification)
 - [`Login`](#login)
 - [`Logout`](#logout)
 - [`User details`](#user-details)
+- [`Manage user`](#manage-user)
 - [`Edit user`](#edit-user)
+- [`Edit user extended pubkey`](#edit-user-extended-pubkey)
 - [`New identity`](#new-identity)
 - [`Verify new identity`](#verify-new-identity)
-- [`Change username`](#change-username)
 - [`Change password`](#change-password)
 - [`Reset password`](#reset-password)
-- [`Vetted`](#vetted)
-- [`Unvetted`](#unvetted)
+- [`Users`](#users)
+- [`Invoices](#invoices)
 - [`User invoices`](#user-invoices)
-- [`Invoice paywall details`](#invoice-paywall-details)
-- [`User invoice credits`](#user-invoice-credits)
-- [`New invoice`](#new-invoice)
+- [`Review invoices`](#review-invoices)
+- [`Pay invoices`](#pay-invoices)
+- [`Submit invoice`](#submit-invoice)
 - [`Invoice details`](#invoice-details)
 - [`Set invoice status`](#set-invoice-status)
 - [`Policy`](#policy)
@@ -74,15 +74,15 @@ API.  It does not render HTML.
 - [`ErrorStatusNoInvoiceCredits`](#ErrorStatusNoInvoiceCredits)
 - [`ErrorStatusInvalidUserManageAction`](#ErrorStatusInvalidUserManageAction)
 
-
 **Invoice status codes**
 
 - [`InvoiceStatusInvalid`](#InvoiceStatusInvalid)
 - [`InvoiceStatusNotFound`](#InvoiceStatusNotFound)
 - [`InvoiceStatusNotReviewed`](#InvoiceStatusNotReviewed)
+- [`InvoiceStatusUnreviewedChanges`](#InvoiceStatusUnreviewedChanges)
 - [`InvoiceStatusRejected`](#InvoiceStatusRejected)
-- [`InvoiceStatusPublic`](#InvoiceStatusPublic)
-- [`InvoiceStatusLocked`](#InvoiceStatusLocked)
+- [`InvoiceStatusApproved`](#InvoiceStatusApproved)
+- [`InvoiceStatusPaid`](#InvoiceStatusPaid)
 
 ## HTTP status codes and errors
 
@@ -215,7 +215,7 @@ Verifies email address of a user account invited via
 | username | string | A unique username for the user. | Yes |
 | password | string | A password for the user. | Yes |
 | name | string | The user's full name. | Yes |
-| location | string | The user's geographical location. | Yes |
+| location | string | The user's physical location. | Yes |
 | xpublickey | string | The extended public key for the user's payment account. | Yes |
 
 **Results:** none
@@ -253,55 +253,6 @@ Reply:
 
 ```json
 {}
-```
-
-### `Resend verification`
-
-Sends another verification email for a new user registration.
-
-**Route:** `POST /v1/user/new/resend`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| email | string | Email address which was used to sign up. | Yes |
-| publickey | string | User ed25519 public key. This can be the same key used to sign up or a new one. | Yes |
-
-**Results:**
-
-| Parameter | Type | Description |
-|-|-|-|
-| verificationtoken | String | The verification token which is required when calling [`Verify user`](#verify-user). If an email server is set up, this property will be empty or nonexistent; the token will be sent to the email address sent in the request.|
-
-This call can return one of the following error codes:
-
-- [`ErrorStatusInvalidPublicKey`](#ErrorStatusInvalidPublicKey)
-- [`ErrorStatusDuplicatePublicKey`](#ErrorStatusDuplicatePublicKey)
-
-The email shall include a link in the following format:
-
-```
-/user/verify?email=69af376cca42cd9c@example.com&verificationtoken=fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55f
-```
-
-* **Example**
-
-Request:
-
-```json
-{
-  "email": "69af376cca42cd9c@example.com",
-  "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b"
-}
-```
-
-Reply:
-
-```json
-{
-  "verificationtoken": "fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55f"
-}
 ```
 
 ### `Login`
@@ -375,15 +326,19 @@ Reply:
 
 ### `User details`
 
-Returns details about a user given its id. This call requires admin privileges.
+Returns details about a user given either its id, email or username.
 
-**Route:** `GET /v1/user/{userid}`
+Note: This call requires admin privileges.
+
+**Route:** `GET /v1/user`
 
 **Params:**
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
 | userid | string | The unique id of the user. | Yes |
+| email | string | The user's email address. | Yes |
+| username | string | The unique username of the user. | Yes |
 
 **Results:**
 
@@ -391,8 +346,8 @@ Returns details about a user given its id. This call requires admin privileges.
 |-|-|-|
 | user | [User](#user) | The user details. |
 
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
+This call can return one of the following error codes:
+
 - [`ErrorStatusUserNotFound`](#ErrorStatusUserNotFound)
 
 **Example**
@@ -429,30 +384,37 @@ Reply:
       "pubkey": "5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
       "isactive": true
     }],
-    "invoices": [],
-    "comments": []
+    "invoices": []
   }
 }
 ```
 
-### `Edit user`
+### `Manage user`
 
-Edits a user's details. This call requires admin privileges.
+Performs a specific action on a user given their id, email or username.
 
-**Route:** `POST /v1/user/edit`
+Note: This call requires admin privileges.
+
+**Route:** `POST /v1/user/manage`
 
 **Params:**
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
 | userid | string | The unique id of the user. | Yes |
-| action | int64 | The [user manage action](#user-edit-actions) to execute on the user. | Yes |
+| email | string | The user's email address. | Yes |
+| username | string | The unique username of the user. | Yes |
+| action | int64 | The [user manage action](#user-manage-actions) to execute on the user. | Yes |
 | reason | string | The admin's reason for executing this action. | Yes |
 
-**Results:** none
+**Results:**
 
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
+| Parameter | Type | Description |
+|-|-|-|
+| verificationtoken | string | The verification token created; only set for the [`UserManageResendInvite`](#UserManageResendInvite) action. |
+
+This call can return one of the following error codes:
+
 - [`ErrorStatusUserNotFound`](#ErrorStatusUserNotFound)
 - [`ErrorStatusInvalidInput`](#ErrorStatusInvalidInput)
 - [`ErrorStatusInvalidUserManageAction`](#ErrorStatusInvalidUserManageAction)
@@ -465,6 +427,89 @@ Request:
 {
   "userid": "0",
   "action": 1
+}
+```
+
+Reply:
+
+```json
+{}
+```
+
+### `Edit user`
+
+Edits a user's preferences.
+
+**Route:** `POST /v1/user/edit`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| name | string | The user's new name. | |
+| location | string | The user's new physical location. | |
+| emailnotifications | int64 | The total of the values that correspond to the [`email notification types`](#email-notification-types) which the user is opting into. | |
+
+**Results:** none
+
+**Example**
+
+Request:
+
+```json
+{
+  "name": "Jonathan Smith",
+  "emailnotifications": 0
+}
+```
+
+Reply:
+
+```json
+{}
+```
+
+### `Edit user extended pubkey`
+
+Edits a user's extended public key.
+
+**Route:** `POST /v1/user/edit/xpublickey`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| xpublickey | string | The user's new extended public key. | Yes, on the follow-up call |
+| verificationtoken | string | The user's new physical location. | Yes, on the follow-up call |
+
+This command is special.  It must be called **twice** with different
+parameters.
+
+For the 1st call, it should not be called with any parameters. On success it will
+send an email to the user's email address containing a verification token and
+return `200 OK`. For the 2nd call, it should be called with an `xpublickey`
+parameter, as well as the verification token provided in the email. On success
+it will change the user's extended public key and return `200 OK`.
+
+This call can return one of the following error codes:
+
+- [`ErrorStatusVerificationTokenInvalid`](#ErrorStatusVerificationTokenInvalid)
+- [`ErrorStatusVerificationTokenExpired`](#ErrorStatusVerificationTokenExpired)
+
+**Results:**
+
+| Parameter | Type | Description |
+|-|-|-|
+| verificationtoken | string | The verification token which is required when making the follow-up call. If an email server is set up, this property will be empty or nonexistent; the token will be sent to the user's email address. |
+
+**Example (2nd call)**
+
+Request:
+
+```json
+{
+  "xpublickey": "9e4b1018913610c12496ec3e482f2fb42129197001c5d35d4f5848b77d2b5e5071f79b18bcab4f371c5b378280bb478c153b696003ac3a627c3d8a088cd5f00d",
+  "verificationtoken": "fc8f660e7f4d590e27e6b11639ceeaaec2ce9bc6b0303344555ac023ab8ee55f"
 }
 ```
 
@@ -547,44 +592,6 @@ The request params should be provided within the URL:
 {
   "verificationtoken":"f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde",
   "signature":"9e4b1018913610c12496ec3e482f2fb42129197001c5d35d4f5848b77d2b5e5071f79b18bcab4f371c5b378280bb478c153b696003ac3a627c3d8a088cd5f00d"
-}
-```
-
-Reply:
-
-```json
-{}
-```
-
-### `Change username`
-
-Changes the username for the currently logged in user.
-
-**Route:** `POST /v1/user/username/change`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| password | string | The current password of the logged in user. | Yes |
-| newusername | string | The new username for the logged in user. | Yes |
-
-**Results:** none
-
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
-- [`ErrorStatusInvalidEmailOrPassword`](#ErrorStatusInvalidEmailOrPassword)
-- [`ErrorStatusMalformedUsername`](#ErrorStatusMalformedUsername)
-- [`ErrorStatusDuplicateUsername`](#ErrorStatusDuplicateUsername)
-
-**Example**
-
-Request:
-
-```json
-{
-  "password": "15a1eb6de3681fec",
-  "newusername": "foobar"
 }
 ```
 
@@ -713,103 +720,299 @@ Reply:
 }
 ```
 
-### `Invoice paywall details`
-Retrieve paywall details that can be used to purchase invoice credits.
-Invoice paywalls are only valid for one tx.  The user can purchase as many
-invoice credits as they would like with that one tx. Invoice paywalls expire
-after a set duration.  To verify that a payment has been made,
-cmswww polls the paywall address until the paywall is either paid or it
-expires. A invoice paywall cannot be generated until the user has paid their
-user registration fee.
+### `Users`
 
-**Route:** `GET /v1/invoices/paywall`
+Returns a list of users, optionally filtered by username.
 
-**Params:** none
+Note: This call requires admin privileges.
 
-**Results:**
-
-| Parameter | Type | Description |
-|-|-|-|
-| creditprice | uint64 | Price per invoice credit in atoms. |
-| paywalladdress | string | Invoice paywall address. |
-| paywalltxnotbefore | string | Minimum timestamp for paywall tx. |
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
-- [`ErrorStatusUserNotPaid`](#ErrorStatusUserNotPaid)
-
-**Example**
-
-Request:
-
-```json
-{}
-```
-
-Reply:
-
-```json
-{
-  "creditprice": 10000000,
-  "paywalladdress": "TsRBnD2mnZX1upPMFNoQ1ckYr9Y4TZyuGTV",
-  "paywalltxnotbefore": 1532445975
-}
-```
-
-### `User invoice credits`
-Request a list of the user's unspent and spent invoice credits.
-
-**Route:** `GET /v1/user/invoices/credits`
-
-**Params:** none
-
-**Results:**
-
-| Parameter | Type | Description |
-|-|-|-|
-| unspentcredits | array of [`InvoiceCredit`](#invoice-credit)'s | The user's unspent invoice credits |
-| spentcredits | array of [`InvoiceCredit`](#invoice-credit)'s | The user's spent invoice credits |
-
-**Example**
-
-Request:
-
-```json
-{}
-```
-
-Reply:
-
-```json
-{
-  "unspentcredits": [{
-    "paywallid": 2,
-    "price": 10000000,
-    "datepurchased": 1532438228,
-    "txid": "ff0207a03b761cb409c7677c5b5521562302653d2236c92d016dd47e0ae37bf7"
-  }],
-  "spentcredits": [{
-    "paywallid": 1,
-    "price": 10000000,
-    "datepurchased": 1532437363,
-    "txid": "1b6df077a0a745314dab58887c56c4261270bb7a809692fad8157a99a0c46477"
-  }]
-}
-```
-
-### `New invoice`
-
-Submit a new invoice to the cmswww server.
-The invoice name is derived from the first line of the markdown file - index.md.
-
-**Route:** `POST /v1/invoices/new`
+**Route:** `GET /v1/users`
 
 **Params:**
 
 | Parameter | Type | Description | Required |
-|-----------|------|-------------|----------|
-| files | array of [`File`](#file)s | Files are the body of the invoice. It should consist of one markdown file - named "index.md" - and up to five pictures. **Note:** all parameters within each [`File`](#file) are required. | Yes |
-| signature | string | Signature of the string representation of the Merkle root of the files payload. Note that the merkle digests are calculated on the decoded payload.. | Yes |
-| publickey | string | Public key from the client side, sent to cmswww for verification | Yes |
+|-|-|-|-|
+| username | string | Optional filter for the list of users to match (or partially match) the usernames. | |
+
+**Results:**
+
+| Parameter | Type | Description |
+|-|-|-|
+| users | array of [`Abridged user`](#abridged-user)s | The list of users, capped by the `listpagesize` (see the `Policy`(#policy) call for details) |
+| totalmatches | int64 | The total number of users matched |
+
+**Example**
+
+Request:
+
+```json
+{
+  "username": "foo"
+}
+```
+
+Reply:
+
+```json
+{
+  "users": [{
+    "id": "0",
+    "email": "foobar@example.com",
+    "username": "foobar",
+    "isadmin": false
+  }],
+  "totalmatches": 1
+}
+```
+
+### `Invoices`
+
+Retrieve a page of invoices given the month and year; the number of invoices
+returned in the page is limited by the `listpagesize` property, which is
+provided via [`Policy`](#policy).
+
+Note: This call requires admin privileges.
+
+**Route:** `GET /v1/invoices`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| month | int16 | A specific month, from 1 to 12. | Yes |
+| year | int16 | A specific year. | Yes |
+| status | int64 | An optional filter for the list; this should be an [invoice status](#invoice-status-codes). | |
+
+**Results:**
+
+| | Type | Description |
+|-|-|-|
+| invoices | array of [`Invoice`](#invoice)s | The page of invoices. |
+
+**Example**
+
+Request:
+
+```json
+{
+  "month": 12,
+  "year": 2018
+}
+```
+
+Reply:
+
+```json
+{
+  "invoices": [{
+    "status": 4,
+    "month": 12,
+    "year": 2018,
+    "timestamp": 1508296860781,
+    "userid": "0",
+    "username": "foobar",
+    "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+    "signature": "gdd92f26c8g38c90d2887259e88df614654g32fde76bef1438b0efg40e360f461e995d796g16b17108gbe226793ge4g52gg013428feb3c39de504fe5g1811e0e",
+    "version": "1",
+    "censorshiprecord": {
+      "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
+      "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
+      "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
+    }
+  }]
+}
+```
+
+### `User invoices`
+
+Returns a page of the user's invoices.
+
+**Route:** `GET /v1/user/invoices`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| status | int64 | An optional filter for the list; this should be an [invoice status](#invoice-status-codes). | |
+
+**Results:**
+
+| | Type | Description |
+|-|-|-|
+| invoices | array of [`Invoice`](#invoice)s | The page of invoices. |
+
+**Example**
+
+Request:
+
+```json
+{
+  "status": 4
+}
+```
+
+Reply:
+
+```json
+{
+  "invoices": [{
+    "status": 4,
+    "month": 12,
+    "year": 2018,
+    "timestamp": 1508296860781,
+    "userid": "0",
+    "username": "foobar",
+    "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+    "signature": "gdd92f26c8g38c90d2887259e88df614654g32fde76bef1438b0efg40e360f461e995d796g16b17108gbe226793ge4g52gg013428feb3c39de504fe5g1811e0e",
+    "version": "1",
+    "censorshiprecord": {
+      "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
+      "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
+      "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
+    }
+  }]
+}
+```
+
+### `Review invoices`
+
+Retrieve all unreviewed invoices given the month and year.
+
+Note: This call requires admin privileges.
+
+**Route:** `POST /v1/invoices/review`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| month | int16 | A specific month, from 1 to 12. | Yes |
+| year | int16 | A specific year. | Yes |
+
+**Results:**
+
+| | Type | Description |
+|-|-|-|
+| invoices | array of [`Invoice review`](#invoice-review)s | The array of all invoices to review. |
+
+**Example**
+
+Request:
+
+```json
+{
+  "month": 12,
+  "year": 2018
+}
+```
+
+Reply:
+
+```json
+{
+  "invoices": [{
+    "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
+    "userid": "0",
+    "username": "foobar",
+    "totalhours": 10,
+    "totalcostusd": 400,
+    "lineitems": [{
+      "type": "Development",
+      "subtype": "",
+      "description": "decred/politeia PR #34",
+      "proposal": "",
+      "hours": 5,
+      "totalcost": 200
+    }, {
+      "type": "Development",
+      "subtype": "",
+      "description": "decred/politeia PR #38",
+      "proposal": "",
+      "hours": 5,
+      "totalcost": 200
+    }]
+  }]
+}
+```
+
+### `Pay invoices`
+
+Retrieve all approved invoices given the month and year which are ready to be paid.
+
+Note: This call requires admin privileges.
+
+**Route:** `POST /v1/invoices/pay`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| month | int16 | A specific month, from 1 to 12. | Yes |
+| year | int16 | A specific year. | Yes |
+| dcrusdrate | float64 | The USD/DCR rate to use for generating invoice payment summaries. | Yes |
+
+**Results:**
+
+| | Type | Description |
+|-|-|-|
+| invoices | array of [`Invoice payment`](#invoice-payment)s | The array of all invoices to pay. |
+
+**Example**
+
+Request:
+
+```json
+{
+  "month": 12,
+  "year": 2018,
+  "dcrusdrate": 20
+}
+```
+
+Reply:
+
+```json
+{
+  "invoices": [{
+    "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
+    "userid": "0",
+    "username": "foobar",
+    "totalhours": 10,
+    "totalcostusd": 400,
+    "lineitems": [{
+      "type": "Development",
+      "subtype": "",
+      "description": "decred/politeia PR #34",
+      "proposal": "",
+      "hours": 5,
+      "totalcost": 200
+    }, {
+      "type": "Development",
+      "subtype": "",
+      "description": "decred/politeia PR #38",
+      "proposal": "",
+      "hours": 5,
+      "totalcost": 200
+    }]
+  }]
+}
+```
+
+### `Submit invoice`
+
+Submit an invoice for the given month and year.
+
+**Route:** `POST /v1/invoice/submit`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| month | int16 | A specific month, from 1 to 12. | Yes |
+| year | int16 | A specific year. | Yes |
+| file | [`File`](#file) | The invoice CSV file. The first line should be a comment with the month and year, with the format: `# 2006-01` | Yes |
+| publickey | string | The user's public key. | Yes |
+| signature | string | The signature of the string representation of the file payload. | Yes |
 
 **Results:**
 
@@ -817,19 +1020,13 @@ The invoice name is derived from the first line of the markdown file - index.md.
 |-|-|-|
 | censorshiprecord | [CensorshipRecord](#censorship-record) | A censorship record that provides the submitter with a method to extract the invoice and prove that he/she submitted it. |
 
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
-- [`ErrorStatusNoInvoiceCredits`](#ErrorStatusNoInvoiceCredits)
-- [`ErrorStatusInvoiceMissingFiles`](#ErrorStatusInvoiceMissingFiles)
-- [`ErrorStatusInvoiceDuplicateFilenames`](#ErrorStatusInvoiceDuplicateFilenames)
-- [`ErrorStatusInvoiceInvalidTitle`](#ErrorStatusInvoiceInvalidTitle)
-- [`ErrorStatusMaxMDsExceededPolicy`](#ErrorStatusMaxMDsExceededPolicy)
-- [`ErrorStatusMaxImagesExceededPolicy`](#ErrorStatusMaxImagesExceededPolicy)
-- [`ErrorStatusMaxMDSizeExceededPolicy`](#ErrorStatusMaxMDSizeExceededPolicy)
-- [`ErrorStatusMaxImageSizeExceededPolicy`](#ErrorStatusMaxImageSizeExceededPolicy)
+This call can return one of the following error codes:
+
 - [`ErrorStatusInvalidSignature`](#ErrorStatusInvalidSignature)
 - [`ErrorStatusInvalidSigningKey`](#ErrorStatusInvalidSigningKey)
-- [`ErrorStatusUserNotPaid`](#ErrorStatusUserNotPaid)
+- [`ErrorStatusNoPublicKey`](#ErrorStatusNoPublicKey)
+- [`ErrorStatusInvalidInput`](#ErrorStatusInvalidInput)
+- [`ErrorStatusMalformedInvoiceFile`](#ErrorStatusMalformedInvoiceFile)
 
 **Example**
 
@@ -837,11 +1034,10 @@ Request:
 
 ```json
 {
-  "name": "test",
-  "files": [{
-      "name":"index.md",
-      "mime": "text/plain; charset=utf-8",
-      "digest": "",
+  "month": 12,
+  "year": 2018,
+  "file": [{
+      "digest": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
       "payload": "VGhpcyBpcyBhIGRlc2NyaXB0aW9u"
     }
   ]
@@ -857,148 +1053,6 @@ Reply:
     "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
     "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
   }
-}
-```
-
-### `Unvetted`
-
-Retrieve a page of unvetted invoices; the number of invoices returned in the page is limited by the `invoicelistpagesize` property, which is provided via [`Policy`](#policy).  This call requires admin privileges.
-
-**Route:** `GET /v1/invoices/unvetted`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| before | String | A invoice censorship token; if provided, the page of invoices returned will end right before the invoice whose token is provided. This parameter should not be specified if `after` is set. | |
-| after | String | A invoice censorship token; if provided, the page of invoices returned will begin right after the invoice whose token is provided. This parameter should not be specified if `before` is set. | |
-
-**Results:**
-
-| | Type | Description |
-|-|-|-|
-| invoices | array of [`Invoice`](#invoice)s | An Array of unvetted invoices. |
-
-If the caller is not privileged the unvetted call returns `403 Forbidden`.
-
-**Example**
-
-Request:
-
-The request params should be provided within the URL:
-
-```
-/v1/invoices/unvetted?after=f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde
-```
-
-Reply:
-
-```json
-{
-  "invoices": [{
-      "name": "My Invoice",
-      "status": 2,
-      "timestamp": 1508296860781,
-      "censorshiprecord": {
-        "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
-        "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-        "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
-      }
-    }
-  ]
-}
-```
-
-### `Vetted`
-
-Retrieve a page of vetted invoices; the number of invoices returned in the page is limited by the `invoicelistpagesize` property, which is provided via [`Policy`](#policy).
-
-**Route:** `GET /v1/invoices/vetted`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| before | String | A invoice censorship token; if provided, the page of invoices returned will end right before the invoice whose token is provided. This parameter should not be specified if `after` is set. | |
-| after | String | A invoice censorship token; if provided, the page of invoices returned will begin right after the invoice whose token is provided. This parameter should not be specified if `before` is set. | |
-
-**Results:**
-
-| | Type | Description |
-|-|-|-|
-| invoices | Array of [`Invoice`](#invoice)s | An Array of vetted invoices. |
-
-**Example**
-
-Request:
-
-The request params should be provided within the URL:
-
-```
-/v1/invoices/vetted?after=f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde
-```
-
-Reply:
-
-```json
-{
-  "invoices": [{
-    "name": "My Invoice",
-    "status": 4,
-    "timestamp": 1508296860781,
-    "censorshiprecord": {
-      "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
-      "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-      "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
-    }
-  }]
-}
-```
-
-### `User invoices`
-
-Retrieve a page of invoices submitted by the given user; the number of invoices returned in the page is limited by the `invoicelistpagesize` property, which is provided via [`Policy`](#policy).
-
-**Route:** `GET /v1/user/invoices`
-
-**Params:**
-
-| Parameter | Type | Description | Required |
-|-|-|-|-|
-| userid | String | The user id |
-| before | String | A invoice censorship token; if provided, the page of invoices returned will end right before the invoice whose token is provided. This parameter should not be specified if `after` is set. | |
-| after | String | A invoice censorship token; if provided, the page of invoices returned will begin right after the invoice whose token is provided. This parameter should not be specified if `before` is set. | |
-
-**Results:**
-
-| | Type | Description |
-|-|-|-|
-| invoices | array of [`Invoice`](#invoice)s | An Array of invoices submitted by the user. |
-
-**Example**
-
-Request:
-
-The request params should be provided within the URL:
-
-```
-/v1/user/invoices?userid=15&after=f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde
-```
-
-Reply:
-
-```json
-{
-  "invoices": [{
-    "name": "My Invoice",
-    "status": 2,
-    "timestamp": 1508296860781,
-    "censorshiprecord": {
-      "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
-      "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-      "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
-    }
-  }]
 }
 ```
 
@@ -1019,17 +1073,9 @@ SHALL observe.
 | minusernamelength | integer | minimum number of characters accepted for username |
 | maxusernamelength | integer | maximum number of characters accepted for username |
 | usernamesupportedchars | array of strings | the regular expression of a valid username |
-| invoicelistpagesize | integer | maximum number of invoices returned for the routes that return lists of invoices |
-| maximages | integer | maximum number of images accepted when creating a new invoice |
-| maximagesize | integer | maximum image file size (in bytes) accepted when creating a new invoice |
-| maxmds | integer | maximum number of markdown files accepted when creating a new invoice |
-| maxmdsize | integer | maximum markdown file size (in bytes) accepted when creating a new invoice |
+| listpagesize | integer | maximum number of items returned for the routes that return lists |
 | validmimetypes | array of strings | list of all acceptable MIME types that can be communicated between client and server. |
-| maxinvoicenamelength | integer | max length of an invoice name |
-| mininvoicenamelength | integer | min length of an invoice name |
-| invoicenamesupportedchars | array of strings | the regular expression of a valid invoice name |
-| maxcommentlength | integer | maximum number of characters accepted for comments |
-| backendpublickey | string |  |
+| invoice | [`Invoice policy`](#invoice-policy) | policy items specific to invoices |
 
 
 **Example**
@@ -1050,51 +1096,48 @@ Reply:
   "usernamesupportedchars": [
     "A-z", "0-9", ".", ":", ";", ",", "-", " ", "@", "+"
   ],
-  "invoicelistpagesize": 20,
-  "maximages": 5,
-  "maximagesize": 524288,
-  "maxmds": 1,
-  "maxmdsize": 524288,
+  "listpagesize": 20,
   "validmimetypes": [
-    "image/png",
-    "image/svg+xml",
-    "text/plain",
     "text/plain; charset=utf-8"
   ],
-  "invoicenamesupportedchars": [
-     "A-z", "0-9", "&", ".", ":", ";", ",", "-", " ", "@", "+", "#"
-  ],
-  "maxcommentlength": 8000,
-  "backendpublickey": "",
-  "mininvoicenamelength": 8,
-  "maxinvoicenamelength": 80
+  "invoice": {
+    "fielddelimiterchar": ",",
+    "commentchar": "#",
+    "fields": [{
+      "name": "Type of work",
+      "type": 1,
+      "required": true
+    }]
+  }
 }
 ```
 
 ### `Set invoice status`
 
-Set status of invoice to `InvoiceStatusPublic` or `InvoiceStatusRejected`.  This
-call requires admin privileges.
+Sets the invoice status to either `InvoiceStatusApproved` or `InvoiceStatusRejected`.
 
-**Route:** `POST /v1/invoices/{token}/status`
+Note: This call requires admin privileges.
+
+**Route:** `POST /v1/invoice/setstatus`
 
 **Params:**
 
 | Parameter | Type | Description | Required |
 |-|-|-|-|
 | token | string | Token is the unique censorship token that identifies a specific invoice. | Yes |
-| invoicestatus | number | Status indicates the new status for the invoice. Valid statuses are: [InvoiceStatusRejected](#InvoiceStatusRejected), [InvoiceStatusPublic](#InvoiceStatusPublic). Status can only be changed if the current invoice status is [InvoiceStatusNotReviewed](#InvoiceStatusNotReviewed) | Yes |
+| status | number | The new [status](#invoice-status-codes) for the invoice. | Yes |
+| reason | string | The reason for the new status. This is only required if the status is `InvoiceStatusRejected`. | |
 | signature | string | Signature of token+string(status). | Yes |
-| publickey | string | Public key from the client side, sent to cmswww for verification | Yes |
+| publickey | string | The user's public key, sent for signature verification. | Yes |
 
 **Results:**
 
 | Parameter | Type | Description |
 |-|-|-|-|
-| invoice | [`Invoice`](#invoice) | an entire invoice and it's content |
+| invoice | [`Invoice`](#invoice) | The updated invoice. |
 
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
+This call can return one of the following error codes:
+
 - [`ErrorStatusInvoiceNotFound`](#ErrorStatusInvoiceNotFound)
 
 **Example**
@@ -1103,10 +1146,10 @@ Request:
 
 ```json
 {
-  "invoicestatus": 3,
+  "invoicestatus": 4,
   "publickey": "f5519b6fdee08be45d47d5dd794e81303688a8798012d8983ba3f15af70a747c",
   "signature": "041a12e5df95ec132be27f0c716fd8f7fc23889d05f66a26ef64326bd5d4e8c2bfed660235856da219237d185fb38c6be99125d834c57030428c6b96a2576900",
-  "token": "6161819a5df120162ed7b7fa5a95021f9d489a9eaf8b1bb23447fb8a5abc643b"
+  "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527"
 }
 ```
 
@@ -1115,29 +1158,29 @@ Reply:
 ```json
 {
   "invoice": {
-      "name": "My Invoice",
-      "status": 3,
-      "timestamp": 1508146426,
-      "files": [{
-        "name": "index.md",
-        "mime": "text/plain; charset=utf-8",
-        "digest": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-        "payload": "VGhpcyBpcyBhIGRlc2NyaXB0aW9u"
-      }],
-      "censorshiprecord": {
-        "token": "c378e0735b5650c9e79f70113323077b107b0d778547f0d40592955668f21ebf",
-        "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-        "signature": "f5ea17d547d8347a2f2d77edcb7e89fcc96613d7aaff1f2a26761779763d77688b57b423f1e7d2da8cd433ef2cfe6f58c7cf1c43065fa6716a03a3726d902d0a"
-      }
+    "status": 4,
+    "month": 12,
+    "year": 2018,
+    "timestamp": 1508296860781,
+    "userid": "0",
+    "username": "foobar",
+    "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+    "signature": "gdd92f26c8g38c90d2887259e88df614654g32fde76bef1438b0efg40e360f461e995d796g16b17108gbe226793ge4g52gg013428feb3c39de504fe5g1811e0e",
+    "version": "1",
+    "censorshiprecord": {
+      "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
+      "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
+      "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
+    }
   }
 }
 ```
 
 ### `Invoice details`
 
-Retrieve invoice and its details.
+Retrieve an invoice's details.
 
-**Routes:** `GET /v1/invoices/{token}`
+**Routes:** `GET /v1/invoice`
 
 **Params:**
 
@@ -1151,18 +1194,18 @@ Retrieve invoice and its details.
 |-|-|-|
 | invoice | [`Invoice`](#invoice) | The invoice with the provided token. |
 
-On failure the call shall return `400 Bad Request` and one of the following
-error codes:
+This call can return one of the following error codes:
+
 - [`ErrorStatusInvoiceNotFound`](#ErrorStatusInvoiceNotFound)
 
 **Example**
 
 Request:
 
-The request params should be provided within the URL:
-
-```
-/v1/invoices/f1c2042d36c8603517cf24768b6475e18745943e4c6a20bc0001f52a2a6f9bde
+```json
+{
+  "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527"
+}
 ```
 
 Reply:
@@ -1170,19 +1213,19 @@ Reply:
 ```json
 {
   "invoice": {
-    "name": "My Invoice",
-    "status": 3,
-    "timestamp": 1508146426,
-    "files": [{
-      "name": "index.md",
-      "mime": "text/plain; charset=utf-8",
-      "digest": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-      "payload": "VGhpcyBpcyBhIGRlc2NyaXB0aW9u"
-    }],
+    "status": 4,
+    "month": 12,
+    "year": 2018,
+    "timestamp": 1508296860781,
+    "userid": "0",
+    "username": "foobar",
+    "publickey":"5203ab0bb739f3fc267ad20c945b81bcb68ff22414510c000305f4f0afb90d1b",
+    "signature": "gdd92f26c8g38c90d2887259e88df614654g32fde76bef1438b0efg40e360f461e995d796g16b17108gbe226793ge4g52gg013428feb3c39de504fe5g1811e0e",
+    "version": "1",
     "censorshiprecord": {
-      "token": "c378e0735b5650c9e79f70113323077b107b0d778547f0d40592955668f21ebf",
+      "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
       "merkle": "0dd10219cd79342198085cbe6f737bd54efe119b24c84cbc053023ed6b7da4c8",
-      "signature": "f5ea17d547d8347a2f2d77edcb7e89fcc96613d7aaff1f2a26761779763d77688b57b423f1e7d2da8cd433ef2cfe6f58c7cf1c43065fa6716a03a3726d902d0a"
+      "signature": "fcc92e26b8f38b90c2887259d88ce614654f32ecd76ade1438a0def40d360e461d995c796f16a17108fad226793fd4f52ff013428eda3b39cd504ed5f1811d0d"
     }
   }
 }
@@ -1241,20 +1284,20 @@ Reply:
 | <a name="InvoiceStatusInvalid">InvoiceStatusInvalid</a>| 0 | An invalid status. This shall be considered a bug. |
 | <a name="InvoiceStatusNotFound">InvoiceStatusNotFound</a> | 1 | The invoice was not found. |
 | <a name="InvoiceStatusNotReviewed">InvoiceStatusNotReviewed</a> | 2 | The invoice has not been reviewed by an admin. |
-| <a name="InvoiceStatusRejected">InvoiceStatusRejected</a> | 3 | The invoice has been rejected by an admin. |
-| <a name="InvoiceStatusPublic">InvoiceStatusPublic</a> | 4 | The invoice has been published by an admin. |
-| <a name="InvoiceStatusLocked">InvoiceStatusLocked</a> | 6 | The invoice has been locked by an admin. |
+| <a name="InvoiceStatusUnreviewedChanges">InvoiceStatusUnreviewedChanges</a> | 3 | The invoice has been changed and the changes have not been reviewed by an admin. |
+| <a name="InvoiceStatusRejected">InvoiceStatusRejected</a> | 4 | The invoice has been rejected by an admin. |
+| <a name="InvoiceStatusApproved">InvoiceStatusApproved</a> | 5 | The invoice has been approved by an admin. |
+| <a name="InvoiceStatusPaid">InvoiceStatusPaid</a> | 6 | The invoice has been paid. |
 
-### User edit actions
+### User manage actions
 
 | Status | Value | Description |
 |-|-|-|
 | <a name="UserManageInvalid">UserManageInvalid</a>| 0 | An invalid action. This shall be considered a bug. |
-| <a name="UserManageExpireRegisterVerification">UserManageExpireRegisterVerification</a> | 1 | Expires the new user verification token. |
-| <a name="UserManageExpireUpdateKeyVerification">UserManageExpireUpdateKeyVerification</a> | 2 | Expires the update key verification token. |
-| <a name="UserManageExpireResetPasswordVerification">UserManageExpireResetPasswordVerification</a> | 3 | Expires the reset password verification token. |
-| <a name="UserManageClearUserPayment">UserManageClearUserPayment</a> | 4 | Clears the user's paywall. |
-| <a name="UserManageUnlock">UserManageUnlock</a> | 5 | Unlocks a user's account. |
+| <a name="UserManageResendInvite">UserManageResendInvite</a> | 1 | Resends the invitation email. |
+| <a name="UserManageRegenerateUpdateIdentityVerification">UserManageRegenerateUpdateIdentityVerification</a> | 2 | Resends the update identity verification email. |
+| <a name="UserManageUnlock">UserManageUnlock</a> | 3 | Unlocks a user's account. |
+| <a name="UserManageLock">UserManageLock</a> | 4 | Locks a user's account. |
 
 ### `User`
 
@@ -1264,37 +1307,106 @@ Reply:
 | email | string | Email address. |
 | username | string | Unique username. |
 | isadmin | boolean | Whether the user is an admin or not. |
-| newuserpaywalladdress | string | The address in which to send the transaction containing the `newuserpaywallamount`.  If the user has already paid, this field will be empty or not present. |
-| newuserpaywallamount | int64 | The amount of DCR (in atoms) to send to `newuserpaywalladdress`.  If the user has already paid, this field will be empty or not present. |
-| newuserpaywalltxnotbefore | int64 | The minimum UNIX time (in seconds) required for the block containing the transaction sent to `newuserpaywalladdress`.  If the user has already paid, this field will be empty or not present. |
-| newuserpaywalltx | string | The transaction used to pay the `newuserpaywallamount` at `newuserpaywalladdress`. |
-| newuserpaywallpollexpiry | int64 | The UNIX time (in seconds) for when the server will stop polling the server for transactions at `newuserpaywalladdress`. |
-| newuserverificationtoken | string | The verification token which is sent to the user's email address. |
+| location | string | User's physical location. |
+| xpublickey | string | The extended public key for the user's payment account. |
+| newuserverificationtoken | string | The verification token which is sent to the user's email address after inviting. |
 | newuserverificationexpiry | int64 | The UNIX time (in seconds) for when the `newuserverificationtoken` expires. |
-| updatekeyverificationtoken | string | The verification token which is sent to the user's email address. |
+| updatekeyverificationtoken | string | The verification token which is sent to the user's email address for creating a new identity. |
 | updatekeyverificationexpiry | int64 | The UNIX time (in seconds) for when the `updatekeyverificationtoken` expires. |
-| resetpasswordverificationtoken | string | The verification token which is sent to the user's email address. |
+| resetpasswordverificationtoken | string | The verification token which is sent to the user's email address for resetting his password. |
 | resetpasswordverificationexpiry | int64 | The UNIX time (in seconds) for when the `resetpasswordverificationtoken` expires. |
+| updatexpublickeyverificationtoken | string | The verification token which is sent to the user's email address for updating his extended public key. |
+| updatexpublickeyverificationexpiry | int64 | The UNIX time (in seconds) for when the `resetpasswordverificationtoken` expires. |
 | lastlogin | int64 | The UNIX timestamp of the last login date; it will be 0 if the user has not logged in before. |
 | failedloginattempts | uint64 | The number of consecutive failed login attempts. |
 | islocked | boolean | Whether the user account is locked due to too many failed login attempts. |
+| emailnotifications | int64 | The total of the values that correspond to the [`email notification types`](#email-notification-types) which the user has opted into |
 | identities | array of [`Identity`](#identity)s | Identities, both activated and deactivated, of the user. |
-| invoices | array of [`Invoice`](#invoice)s | Invoice submitted by the user. |
-| invoicecredits | uint64 | The number of available invoice credits the user has. |
+| invoices | array of [`Invoice`](#invoice)s | Invoices submitted by the user. |
+
+### `Abridged user`
+
+A subset of details for a user that is used for lists.
+
+| | Type | Description |
+|-|-|-|
+| id | string | The unique id of the user. |
+| email | string | Email address. |
+| username | string | Unique username. |
+| isadmin | boolean | Whether the user is an admin or not. |
+
+### `Email notification types`
+
+Email notifications can be sent for the following events:
+
+| Description | Value |
+|-|-|
+| Invoice has been approved | `1` |
+| Invoice has been rejected | `2` |
+| Payment received for invoice | `4` |
 
 ### `Invoice`
 
 | | Type | Description |
 |-|-|-|
-| name | string | The name of the invoice. |
 | status | number | Current status of the invoice. |
+| statuschangereason | string | The reason for the current status (if applicable). |
 | timestamp | number | The unix time of the last update of the invoice. |
+| month | uint16 | The invoice's month represented by a number (from 1 to 12). |
+| year | uint16 | The invoice's year. |
 | userid | string | The ID of the user who created the invoice. |
+| username | string | The username of the user who created the invoice. |
 | publickey | string | The public key of the user who created the invoice. |
 | signature | string | The signature of the merkle root, signed by the user who created the invoice. |
 | censorshiprecord | [`censorshiprecord`](#censorship-record) | The censorship record that was created when the invoice was submitted. |
-| files | array of [`File`](#file)s | This property will only be populated for the [`Invoice details`](#invoice-details) call. |
-| numcomments | number | The number of comments on the invoice. This should be ignored for invoices which are not public. |
+| file | [`File`](#file) | This property will only be populated for the [`Invoice details`](#invoice-details) call. |
+| version | string | The current version of the invoice. |
+
+### `Invoice review`
+
+| | Type | Description |
+|-|-|-|
+| userid | string | The ID of the user who created the invoice. |
+| username | string | The username of the user who created the invoice. |
+| token | string | The censorship token. |
+| totalhours | int64 | The total number of hours worked for this invoice. |
+| totalcostusd | int64 | The total cost (in USD) billed. |
+| lineitems | array of [`Invoice review line item`](invoice-review-line-item)s | The list of line items for the invoice. |
+
+### `Invoice review line item`
+
+| | Type | Description |
+|-|-|-|
+| type | string | The type of work performed. |
+| subtype | string | The subtype of work, if applicable. |
+| description | string | A description of the work. |
+| proposal | string | A link to a Decred proposal, if applicable. |
+| hours | int64 | The number of hours spent on the work. |
+| totalcost | int64 | The total cost (in USD) of the work. |
+
+### `Invoice payment`
+
+| | Type | Description |
+|-|-|-|
+| userid | string | The ID of the user who created the invoice. |
+| username | string | The username of the user who created the invoice. |
+| token | string | The censorship token. |
+| totalhours | int64 | The total number of hours worked for this invoice. |
+| totalcostusd | int64 | The total cost (in USD) billed. |
+| totalcostdcr | float64 | The total cost (in DCR) billed, calculated with the provided USD/DCR rate. |
+| paymentaddress | string | A Decred address generated for the user to receive the payment. |
+| lineitems | array of [`Invoice review line item`](invoice-review-line-item)s | The list of line items for the invoice. |
+
+### `Invoice review line item`
+
+| | Type | Description |
+|-|-|-|
+| type | string | The type of work performed. |
+| subtype | string | The subtype of work, if applicable. |
+| description | string | A description of the work. |
+| proposal | string | A link to a Decred proposal, if applicable. |
+| hours | int64 | The number of hours spent on the work. |
+| totalcost | int64 | The total cost (in USD) of the work. |
 
 ### `Identity`
 
@@ -1306,9 +1418,7 @@ Reply:
 ### `File`
 
 | | Type | Description |
-|-|-|-|
-| name | string | Name is the suggested filename. There should be no filenames that are overlapping and the name shall be validated before being used. |
-| mime | string | MIME type of the payload. Currently the system only supports md and png/svg files. The server shall reject invalid MIME types. |
+|-|-|-| |
 | digest | string | Digest is a SHA256 digest of the payload. The digest shall be verified by politeiad. |
 | payload | string | Payload is the actual file content. It shall be base64 encoded. Files have size limits that can be obtained via the [`Policy`](#policy) call. The server shall strictly enforce policy limits. |
 
@@ -1333,3 +1443,27 @@ call, or as part of the [`Version`](#version) call.
 | username | string | Unique username. |
 | publickey | string | Current public key. |
 | lastlogin | int64 | The UNIX timestamp of the last login date; it will be 0 if the user has not logged in before. |
+
+### `Invoice policy`
+
+| Parameter | Type | Description |
+|-|-|-|
+| fielddelimiterchar | char | The delimiter character for fields in the invoice CSV file. |
+| commentchar | char | The character denoting a comment line in the invoice CSV file. |
+| fields | array of [`Invoice policy field`](#invoice-policy-field)s | A list of acceptable fields for the invoice CSV file. |
+
+### `Invoice policy field`
+
+| Parameter | Type | Description |
+|-|-|-|
+| name | string | The field name |
+| type | number | The [field type](#invoice-policy-field-type) |
+| required | boolean | Whether the field is required to be populated in the invoice |
+
+### `Invoice policy field type`
+
+| Type | Value |
+|-|-|
+| InvoiceFieldTypeInvalid | `0` |
+| InvoiceFieldTypeString | `1` |
+| InvoiceFieldTypeUint | `2` |

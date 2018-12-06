@@ -134,7 +134,7 @@ func (c *cmswww) HandleRegister(
 	}
 
 	// Check that the token hasn't expired.
-	if time.Now().Unix() > user.RegisterVerificationExpiry {
+	if user.RegisterVerificationExpiry < time.Now().Unix() {
 		return nil, v1.UserError{
 			ErrorCode: v1.ErrorStatusVerificationTokenExpired,
 		}
@@ -243,19 +243,36 @@ func (c *cmswww) HandleEditUserExtendedPublicKey(
 	var eur v1.EditUserExtendedPublicKeyReply
 
 	if eu.VerificationToken == "" {
-		c.emailUpdateExtendedPublicKey(user, eu, &eur)
+		c.emailUpdateExtendedPublicKey(user, &eur)
 	} else {
+		token := hex.EncodeToString(user.UpdateExtendedPublicKeyVerificationToken)
+		if eu.VerificationToken != token {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusVerificationTokenInvalid,
+			}
+		}
+
+		if user.UpdateExtendedPublicKeyVerificationExpiry < time.Now().Unix() {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusVerificationTokenExpired,
+			}
+		}
+
 		user.ExtendedPublicKey = eu.ExtendedPublicKey
+		user.UpdateExtendedPublicKeyVerificationToken = nil
+		user.UpdateExtendedPublicKeyVerificationExpiry = 0
+		err := c.db.UpdateUser(user)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	err := c.db.UpdateUser(user)
-	return &eur, err
+	return &eur, nil
 }
 
 func (c *cmswww) emailUpdateExtendedPublicKey(
 	user *database.User,
-	rp *v1.EditUserExtendedPublicKey,
-	rpr *v1.EditUserExtendedPublicKeyReply,
+	eur *v1.EditUserExtendedPublicKeyReply,
 ) error {
 	if user.UpdateExtendedPublicKeyVerificationToken != nil {
 		if user.UpdateExtendedPublicKeyVerificationExpiry > time.Now().Unix() {
@@ -289,7 +306,7 @@ func (c *cmswww) emailUpdateExtendedPublicKey(
 
 	// Only set the token if email verification is disabled.
 	if c.cfg.SMTP == nil {
-		rpr.VerificationToken = hex.EncodeToString(token)
+		eur.VerificationToken = hex.EncodeToString(token)
 	}
 
 	return nil
@@ -660,65 +677,3 @@ func (c *cmswww) verifyResetPassword(
 
 	return c.db.UpdateUser(user)
 }
-
-/*
-// ProcessUserInvoices returns the invoices for the given user.
-func (c *cmswww) ProcessUserInvoices(up *v1.UserInvoices, isCurrentUser, isAdminUser bool) (*v1.UserInvoicesReply, error) {
-	return &v1.UserInvoicesReply{
-		Invoices: b.getInvoices(invoicesRequest{
-			After:  up.After,
-			Before: up.Before,
-			UserID: up.UserID,
-			StatusMap: map[v1.InvoiceStatusT]bool{
-				v1.InvoiceStatusNotReviewed: isCurrentUser || isAdminUser,
-				v1.InvoiceStatusRejected:    isCurrentUser || isAdminUser,
-				v1.InvoiceStatusPublic:      true,
-			},
-		}),
-	}, nil
-}
-
-// handleUserInvoices returns the invoices for the given user.
-func (c *cmswww) handleUserInvoices(w http.ResponseWriter, r *http.Request) {
-	log.Tracef("handleUserInvoices")
-
-	// Get the user invoices command.
-	var up v1.UserInvoices
-	err := util.ParseGetParams(r, &up)
-	if err != nil {
-		RespondWithError(w, r, 0, "handleUserInvoices: ParseGetParams",
-			v1.UserError{
-				ErrorCode: v1.ErrorStatusInvalidInput,
-			})
-		return
-	}
-
-	userID, err := strconv.ParseUint(up.UserID, 10, 64)
-	if err != nil {
-		RespondWithError(w, r, 0, "handleUserInvoices: ParseUint",
-			v1.UserError{
-				ErrorCode: v1.ErrorStatusInvalidInput,
-			})
-		return
-	}
-
-	user, err := p.GetSessionUser(r)
-	if err != nil {
-		RespondWithError(w, r, 0,
-			"handleUserInvoices: GetSessionUser %v", err)
-		return
-	}
-
-	upr, err := p.backend.ProcessUserInvoices(
-		&up,
-		user != nil && user.ID == userID,
-		user != nil && user.Admin)
-	if err != nil {
-		RespondWithError(w, r, 0,
-			"handleUserInvoices: ProcessUserInvoices %v", err)
-		return
-	}
-
-	util.RespondWithJSON(w, http.StatusOK, upr)
-}
-*/

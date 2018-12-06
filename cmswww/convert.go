@@ -77,7 +77,7 @@ func convertDatabaseIdentityToIdentity(dbIdentity database.Identity) v1.UserIden
 func convertInvoiceFileFromWWW(f *v1.File) []pd.File {
 	return []pd.File{{
 		Name:    "invoice.csv",
-		MIME:    f.MIME,
+		MIME:    "text/plain; charset=utf-8",
 		Digest:  f.Digest,
 		Payload: f.Payload,
 	}}
@@ -97,7 +97,6 @@ func convertInvoiceFileFromPD(files []pd.File) *v1.File {
 	}
 
 	return &v1.File{
-		MIME:    files[0].MIME,
 		Digest:  files[0].Digest,
 		Payload: files[0].Payload,
 	}
@@ -109,7 +108,6 @@ func convertRecordFilesToDatabaseInvoiceFile(files []pd.File) *database.File {
 	}
 
 	return &database.File{
-		MIME:    files[0].MIME,
 		Digest:  files[0].Digest,
 		Payload: files[0].Payload,
 	}
@@ -234,7 +232,6 @@ func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRec
 	invoice.Version = dbInvoice.Version
 	if dbInvoice.File != nil {
 		invoice.File = &v1.File{
-			MIME:    dbInvoice.File.MIME,
 			Digest:  dbInvoice.File.Digest,
 			Payload: dbInvoice.File.Payload,
 		}

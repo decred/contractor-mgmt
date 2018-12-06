@@ -454,18 +454,18 @@ func (c *cmswww) HandlePayInvoices(
 	}, nil
 }
 
-// HandleMyInvoices returns an array of user's invoices.
-func (c *cmswww) HandleMyInvoices(
+// HandleUserInvoices returns an array of user's invoices.
+func (c *cmswww) HandleUserInvoices(
 	req interface{},
 	user *database.User,
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	mi := req.(*v1.MyInvoices)
+	ui := req.(*v1.UserInvoices)
 
 	statusMap := make(map[v1.InvoiceStatusT]bool)
-	if mi.Status != v1.InvoiceStatusInvalid {
-		statusMap[mi.Status] = true
+	if ui.Status != v1.InvoiceStatusInvalid {
+		statusMap[ui.Status] = true
 	}
 
 	invoices, err := c.getInvoices(database.InvoicesRequest{

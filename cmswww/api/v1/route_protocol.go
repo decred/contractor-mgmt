@@ -39,12 +39,7 @@ var (
 // directory structure must be flattened.  The server side SHALL verify MIME
 // and Digest.
 type File struct {
-	// Meta-data
-	Name   string `json:"name"`   // Suggested filename
-	MIME   string `json:"mime"`   // Mime type
-	Digest string `json:"digest"` // Digest of unencoded payload
-
-	// Data
+	Digest  string `json:"digest"`  // Digest of unencoded payload
 	Payload string `json:"payload"` // File content, base64 encoded
 }
 
@@ -182,18 +177,6 @@ type VerifyNewIdentity struct {
 // VerifyNewIdentityReply replies to the VerifyNewIdentity command.
 type VerifyNewIdentityReply struct{}
 
-// UserInvoices is used to request a list of invoices that the
-// user has submitted.
-type UserInvoices struct {
-	UserID string `schema:"userid"`
-}
-
-// UserInvoicesReply replies to the UserInvoices command with
-// a list of invoices that the user has submitted.
-type UserInvoicesReply struct {
-	Invoices []InvoiceRecord `json:"invoices"`
-}
-
 // Login attempts to login the user.  Note that by necessity the password
 // travels in the clear.
 type Login struct {
@@ -299,13 +282,12 @@ type ReviewInvoicesReply struct {
 
 // InvoiceReview represents a submitted invoice which needs to be reviewed.
 type InvoiceReview struct {
-	UserID         string                  `json:"userid"`
-	Username       string                  `json:"username"`
-	Token          string                  `json:"token"`
-	LineItems      []InvoiceReviewLineItem `json:"lineitems"`
-	PaymentAddress string                  `json:"paymentaddress"`
-	TotalHours     uint64                  `json:"totalhours"`
-	TotalCostUSD   uint64                  `json:"totalcostusd"`
+	UserID       string                  `json:"userid"`
+	Username     string                  `json:"username"`
+	Token        string                  `json:"token"`
+	LineItems    []InvoiceReviewLineItem `json:"lineitems"`
+	TotalHours   uint64                  `json:"totalhours"`
+	TotalCostUSD uint64                  `json:"totalcostusd"`
 }
 
 // InvoiceReviewLineItem is a unit of work within a submitted invoice.
@@ -345,13 +327,13 @@ type InvoicePayment struct {
 	PaymentAddress string  `json:"paymentaddress"`
 }
 
-// MyInvoices retrieves all invoices with a given status for a user.
-type MyInvoices struct {
+// UserInvoices retrieves all invoices with a given status for a user.
+type UserInvoices struct {
 	Status InvoiceStatusT `json:"status"`
 }
 
-// MyInvoicesReply is used to reply with a list of user's invoices.
-type MyInvoicesReply struct {
+// UserInvoicesReply is used to reply with a list of user's invoices.
+type UserInvoicesReply struct {
 	Invoices []InvoiceRecord `json:"invoices"`
 }
 

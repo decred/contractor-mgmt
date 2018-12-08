@@ -733,6 +733,7 @@ Note: This call requires admin privileges.
 | Parameter | Type | Description | Required |
 |-|-|-|-|
 | username | string | Optional filter for the list of users to match (or partially match) the usernames. | |
+| page | uint16 | The page number of users to fetch (starts at 0). | |
 
 **Results:**
 
@@ -782,12 +783,14 @@ Note: This call requires admin privileges.
 | month | int16 | A specific month, from 1 to 12. | Yes |
 | year | int16 | A specific year. | Yes |
 | status | int64 | An optional filter for the list; this should be an [invoice status](#invoice-status-codes). | |
+| page | uint16 | The page number of invoices to fetch (starts at 0). | |
 
 **Results:**
 
 | | Type | Description |
 |-|-|-|
 | invoices | array of [`Invoice`](#invoice)s | The page of invoices. |
+| totalmatches | int64 | The total number of invoices matched. |
 
 **Example**
 
@@ -834,12 +837,14 @@ Returns a page of the user's invoices.
 | Parameter | Type | Description | Required |
 |-|-|-|-|
 | status | int64 | An optional filter for the list; this should be an [invoice status](#invoice-status-codes). | |
+| page | uint16 | The page number of invoices to fetch (starts at 0). | |
 
 **Results:**
 
 | | Type | Description |
 |-|-|-|
 | invoices | array of [`Invoice`](#invoice)s | The page of invoices. |
+| totalmatches | int64 | The total number of invoices matched. |
 
 **Example**
 

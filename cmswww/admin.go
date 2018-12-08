@@ -312,7 +312,7 @@ func (c *cmswww) HandleUsers(
 	u := req.(*v1.Users)
 	var ur v1.UsersReply
 
-	users, numMatches, err := c.db.GetUsers(u.Username, v1.ListPageSize)
+	users, numMatches, err := c.db.GetUsers(u.Username, int(u.Page))
 	if err != nil {
 		return nil, err
 	}

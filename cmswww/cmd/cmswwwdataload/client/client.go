@@ -311,7 +311,7 @@ func (c *Client) EditUser(name, location, extendedPublicKey string) error {
 			return true
 		},
 		"updatexpublickey",
-		fmt.Sprintf("--xpublickey=%v", extendedPublicKey),
+		fmt.Sprintf("--xpublickey=\"%v\"", extendedPublicKey),
 	)
 }
 

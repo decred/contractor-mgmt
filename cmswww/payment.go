@@ -77,10 +77,11 @@ func (c *cmswww) addInvoicesForPolling() error {
 	defer c.Unlock()
 
 	// Create the in-memory pool of all invoices that need to be paid.
-	invoices, err := c.db.GetInvoices(database.InvoicesRequest{
+	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
 		StatusMap: map[v1.InvoiceStatusT]bool{
 			v1.InvoiceStatusApproved: true,
 		},
+		Page: -1,
 	})
 	if err != nil {
 		return err

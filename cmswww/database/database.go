@@ -34,32 +34,31 @@ var (
 // InvoicesRequest is used for passing parameters into the
 // GetInvoices() function.
 type InvoicesRequest struct {
-	After     string
-	Before    string
 	UserID    string
 	Month     uint16
 	Year      uint16
 	StatusMap map[v1.InvoiceStatusT]bool
+	Page      int
 }
 
 // Database interface that is required by the web server.
 type Database interface {
 	// User functions
-	CreateUser(*User) error                                      // Create new user
-	UpdateUser(*User) error                                      // Update existing user
-	GetUserByEmail(string) (*User, error)                        // Return user record given the email address
-	GetUserByUsername(string) (*User, error)                     // Return user record given the username
-	GetUserById(uint64) (*User, error)                           // Return user record given its id
-	GetUserIdByPublicKey(string) (uint64, error)                 // Return user id by public key
-	GetAllUsers(callbackFn func(u *User)) error                  // Iterate all users
-	GetUsers(username string, maxUsers int) ([]User, int, error) // Returns a list of users and total count that match the provided username.
+	CreateUser(*User) error                                  // Create new user
+	UpdateUser(*User) error                                  // Update existing user
+	GetUserByEmail(string) (*User, error)                    // Return user record given the email address
+	GetUserByUsername(string) (*User, error)                 // Return user record given the username
+	GetUserById(uint64) (*User, error)                       // Return user record given its id
+	GetUserIdByPublicKey(string) (uint64, error)             // Return user id by public key
+	GetAllUsers(callbackFn func(u *User)) error              // Iterate all users
+	GetUsers(username string, page int) ([]User, int, error) // Returns a list of users and total count that match the provided username.
 
 	// Invoice functions
-	CreateInvoice(*Invoice) error                   // Create new invoice
-	UpdateInvoice(*Invoice) error                   // Update existing invoice
-	GetInvoiceByToken(string) (*Invoice, error)     // Return invoice given its token
-	GetInvoices(InvoicesRequest) ([]Invoice, error) // Return a list of invoices
-	UpdateInvoicePayment(*InvoicePayment) error     // Update an existing invoice's payment
+	CreateInvoice(*Invoice) error                        // Create new invoice
+	UpdateInvoice(*Invoice) error                        // Update existing invoice
+	GetInvoiceByToken(string) (*Invoice, error)          // Return invoice given its token
+	GetInvoices(InvoicesRequest) ([]Invoice, int, error) // Return a list of invoices
+	UpdateInvoicePayment(*InvoicePayment) error          // Update an existing invoice's payment
 
 	DeleteAllData() error // Delete all data from all tables
 

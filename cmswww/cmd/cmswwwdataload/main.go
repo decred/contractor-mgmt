@@ -37,6 +37,7 @@ func createLogFile(path string) (*os.File, error) {
 }
 
 func createInvoiceFile(month, year uint16, numRecords int) (string, error) {
+	fmt.Printf("Creating invoice file\n")
 	date := time.Date(int(year), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	filepath := path.Join(cfg.DataDir, date.Format("2006-01.csv"))
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0644)
@@ -536,9 +537,11 @@ func _main() error {
 
 func main() {
 	err := _main()
-	stopServers()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
+	}
+	stopServers()
+	if err != nil {
 		os.Exit(1)
 	}
 }

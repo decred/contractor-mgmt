@@ -19,23 +19,25 @@ const (
 
 type User struct {
 	gorm.Model
-	Email                            string         `gorm:"type:varchar(100);unique_index"`
-	Username                         sql.NullString `gorm:"unique"`
-	HashedPassword                   sql.NullString
-	Name                             string `gorm:"not_null"`
-	Location                         string `gorm:"not_null"`
-	ExtendedPublicKey                string `gorm:"not_null"`
-	Admin                            bool   `gorm:"not_null"`
-	RegisterVerificationToken        sql.NullString
-	RegisterVerificationExpiry       pq.NullTime
-	UpdateIdentityVerificationToken  sql.NullString
-	UpdateIdentityVerificationExpiry pq.NullTime
-	ResetPasswordVerificationToken   sql.NullString
-	ResetPasswordVerificationExpiry  pq.NullTime
-	LastLogin                        pq.NullTime
-	FailedLoginAttempts              uint64 `gorm:"not_null"`
-	PaymentAddressIndex              uint64 `gorm:"not_null"`
-	EmailNotifications               uint64 `gorm:"not_null"`
+	Email                                     string         `gorm:"type:varchar(100);unique_index"`
+	Username                                  sql.NullString `gorm:"unique"`
+	HashedPassword                            sql.NullString
+	Name                                      string `gorm:"not_null"`
+	Location                                  string `gorm:"not_null"`
+	ExtendedPublicKey                         string `gorm:"not_null"`
+	Admin                                     bool   `gorm:"not_null"`
+	RegisterVerificationToken                 sql.NullString
+	RegisterVerificationExpiry                pq.NullTime
+	UpdateIdentityVerificationToken           sql.NullString
+	UpdateIdentityVerificationExpiry          pq.NullTime
+	ResetPasswordVerificationToken            sql.NullString
+	ResetPasswordVerificationExpiry           pq.NullTime
+	UpdateExtendedPublicKeyVerificationToken  sql.NullString
+	UpdateExtendedPublicKeyVerificationExpiry pq.NullTime
+	LastLogin                                 pq.NullTime
+	FailedLoginAttempts                       uint64 `gorm:"not_null"`
+	PaymentAddressIndex                       uint64 `gorm:"not_null"`
+	EmailNotifications                        uint64 `gorm:"not_null"`
 
 	Identities []Identity
 	Invoices   []Invoice

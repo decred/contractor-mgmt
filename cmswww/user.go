@@ -245,6 +245,7 @@ func (c *cmswww) HandleEditUserExtendedPublicKey(
 	if eu.VerificationToken == "" {
 		c.emailUpdateExtendedPublicKey(user, &eur)
 	} else {
+		log.Infof("xpubkey Verification token: %v\n", eu.VerificationToken)
 		token := hex.EncodeToString(user.UpdateExtendedPublicKeyVerificationToken)
 		if eu.VerificationToken != token {
 			return nil, v1.UserError{

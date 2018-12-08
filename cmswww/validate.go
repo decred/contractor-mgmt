@@ -243,7 +243,7 @@ func (c *cmswww) validateUsername(username string, userToMatch *database.User) e
 
 func (c *cmswww) validatePubkeyIsUnique(publicKey string, user *database.User) error {
 	userID, err := c.db.GetUserIdByPublicKey(publicKey)
-	if err != nil {
+	if err != nil && err != database.ErrUserNotFound {
 		return err
 	}
 

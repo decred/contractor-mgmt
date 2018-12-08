@@ -333,20 +333,19 @@ func (c *cmswww) HandleInvoices(
 		statusMap[i.Status] = true
 	}
 
-	invoices, err := c.getInvoices(database.InvoicesRequest{
-		//After:  ui.After,
-		//Before: ui.Before,
+	invoices, numMatches, err := c.getInvoices(database.InvoicesRequest{
 		Month:     i.Month,
 		Year:      i.Year,
 		StatusMap: statusMap,
+		Page:      int(i.Page),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	log.Infof("returning v1.InvoicesReply\n")
 	return &v1.InvoicesReply{
-		Invoices: invoices,
+		Invoices:     invoices,
+		TotalMatches: uint64(numMatches),
 	}, nil
 }
 
@@ -359,13 +358,14 @@ func (c *cmswww) HandleReviewInvoices(
 ) (interface{}, error) {
 	ri := req.(*v1.ReviewInvoices)
 
-	invoices, err := c.db.GetInvoices(database.InvoicesRequest{
+	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
 		Month: ri.Month,
 		Year:  ri.Year,
 		StatusMap: map[v1.InvoiceStatusT]bool{
 			v1.InvoiceStatusNotReviewed:       true,
 			v1.InvoiceStatusUnreviewedChanges: true,
 		},
+		Page: -1,
 	})
 	if err != nil {
 		return nil, err
@@ -401,12 +401,13 @@ func (c *cmswww) HandlePayInvoices(
 ) (interface{}, error) {
 	pi := req.(*v1.PayInvoices)
 
-	invoices, err := c.db.GetInvoices(database.InvoicesRequest{
+	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
 		Month: pi.Month,
 		Year:  pi.Year,
 		StatusMap: map[v1.InvoiceStatusT]bool{
 			v1.InvoiceStatusApproved: true,
 		},
+		Page: -1,
 	})
 	if err != nil {
 		return nil, err
@@ -468,18 +469,18 @@ func (c *cmswww) HandleUserInvoices(
 		statusMap[ui.Status] = true
 	}
 
-	invoices, err := c.getInvoices(database.InvoicesRequest{
-		//After:  ui.After,
-		//Before: ui.Before,
+	invoices, numMatches, err := c.getInvoices(database.InvoicesRequest{
 		UserID:    strconv.FormatUint(user.ID, 10),
 		StatusMap: statusMap,
+		Page:      int(ui.Page),
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &v1.InvoicesReply{
-		Invoices: invoices,
+		Invoices:     invoices,
+		TotalMatches: uint64(numMatches),
 	}, nil
 }
 

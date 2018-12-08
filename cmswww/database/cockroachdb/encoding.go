@@ -56,6 +56,14 @@ func EncodeUser(dbUser *database.User) *User {
 		user.ResetPasswordVerificationExpiry.Time = time.Unix(dbUser.ResetPasswordVerificationExpiry, 0)
 	}
 
+	if dbUser.UpdateExtendedPublicKeyVerificationToken != nil {
+		user.UpdateExtendedPublicKeyVerificationToken.Valid = true
+		user.UpdateExtendedPublicKeyVerificationToken.String = hex.EncodeToString(dbUser.UpdateExtendedPublicKeyVerificationToken)
+
+		user.UpdateExtendedPublicKeyVerificationExpiry.Valid = true
+		user.UpdateExtendedPublicKeyVerificationExpiry.Time = time.Unix(dbUser.UpdateExtendedPublicKeyVerificationExpiry, 0)
+	}
+
 	if dbUser.LastLogin != 0 {
 		user.LastLogin.Valid = true
 		user.LastLogin.Time = time.Unix(dbUser.LastLogin, 0)
@@ -114,6 +122,14 @@ func DecodeUser(user *User) (*database.User, error) {
 			return nil, err
 		}
 		dbUser.ResetPasswordVerificationExpiry = user.ResetPasswordVerificationExpiry.Time.Unix()
+	}
+
+	if user.UpdateExtendedPublicKeyVerificationToken.Valid {
+		dbUser.UpdateExtendedPublicKeyVerificationToken, err = hex.DecodeString(user.UpdateExtendedPublicKeyVerificationToken.String)
+		if err != nil {
+			return nil, err
+		}
+		dbUser.UpdateExtendedPublicKeyVerificationExpiry = user.UpdateExtendedPublicKeyVerificationExpiry.Time.Unix()
 	}
 
 	if user.LastLogin.Valid {

@@ -137,7 +137,7 @@ func (c *cmswww) _setupInvoicePaidEmailNotification() {
 			}
 		}
 	}()
-	c.eventManager._register(EventTypeInvoiceStatusChange, ch)
+	c.eventManager._register(EventTypeInvoicePaid, ch)
 }
 
 func (c *cmswww) _setupInvoiceStatusChangeLogging() {
@@ -147,6 +147,10 @@ func (c *cmswww) _setupInvoiceStatusChangeLogging() {
 			data, ok := d.(EventDataInvoiceStatusChange)
 			if !ok {
 				log.Errorf("invalid event data")
+				continue
+			}
+
+			if data.AdminUser == nil {
 				continue
 			}
 

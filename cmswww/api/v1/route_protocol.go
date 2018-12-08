@@ -259,11 +259,13 @@ type Invoices struct {
 	Status InvoiceStatusT `json:"status"`
 	Month  uint16         `json:"month"`
 	Year   uint16         `json:"year"`
+	Page   uint16         `json:"page"`
 }
 
 // InvoicesReply is used to reply with a list of invoices.
 type InvoicesReply struct {
-	Invoices []InvoiceRecord `json:"invoices"`
+	Invoices     []InvoiceRecord `json:"invoices"`
+	TotalMatches uint64          `json:"totalmatches"`
 }
 
 // ReviewInvoices retrieves all unreviewed invoices and returns each of their
@@ -330,6 +332,7 @@ type InvoicePayment struct {
 // UserInvoices retrieves all invoices with a given status for a user.
 type UserInvoices struct {
 	Status InvoiceStatusT `json:"status"`
+	Page   uint16         `json:"page"`
 }
 
 // UserInvoicesReply is used to reply with a list of user's invoices.
@@ -442,6 +445,7 @@ type EditUserExtendedPublicKeyReply struct {
 // Users is used to request a list of users given a filter.
 type Users struct {
 	Username string `json:"username"` // String which should match or partially match a username
+	Page     uint16 `json:"page"`     // The page number being requested
 }
 
 // UsersReply is a reply to the Users command, replying with a list of users.

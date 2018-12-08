@@ -71,11 +71,11 @@ func (c *cmswww) getInvoice(token string) (*v1.InvoiceRecord, error) {
 // specified in the provided request.
 //
 // This function must be called WITHOUT the mutex held.
-func (c *cmswww) getInvoices(pr database.InvoicesRequest) ([]v1.InvoiceRecord, error) {
-	dbInvoices, err := c.db.GetInvoices(pr)
+func (c *cmswww) getInvoices(pr database.InvoicesRequest) ([]v1.InvoiceRecord, int, error) {
+	dbInvoices, numMatches, err := c.db.GetInvoices(pr)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return convertDatabaseInvoicesToInvoices(dbInvoices), nil
+	return convertDatabaseInvoicesToInvoices(dbInvoices), numMatches, nil
 }

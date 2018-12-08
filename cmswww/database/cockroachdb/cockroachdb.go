@@ -12,6 +12,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 
+	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
@@ -140,6 +141,9 @@ func (c *cockroachdb) GetUserIdByPublicKey(publicKey string) (uint64, error) {
 	var id Identity
 	result := c.db.Where("key = ?", publicKey).First(&id)
 	if result.Error != nil {
+		if gorm.IsRecordNotFoundError(result.Error) {
+			return 0, database.ErrUserNotFound
+		}
 		return 0, result.Error
 	}
 
@@ -173,14 +177,21 @@ func (c *cockroachdb) GetAllUsers(callbackFn func(u *database.User)) error {
 // Returns a list of users and the total count that match the provided username.
 //
 // GetUsers satisfies the backend interface.
-func (c *cockroachdb) GetUsers(username string, maxUsers int) ([]database.User, int, error) {
+func (c *cockroachdb) GetUsers(username string, page int) ([]database.User, int, error) {
 	log.Debugf("GetUsers")
 
 	query := "? = '' OR (lower(username) like lower(?) || '%')"
+	order := "created_at ASC"
 	username = strings.TrimSpace(username)
 
 	var users []User
-	result := c.db.Limit(maxUsers).Find(&users, query, username, username)
+
+	db := c.db
+	if page > -1 {
+		db = db.Offset(page * v1.ListPageSize).Limit(v1.ListPageSize)
+	}
+
+	result := db.Order(order).Find(&users, query, username, username)
 	if result.Error != nil {
 		return nil, 0, result.Error
 	}
@@ -194,10 +205,10 @@ func (c *cockroachdb) GetUsers(username string, maxUsers int) ([]database.User, 
 		dbUsers = append(dbUsers, *dbUser)
 	}
 
-	// If the number of users returned equals the max users,
+	// If the number of users returned equals the apage size,
 	// find the count of all users that match the query.
 	numMatches := len(users)
-	if len(users) == maxUsers {
+	if len(users) == v1.ListPageSize {
 		result = c.db.Model(&User{}).Where(query, username,
 			username).Count(&numMatches)
 		if result.Error != nil {
@@ -254,7 +265,7 @@ func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error)
 }
 
 // Return a list of invoices.
-func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]database.Invoice, error) {
+func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]database.Invoice, int, error) {
 	log.Debugf("GetInvoices")
 
 	paramsMap := make(map[string]interface{})
@@ -262,7 +273,7 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 	if invoicesRequest.UserID != "" {
 		paramsMap["i.user_id"], err = strconv.ParseUint(invoicesRequest.UserID, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
@@ -282,19 +293,46 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 		paramsMap["i.year"] = invoicesRequest.Year
 	}
 
-	var invoices []Invoice
-	db := c.db.Table(fmt.Sprintf("%v i", tableNameInvoice)).Select("i.*, u.username").Joins(
-		fmt.Sprintf("inner join %v u on i.user_id = u.id", tableNameUser))
+	tbl := fmt.Sprintf("%v i", tableNameInvoice)
+	sel := "i.*, u.username"
+	join := fmt.Sprintf("inner join %v u on i.user_id = u.id", tableNameUser)
+	order := "i.timestamp asc"
+
+	db := c.db.Table(tbl)
+	if invoicesRequest.Page > -1 {
+		offset := invoicesRequest.Page * v1.ListPageSize
+		db = db.Offset(offset).Limit(v1.ListPageSize)
+	}
+	db = db.Select(sel).Joins(join)
 	db = c.addWhereClause(db, paramsMap)
+	db = db.Order(order)
+
+	var invoices []Invoice
 	result := db.Scan(&invoices)
 	if result.Error != nil {
 		if gorm.IsRecordNotFoundError(result.Error) {
-			return nil, database.ErrInvoiceNotFound
+			return nil, 0, database.ErrInvoiceNotFound
 		}
-		return nil, result.Error
+		return nil, 0, result.Error
 	}
 
-	return DecodeInvoices(invoices)
+	// If the number of users returned equals the apage size,
+	// find the count of all users that match the query.
+	numMatches := len(invoices)
+	if len(invoices) == v1.ListPageSize {
+		db = c.db.Table(tbl).Select(sel).Joins(join)
+		db = c.addWhereClause(db, paramsMap)
+		result = db.Count(&numMatches)
+		if result.Error != nil {
+			return nil, 0, result.Error
+		}
+	}
+
+	dbInvoices, err := DecodeInvoices(invoices)
+	if err != nil {
+		return nil, 0, err
+	}
+	return dbInvoices, numMatches, nil
 }
 
 func (c *cockroachdb) UpdateInvoicePayment(dbInvoicePayment *database.InvoicePayment) error {

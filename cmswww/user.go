@@ -259,7 +259,7 @@ func (c *cmswww) HandleEditUserExtendedPublicKey(
 		}
 
 		user.ExtendedPublicKey = eu.ExtendedPublicKey
-		user.UpdateExtendedPublicKeyVerificationToken = nil
+		user.UpdateExtendedPublicKeyVerificationToken = []byte{}
 		user.UpdateExtendedPublicKeyVerificationExpiry = 0
 		err := c.db.UpdateUser(user)
 		if err != nil {
@@ -353,7 +353,7 @@ func (c *cmswww) verifyUpdateExtendedPublicKey(
 
 	// Clear out the verification token fields, set the new password in the db,
 	// and unlock account
-	user.ResetPasswordVerificationToken = nil
+	user.ResetPasswordVerificationToken = []byte{}
 	user.ResetPasswordVerificationExpiry = 0
 	user.HashedPassword = hashedPassword
 	user.FailedLoginAttempts = 0
@@ -487,7 +487,7 @@ func (c *cmswww) HandleVerifyNewIdentity(
 
 	// Clear out the verification token fields in the db and activate
 	// the key and deactivate the one it's replacing.
-	user.UpdateIdentityVerificationToken = nil
+	user.UpdateIdentityVerificationToken = []byte{}
 	user.UpdateIdentityVerificationExpiry = 0
 
 	t := time.Now().Unix()
@@ -670,7 +670,7 @@ func (c *cmswww) verifyResetPassword(
 
 	// Clear out the verification token fields, set the new password in the db,
 	// and unlock account
-	user.ResetPasswordVerificationToken = nil
+	user.ResetPasswordVerificationToken = []byte{}
 	user.ResetPasswordVerificationExpiry = 0
 	user.HashedPassword = hashedPassword
 	user.FailedLoginAttempts = 0

@@ -37,6 +37,7 @@ const (
 	ErrorStatusUserAlreadyExists              ErrorStatusT = 26
 	ErrorStatusReasonNotProvided              ErrorStatusT = 27
 	ErrorStatusMalformedInvoiceFile           ErrorStatusT = 28
+	ErrorStatusInvoicePaymentNotFound         ErrorStatusT = 29
 
 	// Invoice status codes
 	InvoiceStatusInvalid           InvoiceStatusT = 0 // Invalid status

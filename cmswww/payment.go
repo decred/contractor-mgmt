@@ -36,6 +36,7 @@ func pollHasExpired(pollExpiry int64) bool {
 }
 
 func (c *cmswww) derivePaymentInfo(user *database.User) (string, int64, error) {
+	fmt.Printf("xpubkey: %v\n", user.ExtendedPublicKey)
 	address, err := util.DerivePaywallAddress(c.params,
 		user.ExtendedPublicKey, uint32(user.PaymentAddressIndex))
 	if err != nil {
@@ -168,6 +169,19 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 		}
 
 		if tx != "" {
+			ts := time.Now().Unix()
+
+			// Create the change metadata record.
+			mdChange, err := json.Marshal(BackendInvoiceMDChange{
+				Version:   VersionBackendInvoiceMDChange,
+				Timestamp: ts,
+				NewStatus: v1.InvoiceStatusPaid,
+			})
+			if err != nil {
+				log.Errorf("cannot marshal backend change: %v", err)
+				continue
+			}
+
 			// Create the payment metadata record.
 			mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
 				Version:     VersionBackendInvoiceMDPayment,
@@ -194,6 +208,12 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 					{
 						ID:      mdStreamPayments,
 						Payload: string(mdPayment),
+					},
+				},
+				MDAppend: []pd.MetadataStream{
+					{
+						ID:      mdStreamChanges,
+						Payload: string(mdChange),
 					},
 				},
 			}
@@ -231,7 +251,7 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 				}
 			}
 			dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
-				Timestamp: time.Now().Unix(),
+				Timestamp: ts,
 				NewStatus: v1.InvoiceStatusPaid,
 			})
 			err = c.db.UpdateInvoice(dbInvoice)

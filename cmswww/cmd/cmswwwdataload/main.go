@@ -292,6 +292,21 @@ func testEditUser(email, password string) error {
 		return err
 	}
 
+	udr3, err := c.UserDetails(lr.UserID)
+	if err != nil {
+		return err
+	}
+
+	if udr.User.Name != udr3.User.Name {
+		return fmt.Errorf("User's name was not changed back")
+	}
+	if udr.User.Location != udr3.User.Location {
+		return fmt.Errorf("User's location was not changed back")
+	}
+	if udr.User.ExtendedPublicKey != udr3.User.ExtendedPublicKey {
+		return fmt.Errorf("User's extended public key was not changed back")
+	}
+
 	return c.Logout()
 }
 

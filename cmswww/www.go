@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	pd "github.com/decred/politeia/politeiad/api/v1"
 	"github.com/decred/politeia/util"
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -108,12 +109,13 @@ func RespondWithError(
 
 	if pdError, ok := args[0].(v1.PDError); ok {
 		pdErrorCode := convertErrorStatusFromPD(pdError.ErrorReply.ErrorCode)
+		pdErrorStatus := pd.ErrorStatus[pd.ErrorStatusT(pdError.ErrorReply.ErrorCode)]
 		if pdErrorCode == v1.ErrorStatusInvalid {
 			errorCode := time.Now().Unix()
 			log.Errorf("%v %v %v %v Internal error %v: error "+
-				"code from politeiad: %v", remoteAddr(r),
+				"code from politeiad: %v %v", remoteAddr(r),
 				r.Method, r.URL, r.Proto, errorCode,
-				pdError.ErrorReply.ErrorCode)
+				pdError.ErrorReply.ErrorCode, pdErrorStatus)
 			util.RespondWithJSON(w, http.StatusInternalServerError,
 				v1.ErrorReply{
 					ErrorCode: errorCode,

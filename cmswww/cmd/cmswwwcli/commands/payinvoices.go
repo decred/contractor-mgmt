@@ -51,6 +51,7 @@ func (cmd *PayInvoicesCmd) Execute(args []string) error {
 
 				fmt.Printf("           User ID: %v\n", invoice.UserID)
 				fmt.Printf("          Username: %v\n", invoice.Username)
+				fmt.Printf("     Invoice token: %v\n", invoice.Token)
 				fmt.Printf("   ------------------------------------------\n")
 				fmt.Printf("             Hours: %v\n", invoice.TotalHours)
 				fmt.Printf("        Total cost: $%v\n", invoice.TotalCostUSD)

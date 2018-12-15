@@ -26,6 +26,7 @@ API.  It does not render HTML.
 - [`User invoices`](#user-invoices)
 - [`Review invoices`](#review-invoices)
 - [`Pay invoices`](#pay-invoices)
+- [`Update invoice payment`](#update-invoice-payment)
 - [`Submit invoice`](#submit-invoice)
 - [`Invoice details`](#invoice-details)
 - [`Set invoice status`](#set-invoice-status)
@@ -1003,6 +1004,44 @@ Reply:
 }
 ```
 
+### `Update invoice payment`
+
+Updates an invoice payment with a Decred transaction id.
+
+Note: This call requires admin privileges.
+
+**Route:** `POST /v1/invoice/payments/update`
+
+**Params:**
+
+| Parameter | Type | Description | Required |
+|-|-|-|-|
+| token | string | The invoice token. | Yes |
+| address | string | The payment address for the invoice. | Yes |
+| amount | int64 | The USD/DCR rate to use for generating invoice payment summaries. | Yes |
+| txid | string | The Decred transaction id for the payment. | Yes |
+
+**Results:** none
+
+**Example**
+
+Request:
+
+```json
+{
+  "token": "337fc4762dac6bbe11d3d0130f33a09978004b190e6ebbbde9312ac63f223527",
+  "address": "TsWJuYPXZqczwkckGZnHUqXgi7FemNks48W",
+  "amount": 5000000000,
+  "txid": "9ab1f8413bb895f46088e317d42a950e929ab8649961cc4a9311cba5c7bff73a"
+}
+```
+
+Reply:
+
+```json
+{}
+```
+
 ### `Submit invoice`
 
 Submit an invoice for the given month and year.
@@ -1123,7 +1162,7 @@ Sets the invoice status to either `InvoiceStatusApproved` or `InvoiceStatusRejec
 
 Note: This call requires admin privileges.
 
-**Route:** `POST /v1/invoice/setstatus`
+**Route:** `POST /v1/invoice/status`
 
 **Params:**
 

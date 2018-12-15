@@ -26,7 +26,8 @@ const (
 	RouteSubmitInvoice             = "/invoice/submit"
 	RouteEditInvoice               = "/invoice/edit"
 	RouteInvoiceDetails            = "/invoice"
-	RouteSetInvoiceStatus          = "/invoice/setstatus"
+	RouteSetInvoiceStatus          = "/invoice/status"
+	RouteUpdateInvoicePayment      = "/invoice/payments/update"
 	RoutePolicy                    = "/policy"
 )
 
@@ -250,6 +251,18 @@ type SetInvoiceStatus struct {
 // SetInvoiceStatusReply is used to reply to a SetInvoiceStatus command.
 type SetInvoiceStatusReply struct {
 	Invoice InvoiceRecord `json:"invoice"`
+}
+
+// UpdateInvoicePayment adds or updates a payment to an invoice.
+type UpdateInvoicePayment struct {
+	Token   string `json:"token"`
+	Address string `json:"address"`
+	Amount  uint   `json:"amount"`
+	TxID    string `json:"txid"`
+}
+
+//UpdateInvoicePaymentReply is used to reply to the UpdateInvoicePayment command.
+type UpdateInvoicePaymentReply struct {
 }
 
 // Invoices retrieves all invoices with a given status for a given month & year.

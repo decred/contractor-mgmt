@@ -136,7 +136,7 @@ func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceRevi
 	return &invoiceReview, nil
 }
 
-func (c *cmswww) createOrUpdateInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate float64) (*v1.InvoicePayment, error) {
+func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate float64) (*v1.InvoicePayment, error) {
 	invoicePayment := v1.InvoicePayment{
 		UserID:   strconv.FormatUint(dbInvoice.UserID, 10),
 		Username: dbInvoice.Username,
@@ -442,7 +442,7 @@ func (c *cmswww) HandlePayInvoices(
 			c.addInvoiceForPolling(invoice.Token, &invoicePayment)
 		}
 
-		invoicePayment, err := c.createOrUpdateInvoicePayment(invoice, pi.DCRUSDRate)
+		invoicePayment, err := c.createInvoicePayment(invoice, pi.DCRUSDRate)
 		if err != nil {
 			return nil, err
 		}
@@ -453,6 +453,121 @@ func (c *cmswww) HandlePayInvoices(
 	return &v1.PayInvoicesReply{
 		Invoices: invoicePayments,
 	}, nil
+}
+
+// HandleUpdateInvoicePayment updates a payment for an invoice.
+func (c *cmswww) HandleUpdateInvoicePayment(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	aip := req.(*v1.UpdateInvoicePayment)
+
+	dbInvoice, err := c.db.GetInvoiceByToken(aip.Token)
+	if err != nil {
+		if err == database.ErrInvoiceNotFound {
+			return nil, v1.UserError{
+				ErrorCode: v1.ErrorStatusInvoiceNotFound,
+			}
+		}
+
+		return nil, err
+	}
+
+	var dbInvoicePayment *database.InvoicePayment
+	for idx, payment := range dbInvoice.Payments {
+		if payment.Amount == uint64(aip.Amount) &&
+			payment.Address == aip.Address {
+			dbInvoice.Payments[idx].TxID = aip.TxID
+			dbInvoicePayment = &payment
+			break
+		}
+	}
+
+	if dbInvoicePayment == nil {
+		return nil, v1.UserError{
+			ErrorCode: v1.ErrorStatusInvoicePaymentNotFound,
+		}
+	}
+
+	ts := time.Now().Unix()
+
+	// Create the change metadata record.
+	mdChange, err := json.Marshal(BackendInvoiceMDChange{
+		Version:   VersionBackendInvoiceMDChange,
+		Timestamp: ts,
+		NewStatus: v1.InvoiceStatusPaid,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the payment metadata record.
+	mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
+		Version:     VersionBackendInvoiceMDPayment,
+		Address:     dbInvoicePayment.Address,
+		Amount:      dbInvoicePayment.Amount,
+		TxNotBefore: dbInvoicePayment.TxNotBefore,
+		TxID:        dbInvoicePayment.TxID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	pdCommand := pd.UpdateVettedMetadata{
+		Challenge: hex.EncodeToString(challenge),
+		Token:     dbInvoice.Token,
+		MDOverwrite: []pd.MetadataStream{
+			{
+				ID:      mdStreamPayments,
+				Payload: string(mdPayment),
+			},
+		},
+		MDAppend: []pd.MetadataStream{
+			{
+				ID:      mdStreamChanges,
+				Payload: string(mdChange),
+			},
+		},
+	}
+
+	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
+		pdCommand)
+	if err != nil {
+		return nil, err
+	}
+
+	var pdReply pd.UpdateVettedMetadataReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return nil, fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the invoice payment in the database.
+	dbInvoice.Status = v1.InvoiceStatusPaid
+	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
+		NewStatus: v1.InvoiceStatusPaid,
+		Timestamp: ts,
+	})
+	err = c.db.UpdateInvoice(dbInvoice)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v1.UpdateInvoicePaymentReply{}, nil
 }
 
 // HandleUserInvoices returns an array of user's invoices.

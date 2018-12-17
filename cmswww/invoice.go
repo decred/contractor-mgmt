@@ -283,6 +283,107 @@ func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate fl
 	return &invoicePayment, nil
 }
 
+func (c *cmswww) updateInvoicePayment(
+	dbInvoice *database.Invoice,
+	address string,
+	amount uint64,
+	txID string,
+) error {
+	var dbInvoicePayment *database.InvoicePayment
+	for idx, payment := range dbInvoice.Payments {
+		if payment.Amount == amount && payment.Address == address {
+			dbInvoice.Payments[idx].TxID = txID
+			dbInvoicePayment = &payment
+			break
+		}
+	}
+
+	if dbInvoicePayment == nil {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusInvoicePaymentNotFound,
+		}
+	}
+
+	ts := time.Now().Unix()
+
+	// Create the change metadata record.
+	mdChange, err := json.Marshal(BackendInvoiceMDChange{
+		Version:   VersionBackendInvoiceMDChange,
+		Timestamp: ts,
+		NewStatus: v1.InvoiceStatusPaid,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot marshal backend change: %v", err)
+	}
+
+	// Create the payment metadata record.
+	mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
+		Version:     VersionBackendInvoiceMDPayment,
+		Address:     dbInvoicePayment.Address,
+		Amount:      dbInvoicePayment.Amount,
+		TxNotBefore: dbInvoicePayment.TxNotBefore,
+		TxID:        dbInvoicePayment.TxID,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot marshal backend payment: %v", err)
+	}
+
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return fmt.Errorf("could not create challenge: %v", err)
+	}
+
+	pdCommand := pd.UpdateVettedMetadata{
+		Challenge: hex.EncodeToString(challenge),
+		Token:     dbInvoice.Token,
+		MDOverwrite: []pd.MetadataStream{
+			{
+				ID:      mdStreamPayments,
+				Payload: string(mdPayment),
+			},
+		},
+		MDAppend: []pd.MetadataStream{
+			{
+				ID:      mdStreamChanges,
+				Payload: string(mdChange),
+			},
+		},
+	}
+
+	responseBody, err := c.rpc(http.MethodPost,
+		pd.UpdateVettedMetadataRoute, pdCommand)
+	if err != nil {
+		return fmt.Errorf("problem communicating with politeiad: %v", err)
+	}
+
+	var pdReply pd.UpdateVettedMetadataReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal UpdateVettedMetadataReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	if err != nil {
+		return fmt.Errorf("could not verify challenge: %v", err)
+	}
+
+	// Update the invoice in the database.
+	dbInvoice.Status = v1.InvoiceStatusPaid
+	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
+		Timestamp: ts,
+		NewStatus: v1.InvoiceStatusPaid,
+	})
+	err = c.db.UpdateInvoice(dbInvoice)
+	if err != nil {
+		return fmt.Errorf("cannot update invoice with token %v: %v",
+			dbInvoice.Token, err)
+	}
+
+	return nil
+}
+
 func (c *cmswww) fetchInvoiceFileIfNecessary(invoice *database.Invoice) error {
 	if invoice.File != nil {
 		return nil
@@ -475,94 +576,8 @@ func (c *cmswww) HandleUpdateInvoicePayment(
 		return nil, err
 	}
 
-	var dbInvoicePayment *database.InvoicePayment
-	for idx, payment := range dbInvoice.Payments {
-		if payment.Amount == uint64(aip.Amount) &&
-			payment.Address == aip.Address {
-			dbInvoice.Payments[idx].TxID = aip.TxID
-			dbInvoicePayment = &payment
-			break
-		}
-	}
-
-	if dbInvoicePayment == nil {
-		return nil, v1.UserError{
-			ErrorCode: v1.ErrorStatusInvoicePaymentNotFound,
-		}
-	}
-
-	ts := time.Now().Unix()
-
-	// Create the change metadata record.
-	mdChange, err := json.Marshal(BackendInvoiceMDChange{
-		Version:   VersionBackendInvoiceMDChange,
-		Timestamp: ts,
-		NewStatus: v1.InvoiceStatusPaid,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the payment metadata record.
-	mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
-		Version:     VersionBackendInvoiceMDPayment,
-		Address:     dbInvoicePayment.Address,
-		Amount:      dbInvoicePayment.Amount,
-		TxNotBefore: dbInvoicePayment.TxNotBefore,
-		TxID:        dbInvoicePayment.TxID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	challenge, err := util.Random(pd.ChallengeSize)
-	if err != nil {
-		return nil, err
-	}
-
-	pdCommand := pd.UpdateVettedMetadata{
-		Challenge: hex.EncodeToString(challenge),
-		Token:     dbInvoice.Token,
-		MDOverwrite: []pd.MetadataStream{
-			{
-				ID:      mdStreamPayments,
-				Payload: string(mdPayment),
-			},
-		},
-		MDAppend: []pd.MetadataStream{
-			{
-				ID:      mdStreamChanges,
-				Payload: string(mdChange),
-			},
-		},
-	}
-
-	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
-		pdCommand)
-	if err != nil {
-		return nil, err
-	}
-
-	var pdReply pd.UpdateVettedMetadataReply
-	err = json.Unmarshal(responseBody, &pdReply)
-	if err != nil {
-		return nil, fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
-			err)
-	}
-
-	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update the invoice payment in the database.
-	dbInvoice.Status = v1.InvoiceStatusPaid
-	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
-		NewStatus: v1.InvoiceStatusPaid,
-		Timestamp: ts,
-	})
-	err = c.db.UpdateInvoice(dbInvoice)
+	err = c.updateInvoicePayment(dbInvoice, aip.Address, uint64(aip.Amount),
+		aip.TxID)
 	if err != nil {
 		return nil, err
 	}

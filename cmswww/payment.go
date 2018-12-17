@@ -1,13 +1,9 @@
 package main
 
 import (
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
-	pd "github.com/decred/politeia/politeiad/api/v1"
 	"github.com/decred/politeia/util"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -134,11 +130,6 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 	for token, polledPayment := range polledPayments {
 		dbInvoice, err := c.db.GetInvoiceByToken(token)
 		if err != nil {
-			if err == database.ErrShutdown {
-				// The database is shutdown, so stop the thread.
-				return false, nil
-			}
-
 			log.Errorf("cannot fetch invoice by token %v: %v\n", token, err)
 			continue
 		}
@@ -160,116 +151,26 @@ func (c *cmswww) checkForInvoicePayments(polledPayments map[string]polledPayment
 			continue
 		}
 
-		tx, _, err := util.FetchTxWithBlockExplorers(polledPayment.address,
+		txID, _, err := util.FetchTxWithBlockExplorers(polledPayment.address,
 			polledPayment.amount, polledPayment.txNotBefore,
 			c.cfg.MinConfirmationsRequired)
 		if err != nil {
-			log.Errorf("cannot fetch tx: %v\n", err)
+			log.Errorf("cannot fetch tx: %v", err)
 			continue
 		}
 
-		if tx != "" {
-			ts := time.Now().Unix()
-
-			// Create the change metadata record.
-			mdChange, err := json.Marshal(BackendInvoiceMDChange{
-				Version:   VersionBackendInvoiceMDChange,
-				Timestamp: ts,
-				NewStatus: v1.InvoiceStatusPaid,
-			})
+		if txID != "" {
+			err := c.updateInvoicePayment(dbInvoice, polledPayment.address,
+				polledPayment.amount, txID)
 			if err != nil {
-				log.Errorf("cannot marshal backend change: %v", err)
-				continue
-			}
-
-			// Create the payment metadata record.
-			mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
-				Version:     VersionBackendInvoiceMDPayment,
-				Address:     polledPayment.address,
-				Amount:      polledPayment.amount,
-				TxNotBefore: polledPayment.txNotBefore,
-				TxID:        tx,
-			})
-			if err != nil {
-				log.Errorf("cannot marshal backend payment: %v", err)
-				continue
-			}
-
-			challenge, err := util.Random(pd.ChallengeSize)
-			if err != nil {
-				log.Errorf("could not create challenge: %v", err)
-				continue
-			}
-
-			pdCommand := pd.UpdateVettedMetadata{
-				Challenge: hex.EncodeToString(challenge),
-				Token:     dbInvoice.Token,
-				MDOverwrite: []pd.MetadataStream{
-					{
-						ID:      mdStreamPayments,
-						Payload: string(mdPayment),
-					},
-				},
-				MDAppend: []pd.MetadataStream{
-					{
-						ID:      mdStreamChanges,
-						Payload: string(mdChange),
-					},
-				},
-			}
-
-			responseBody, err := c.rpc(http.MethodPost,
-				pd.UpdateVettedMetadataRoute, pdCommand)
-			if err != nil {
-				log.Errorf("problem communicating with politeiad: %v", err)
-				continue
-			}
-
-			var pdReply pd.UpdateVettedMetadataReply
-			err = json.Unmarshal(responseBody, &pdReply)
-			if err != nil {
-				log.Errorf("could not unmarshal UpdateVettedMetadataReply: %v",
-					err)
-				continue
-			}
-
-			// Verify the challenge.
-			err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-			if err != nil {
-				log.Errorf("could not verify challenge: %v",
-					err)
-				continue
-			}
-
-			// Update the invoice in the database.
-			dbInvoice.Status = v1.InvoiceStatusPaid
-			for idx, invoicePayment := range dbInvoice.Payments {
-				if invoicePayment.Address == polledPayment.address &&
-					invoicePayment.Amount == polledPayment.amount &&
-					invoicePayment.TxNotBefore == polledPayment.txNotBefore {
-					dbInvoice.Payments[idx].TxID = tx
-				}
-			}
-			dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
-				Timestamp: ts,
-				NewStatus: v1.InvoiceStatusPaid,
-			})
-			err = c.db.UpdateInvoice(dbInvoice)
-			if err != nil {
-				if err == database.ErrShutdown {
-					// The database is shutdown, so stop the thread.
-					return false, nil
-				}
-
-				log.Errorf("cannot update invoice with token %v: %v",
-					dbInvoice.Token, err)
+				log.Errorf("could not update invoice payment: %v", err)
 				continue
 			}
 
 			c.fireEvent(EventTypeInvoicePaid,
 				EventDataInvoicePaid{
 					Invoice: dbInvoice,
-					TxID:    tx,
+					TxID:    txID,
 				},
 			)
 

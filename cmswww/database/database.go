@@ -26,9 +26,6 @@ var (
 
 	// ErrInvalidEmail indicates that a user's email is not properly formatted.
 	ErrInvalidEmail = errors.New("invalid user email")
-
-	// ErrShutdown is emitted when the database is shutting down.
-	ErrShutdown = errors.New("database is shutting down")
 )
 
 // InvoicesRequest is used for passing parameters into the

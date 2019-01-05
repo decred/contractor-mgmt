@@ -20,7 +20,7 @@ JSON REST RPC commands only.
 
 ## Development
 
-#### 1. Install [Go](https://golang.org/doc/install), [dep](https://github.com/golang/dep), and [Git](https://git-scm.com/downloads).
+#### 1. Install [Go](https://golang.org/doc/install) version 1.11 or greater, and [Git](https://git-scm.com/downloads).
 
 Make sure each of these are in the PATH.
 
@@ -126,9 +126,9 @@ things like new user registration, and those settings are also configured within
 
 ```
 cd $GOPATH/src/github.com/decred/politeia
-dep ensure && go install -v ./...
+GO111MODULE=on go mod vendor && go install -v ./...
 cd $GOPATH/src/github.com/decred/contractor-mgmt
-dep ensure && go install -v ./...
+GO111MODULE=on go mod vendor && go install -v ./...
 ```
 
 #### 5. Start the politeiad server by running on your terminal:

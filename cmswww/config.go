@@ -6,6 +6,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -263,8 +264,11 @@ func initSMTP(cfg *config) error {
 		}
 
 		var err error
-		cfg.SMTP, err = goemail.NewSMTP("smtps://" + cfg.MailUser +
-			":" + cfg.MailPass + "@" + cfg.MailHost)
+		tlscfg := tls.Config{
+			InsecureSkipVerify: true,
+		}
+		cfg.SMTP, err = goemail.NewSMTP("smtps://"+cfg.MailUser+
+			":"+cfg.MailPass+"@"+cfg.MailHost, tlscfg)
 		if err != nil {
 			return err
 		}

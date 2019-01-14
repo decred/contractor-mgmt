@@ -268,7 +268,7 @@ func initSMTP(cfg *config) error {
 			InsecureSkipVerify: true,
 		}
 		cfg.SMTP, err = goemail.NewSMTP("smtps://"+cfg.MailUser+
-			":"+cfg.MailPass+"@"+cfg.MailHost, tlscfg)
+			":"+cfg.MailPass+"@"+cfg.MailHost, &tlscfg)
 		if err != nil {
 			return err
 		}

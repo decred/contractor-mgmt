@@ -1,0 +1,11 @@
+language: go
+go:
+  - 1.11.x
+sudo: false
+install:
+  - go get -v github.com/alecthomas/gometalinter
+  - gometalinter --install
+script:
+  - export GO111MODULE=on
+  - (cd cmswww && go build)
+  - ./goclean.sh

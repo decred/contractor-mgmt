@@ -82,7 +82,7 @@ func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceRevi
 		UserID:    strconv.FormatUint(invoice.UserID, 10),
 		Username:  invoice.Username,
 		Token:     invoice.Token,
-		LineItems: make([]v1.InvoiceReviewLineItem, 0, 0),
+		LineItems: make([]v1.InvoiceReviewLineItem, 0),
 	}
 
 	b, err := base64.StdEncoding.DecodeString(invoice.File.Payload)
@@ -429,7 +429,7 @@ func (c *cmswww) HandleInvoices(
 ) (interface{}, error) {
 	i := req.(*v1.Invoices)
 
-	statusMap := make(map[v1.InvoiceStatusT]bool, 0)
+	statusMap := make(map[v1.InvoiceStatusT]bool)
 	if i.Status != v1.InvoiceStatusInvalid {
 		statusMap[i.Status] = true
 	}
@@ -514,7 +514,7 @@ func (c *cmswww) HandlePayInvoices(
 		return nil, err
 	}
 
-	invoicePayments := make([]v1.InvoicePayment, 0, 0)
+	invoicePayments := make([]v1.InvoicePayment, 0)
 
 	for _, inv := range invoices {
 		invoice, err := c.db.GetInvoiceByToken(inv.Token)
@@ -967,6 +967,9 @@ func (c *cmswww) HandleEditInvoice(
 		Timestamp: ts,
 		NewStatus: v1.InvoiceStatusUnreviewedChanges,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	u := pd.UpdateRecord{
 		Token:     ei.Token,

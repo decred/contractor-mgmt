@@ -22,7 +22,7 @@ API.  It does not render HTML.
 - [`Change password`](#change-password)
 - [`Reset password`](#reset-password)
 - [`Users`](#users)
-- [`Invoices](#invoices)
+- [`Invoices`](#invoices)
 - [`User invoices`](#user-invoices)
 - [`Review invoices`](#review-invoices)
 - [`Pay invoices`](#pay-invoices)

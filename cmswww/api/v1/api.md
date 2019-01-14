@@ -1339,7 +1339,7 @@ Reply:
 |-|-|-|
 | <a name="UserManageInvalid">UserManageInvalid</a>| 0 | An invalid action. This shall be considered a bug. |
 | <a name="UserManageResendInvite">UserManageResendInvite</a> | 1 | Resends the invitation email. |
-| <a name="UserManageRegenerateUpdateIdentityVerification">UserManageRegenerateUpdateIdentityVerification</a> | 2 | Resends the update identity verification email. |
+| <a name="UserManageExpireUpdateIdentityVerification">UserManageExpireUpdateIdentityVerification</a> | 2 | Resends the update identity verification email. |
 | <a name="UserManageUnlock">UserManageUnlock</a> | 3 | Unlocks a user's account. |
 | <a name="UserManageLock">UserManageLock</a> | 4 | Locks a user's account. |
 

@@ -156,7 +156,8 @@ func (c *cmswww) _setupInvoiceStatusChangeLogging() {
 
 			// Log the action in the admin log.
 			err := c.logAdminInvoiceAction(data.AdminUser, data.Invoice.Token,
-				fmt.Sprintf("set invoice status to %v,%v",
+				fmt.Sprintf("set %v invoice status to %v",
+					data.Invoice.Token,
 					v1.InvoiceStatus[data.Invoice.Status]),
 				data.Invoice.StatusChangeReason)
 

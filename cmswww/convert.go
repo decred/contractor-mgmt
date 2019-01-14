@@ -40,13 +40,13 @@ type BackendInvoiceMDPayment struct {
 
 func convertDatabaseUserToUser(user *database.User) v1.User {
 	return v1.User{
-		ID:                strconv.FormatUint(user.ID, 10),
-		Email:             user.Email,
-		Username:          user.Username,
-		Name:              user.Name,
-		Location:          user.Location,
-		ExtendedPublicKey: user.ExtendedPublicKey,
-		Admin:             user.Admin,
+		ID:                               strconv.FormatUint(user.ID, 10),
+		Email:                            user.Email,
+		Username:                         user.Username,
+		Name:                             user.Name,
+		Location:                         user.Location,
+		ExtendedPublicKey:                user.ExtendedPublicKey,
+		Admin:                            user.Admin,
 		RegisterVerificationToken:        user.RegisterVerificationToken,
 		RegisterVerificationExpiry:       user.RegisterVerificationExpiry,
 		UpdateIdentityVerificationToken:  user.UpdateIdentityVerificationToken,

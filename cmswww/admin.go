@@ -229,13 +229,15 @@ func (c *cmswww) HandleManageUser(
 		}
 
 		mur.VerificationToken = &token
-	case v1.UserManageRegenerateUpdateIdentityVerification:
-		/*
-			// -168 hours is 7 days in the past
-			expiredTime := time.Now().Add(-168 * time.Hour).Unix()
+	case v1.UserManageExpireUpdateIdentityVerification:
+		// -168 hours is 7 days in the past
+		expiredTime := time.Now().Add(-168 * time.Hour).Unix()
 
-			targetUser.UpdateIdentityVerificationExpiry = expiredTime
-		*/
+		targetUser.UpdateIdentityVerificationExpiry = expiredTime
+		err = c.db.UpdateUser(targetUser)
+		if err != nil {
+			return nil, err
+		}
 	case v1.UserManageUnlock:
 		targetUser.FailedLoginAttempts = 0
 		err = c.db.UpdateUser(targetUser)

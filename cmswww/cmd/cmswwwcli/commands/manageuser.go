@@ -16,7 +16,7 @@ type ManageUserCmd struct {
 var (
 	UserManageActionCommands = map[string]v1.UserManageActionT{
 		"resendinvite":        v1.UserManageResendInvite,
-		"resendidentitytoken": v1.UserManageRegenerateUpdateIdentityVerification,
+		"expireidentitytoken": v1.UserManageExpireUpdateIdentityVerification,
 		"lock":                v1.UserManageLock,
 		"unlock":              v1.UserManageUnlock,
 	}

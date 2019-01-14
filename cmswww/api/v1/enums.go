@@ -49,11 +49,11 @@ const (
 	InvoiceStatusPaid              InvoiceStatusT = 6 // Invoice has been paid
 
 	// User manage actions
-	UserManageInvalid                              UserManageActionT = 0 // Invalid action type
-	UserManageResendInvite                         UserManageActionT = 1
-	UserManageRegenerateUpdateIdentityVerification UserManageActionT = 2
-	UserManageUnlock                               UserManageActionT = 3
-	UserManageLock                                 UserManageActionT = 4
+	UserManageInvalid                          UserManageActionT = 0 // Invalid action type
+	UserManageResendInvite                     UserManageActionT = 1
+	UserManageExpireUpdateIdentityVerification UserManageActionT = 2
+	UserManageUnlock                           UserManageActionT = 3
+	UserManageLock                             UserManageActionT = 4
 
 	InvoiceFieldTypeInvalid InvoiceFieldTypeT = 0
 	InvoiceFieldTypeString  InvoiceFieldTypeT = 1
@@ -111,10 +111,10 @@ var (
 
 	// UserManageAction converts user manage actions to human readable text
 	UserManageAction = map[UserManageActionT]string{
-		UserManageInvalid:                              "invalid action",
-		UserManageResendInvite:                         "resend invite",
-		UserManageRegenerateUpdateIdentityVerification: "regenerate update identity verification",
-		UserManageUnlock:                               "unlock user",
-		UserManageLock:                                 "lock user",
+		UserManageInvalid:                          "invalid action",
+		UserManageResendInvite:                     "resend invite",
+		UserManageExpireUpdateIdentityVerification: "expire update identity verification token",
+		UserManageUnlock:                           "unlock user",
+		UserManageLock:                             "lock user",
 	}
 )

@@ -139,7 +139,7 @@ func (c *Calculator) getMostRecentIntervalFromDataFile(
 	if err != nil {
 		return time.Time{}, err
 	}
-	if records == nil || len(records) == 0 {
+	if len(records) == 0 {
 		return time.Time{}, nil
 	}
 

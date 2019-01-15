@@ -41,8 +41,8 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	log            = backendLog.Logger("CWWW")
-	cockroachdbLog = backendLog.Logger("CRDB")
+	log               = backendLog.Logger("CWWW")
+	cockroachdbLog    = backendLog.Logger("CRDB")
 	rateCalculatorLog = backendLog.Logger("RCLC")
 )
 

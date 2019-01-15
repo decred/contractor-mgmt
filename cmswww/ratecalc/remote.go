@@ -69,7 +69,7 @@ func getFloat(candlestickArr []interface{}, idx int) (float64, error) {
 }
 
 func (c *Calculator) makeRequest(url string) ([]byte, error) {
-	fmt.Printf("GET %v\n", url)
+	log.Tracef("GET %v\n", url)
 	req, err := c.httpClient.Get(url)
 	if err != nil {
 		return nil, err

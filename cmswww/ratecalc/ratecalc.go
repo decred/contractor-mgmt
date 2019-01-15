@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// Calculator contains functions used to fetch data from exchanges, log that
+// data over an entire month, and then calculate the DCR-USD rate for that
+// month.
 type Calculator struct {
 	sync.RWMutex // lock for file reading/writing
 
@@ -18,6 +21,8 @@ type Calculator struct {
 	httpClient *http.Client
 }
 
+// Candlestick is used to represent a single candlestick of data for either
+// a DCR-BTC or BTC-USD pair.
 type Candlestick struct {
 	Timestamp   int64   // Timestamp of this interval
 	Granularity int64   // Interval in minutes
@@ -31,8 +36,9 @@ type Candlestick struct {
 var (
 	interval = time.Minute * 15
 
-	ErrNonExistentLogFile = fmt.Errorf("non-existent log file")
-	ErrNoRecordsFound     = fmt.Errorf("no records found")
+	// ErrNoRecordsRound is returned when no candlestick data is found for a
+	// given month and year.
+	ErrNoRecordsFound = fmt.Errorf("no records found")
 )
 
 func fileExists(name string) bool {
@@ -57,7 +63,7 @@ func New(dataDir string) *Calculator {
 	return &calc
 }
 
-func (c *Calculator) getLogFilename(month time.Month, year int) string {
+func (c *Calculator) getDataFilename(month time.Month, year int) string {
 	return filepath.Join(c.dataDir,
 		fmt.Sprintf("rate-candlesticks-%v-%v.csv", year, month))
 }
@@ -72,18 +78,24 @@ func (c *Calculator) init() {
 		},
 	}
 
-	c.updateCandlesticks()
+	c.updateCandlestickData()
+
+	// Update the candlestick data every interval.
 	ticker := time.NewTicker(interval)
 	go func() {
 		for range ticker.C {
-			c.updateCandlesticks()
+			c.updateCandlestickData()
 		}
 	}()
 }
 
-func (c *Calculator) updateCandlesticks() {
-	log.Infof("Updating candlesticks")
+func (c *Calculator) updateCandlestickData() {
+	log.Infof("Updating candlestick data")
 
+	// If the current time is within the first 5 days of the current month,
+	// try to update the data for the previous month. This is done to
+	// accommodate server downtime that spans from the end of a month to the
+	// beginning of the next.
 	t := time.Now()
 	fifthDayOfMonth := firstDayOfMonth(t.Month(), t.Year()).AddDate(0, 0, 4)
 	if t.Before(fifthDayOfMonth) {
@@ -91,8 +103,8 @@ func (c *Calculator) updateCandlesticks() {
 			time.Nanosecond * -1)
 
 		for {
-			shouldContinue, err := c.updateCandlesticksForMonth(lastDayOfPrevMonth.Month(),
-				lastDayOfPrevMonth.Year(), true)
+			shouldContinue, err := c.updateCandlestickDataForMonth(
+				lastDayOfPrevMonth.Month(), lastDayOfPrevMonth.Year(), true)
 			if err != nil {
 				log.Error(err)
 				break
@@ -103,8 +115,10 @@ func (c *Calculator) updateCandlesticks() {
 		}
 	}
 
+	// Update the candlestick data for the current month.
 	for {
-		shouldContinue, err := c.updateCandlesticksForMonth(t.Month(), t.Year(), false)
+		shouldContinue, err := c.updateCandlestickDataForMonth(t.Month(),
+			t.Year(), false)
 		if err != nil {
 			log.Error(err)
 			break
@@ -115,11 +129,11 @@ func (c *Calculator) updateCandlesticks() {
 	}
 }
 
-func (c *Calculator) getMostRecentIntervalFromLogFile(
+func (c *Calculator) getMostRecentIntervalFromDataFile(
 	month time.Month,
 	year int,
 ) (time.Time, error) {
-	filename := c.getLogFilename(month, year)
+	filename := c.getDataFilename(month, year)
 
 	records, err := c.getRecords(filename)
 	if err != nil {
@@ -138,7 +152,7 @@ func (c *Calculator) getMostRecentIntervalFromLogFile(
 	return time.Unix(lastInterval.Timestamp, 0), nil
 }
 
-func (c *Calculator) shouldUpdateLogFile(
+func (c *Calculator) shouldUpdateDataFile(
 	intervalTime time.Time,
 	month time.Month,
 	year int,
@@ -272,12 +286,12 @@ func (c *Calculator) fetchData(
 	return candlesticks, currIntervalTime, nil
 }
 
-func (c *Calculator) addDataToLogFile(
+func (c *Calculator) addDataToFile(
 	month time.Month,
 	year int,
 	data [][]Candlestick,
 ) error {
-	filename := c.getLogFilename(month, year)
+	filename := c.getDataFilename(month, year)
 	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE,
 		0600)
 	if err != nil {
@@ -300,16 +314,25 @@ func (c *Calculator) addDataToLogFile(
 	return nil
 }
 
-func (c *Calculator) updateCandlesticksForMonth(
+// updateCandlestickDataForMonth attempts to update the candlestick data for
+// the given month and year within a CSV file. If valid data is returned from
+// the server requests and it's not the most recent data, this function returns
+// true to indicate that it should be called again to fetch more data. It can
+// be called infinitely until it returns false or an error, because
+// rate-limiting is built into the functions which make the server requests.
+func (c *Calculator) updateCandlestickDataForMonth(
 	month time.Month,
 	year int,
 	ignoreIfNonexistent bool,
 ) (bool, error) {
-	currIntervalTime, err := c.getMostRecentIntervalFromLogFile(month, year)
+	currIntervalTime, err := c.getMostRecentIntervalFromDataFile(month, year)
 	if err != nil {
 		return false, err
 	}
+
 	if currIntervalTime.IsZero() {
+		// The current interval time is zero, which means either the log file
+		// doesn't exist or it is empty.
 		if ignoreIfNonexistent {
 			return false, nil
 		}
@@ -321,7 +344,7 @@ func (c *Calculator) updateCandlesticksForMonth(
 		currIntervalTime = currIntervalTime.Add(interval)
 	}
 
-	if !c.shouldUpdateLogFile(currIntervalTime, month, year) {
+	if !c.shouldUpdateDataFile(currIntervalTime, month, year) {
 		return false, nil
 	}
 
@@ -335,7 +358,7 @@ func (c *Calculator) updateCandlesticksForMonth(
 		return false, nil
 	}
 
-	err = c.addDataToLogFile(month, year, data)
+	err = c.addDataToFile(month, year, data)
 	if err != nil {
 		return false, err
 	}
@@ -369,11 +392,13 @@ func (c *Calculator) getRecords(filename string) ([][]string, error) {
 	return records, nil
 }
 
+// CalculateRateForMonth reads the data from the file for the given month and
+// year, and uses it to calculate the DCR-USD rate.
 func (c *Calculator) CalculateRateForMonth(
 	month time.Month,
 	year int,
 ) (float64, bool, error) {
-	records, err := c.getRecords(c.getLogFilename(month, year))
+	records, err := c.getRecords(c.getDataFilename(month, year))
 	if err != nil {
 		return 0, false, err
 	}
@@ -382,6 +407,8 @@ func (c *Calculator) CalculateRateForMonth(
 		return 0, false, ErrNoRecordsFound
 	}
 
+	// Iterate all records for the month to calculate the rate and also
+	// determine if any data is missing from the dataset.
 	var isDataMissing bool
 	var total float64
 	for idx, record := range records {
@@ -418,6 +445,10 @@ func (c *Calculator) CalculateRateForMonth(
 			return 0, false, err
 		}
 
+		// The algorithm currently just averages the open and close values for
+		// for both DCR-BTC and BTC-USD, and then multiples them together
+		// to get an average DCR-USD rate for each interval, and then averages
+		// all intervals for the entire month.
 		dcrBTCAvg := (dcrBTCCandlestick.Open + dcrBTCCandlestick.Close) / 2
 		btcUSDAvg := (btcUSDCandlestick.Open + btcUSDCandlestick.Close) / 2
 		total += dcrBTCAvg * btcUSDAvg

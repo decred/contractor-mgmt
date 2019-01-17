@@ -28,6 +28,7 @@ import (
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
 	"github.com/decred/contractor-mgmt/cmswww/database/cockroachdb"
+	"github.com/decred/contractor-mgmt/cmswww/ratecalc"
 )
 
 type permission uint
@@ -62,6 +63,7 @@ type cmswww struct {
 	store *sessions.FilesystemStore
 
 	db             database.Database
+	rateCalculator *ratecalc.Calculator
 	params         *chaincfg.Params
 	client         *http.Client // politeiad client
 	eventManager   *EventManager
@@ -297,6 +299,10 @@ func _main() error {
 		return err
 	}
 
+	// Setup DCR-USD rate calculator
+	ratecalc.UseLogger(rateCalculatorLog)
+	c.rateCalculator = ratecalc.New(c.cfg.DataDir)
+
 	// Setup events
 	c.initEventManager()
 
@@ -346,12 +352,11 @@ func _main() error {
 	}
 	fCSRF.Close()
 
-	// Set up the code that checks for invoice payments.
+	// Set up the logic that checks for new invoice payments.
 	err = c.initPaymentChecker()
 	if err != nil {
 		return err
 	}
-
 	// Make sure the cookie path is explicitly set to the root path, to fix
 	// an issue where multiple CSRF tokens were being stored in the cookie.
 	csrfHandle := csrf.Protect(csrfKey, csrf.Path("/"))

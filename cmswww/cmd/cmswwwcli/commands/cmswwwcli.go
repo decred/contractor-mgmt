@@ -41,6 +41,7 @@ type Options struct {
 	ReviewInvoices          ReviewInvoicesCmd          `command:"reviewinvoices" description:"Generates a list of submitted invoices that are ready for initial review.\n\n           Parameters: <month> <year>\n  --------------------------------------"`
 	PayInvoices             PayInvoicesCmd             `command:"payinvoices" description:"Generates a list of unpaid invoices that are ready for payment.\n\n           Parameters: <month> <year> <DCR-USD rate>\n  --------------------------------------"`
 	UpdateInvoicePayment    UpdateInvoicePaymentCmd    `command:"updateinvoicepayment" description:"Updates a generated invoice payment with the transaction information.\n\n           Parameters: <invoice token> <address> <amount in atoms> <transaction id>\n  --------------------------------------"`
+	GetRate                 GetRateCmd                 `command:"getrate" description:"Calculates the rate for the given month and year.\n\n           Parameters: <month> <year>\n  --------------------------------------"`
 }
 
 var Ctx *client.Ctx

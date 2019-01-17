@@ -29,6 +29,7 @@ const (
 	RouteSetInvoiceStatus          = "/invoice/status"
 	RouteUpdateInvoicePayment      = "/invoice/payments/update"
 	RoutePolicy                    = "/policy"
+	RouteRate                      = "/rate"
 )
 
 var (
@@ -405,6 +406,16 @@ type InvoicePolicyField struct {
 	Name     string            `json:"name"`
 	Type     InvoiceFieldTypeT `json:"type"`
 	Required bool              `json:"required"`
+}
+
+type Rate struct {
+	Month uint16 `json:"month"`
+	Year  uint16 `json:"year"`
+}
+
+type RateReply struct {
+	DCRUSDRate    float64 `json:"dcrusdrate"`
+	IsDataMissing bool    `json:"isdatamissing"`
 }
 
 // UserDetails fetches a user's details by their id, email, or username.

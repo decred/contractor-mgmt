@@ -29,7 +29,9 @@ Make sure each of these are in the PATH.
 CockroachDB is used by cmswww as storage for users, invoices and other data. Some data,
 such as invoices, are pulled from politeiad when cmswww starts and are added to the database.
 
-To set up CockroachDB for use with cmswww, follow these steps:
+To set up CockroachDB for use with cmswww, you can either do this manually or, on Linux, using go-task if you prefer.
+
+##### Manual method
 
   1. Install [CockroachDB](https://www.cockroachlabs.com/docs/stable/install-cockroachdb-windows.html).
 
@@ -62,6 +64,19 @@ To set up CockroachDB for use with cmswww, follow these steps:
 
           cd <install dir>
           cockroach start --host=localhost --http-host=localhost --certs-dir="~/.cmswww/data/testnet3/cockroachdb"
+
+##### Task method
+
+  1.  Ensure that [task](https://taskfile.org) is installed)
+
+  2.  Run ```task init_cdb```
+
+This will run through all the steps described under the manual method above, 
+choosing default folders for the data.  Running ```task init_cdb``` a second
+time will delete the database and rerun steps again.
+
+Run ```task -l``` to see other commands available.  Some additional commands
+may require that politeiad or cmswww are available on your system.
 
 #### 2. Clone this repository and [decred/politeia](https://github.com/decred/politeia).
 

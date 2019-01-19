@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -28,14 +28,14 @@ func (cmd *UsersCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Displaying %v / %v matches\n", len(ur.Users), ur.TotalMatches)
-		fmt.Printf("---------------------------\n")
+		log.Printf("Displaying %v / %v matches\n", len(ur.Users), ur.TotalMatches)
+		log.Printf("---------------------------\n")
 		for _, user := range ur.Users {
-			fmt.Printf("       ID: %v\n", user.ID)
-			fmt.Printf("    Email: %v\n", user.Email)
-			fmt.Printf(" Username: %v\n", user.Username)
-			fmt.Printf("    Admin: %v\n", user.Admin)
-			fmt.Printf("---------------------------\n")
+			log.Printf("       ID: %v\n", user.ID)
+			log.Printf("    Email: %v\n", user.Email)
+			log.Printf(" Username: %v\n", user.Username)
+			log.Printf("    Admin: %v\n", user.Admin)
+			log.Printf("---------------------------\n")
 		}
 	}
 

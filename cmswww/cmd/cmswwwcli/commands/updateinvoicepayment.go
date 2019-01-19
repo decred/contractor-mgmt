@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -36,7 +36,7 @@ func (cmd *UpdateInvoicePaymentCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invoice payment has been updated\n")
+		log.Printf("Invoice payment has been updated\n")
 	}
 
 	return nil

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/decred/politeia/util"
@@ -306,7 +305,7 @@ func (c *cmswww) CreateLoginReply(user *database.User, lastLogin int64) (*v1.Log
 
 	reply := v1.LoginReply{
 		IsAdmin:   user.Admin,
-		UserID:    strconv.FormatUint(user.ID, 10),
+		UserID:    user.ID.String(),
 		Email:     user.Email,
 		Username:  user.Username,
 		PublicKey: activeIdentity,

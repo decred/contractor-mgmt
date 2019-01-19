@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -105,7 +106,7 @@ func (cmd *EditInvoiceCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invoice submitted successfully! The censorship record has"+
+		log.Printf("Invoice submitted successfully! The censorship record has"+
 			" been stored in %v for your future reference.",
 			revisionRecordFilename)
 	}

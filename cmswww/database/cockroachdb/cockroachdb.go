@@ -5,10 +5,10 @@ import (
 	"math/rand"
 	"net/url"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/badoux/checkmail"
+	"github.com/gofrs/uuid"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 
@@ -17,7 +17,10 @@ import (
 )
 
 var (
-	_ database.Database = (*cockroachdb)(nil)
+	_            database.Database = (*cockroachdb)(nil)
+	identitySort                   = func(db *gorm.DB) *gorm.DB {
+		return db.Order("identities.created_at ASC")
+	}
 )
 
 // cockroachdb implements the database interface.
@@ -91,7 +94,7 @@ func (c *cockroachdb) UpdateUser(dbUser *database.User) error {
 // GetUser satisfies the backend interface.
 func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
 	var user User
-	result := c.db.Where("email = ?", email).Preload("Identities").First(&user)
+	result := c.db.Where("email = ?", email).Preload("Identities", identitySort).First(&user)
 	if result.Error != nil {
 		if gorm.IsRecordNotFoundError(result.Error) {
 			return nil, database.ErrUserNotFound
@@ -107,7 +110,7 @@ func (c *cockroachdb) GetUserByEmail(email string) (*database.User, error) {
 // GetUserByUsername satisfies the backend interface.
 func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error) {
 	var user User
-	result := c.db.Where("username = ?", username).Preload("Identities").First(&user)
+	result := c.db.Where("username = ?", username).Preload("Identities", identitySort).First(&user)
 	if result.Error != nil {
 		if gorm.IsRecordNotFoundError(result.Error) {
 			return nil, database.ErrUserNotFound
@@ -121,9 +124,10 @@ func (c *cockroachdb) GetUserByUsername(username string) (*database.User, error)
 // GetUserById returns a user record given its id, if found in the database.
 //
 // GetUserById satisfies the backend interface.
-func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
+func (c *cockroachdb) GetUserById(id uuid.UUID) (*database.User, error) {
 	var user User
-	result := c.db.Preload("Identities").First(&user, id)
+	log.Debugf("GetUserById ID: %v", id)
+	result := c.db.Preload("Identities", identitySort).Where("id = ?", id).First(&user)
 	if result.Error != nil {
 		if gorm.IsRecordNotFoundError(result.Error) {
 			return nil, database.ErrUserNotFound
@@ -137,17 +141,17 @@ func (c *cockroachdb) GetUserById(id uint64) (*database.User, error) {
 // GetUserIdByPublicKey returns a user record given its id, if found in the database.
 //
 // GetUserIdByPublicKey satisfies the backend interface.
-func (c *cockroachdb) GetUserIdByPublicKey(publicKey string) (uint64, error) {
+func (c *cockroachdb) GetUserIdByPublicKey(publicKey string) (uuid.UUID, error) {
 	var id Identity
 	result := c.db.Where("key = ?", publicKey).First(&id)
 	if result.Error != nil {
 		if gorm.IsRecordNotFoundError(result.Error) {
-			return 0, database.ErrUserNotFound
+			return uuid.UUID{}, database.ErrUserNotFound
 		}
-		return 0, result.Error
+		return uuid.UUID{}, result.Error
 	}
 
-	return uint64(id.UserID), nil
+	return id.UserID, nil
 }
 
 // Executes a callback on every user in the database.
@@ -271,10 +275,7 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 	paramsMap := make(map[string]interface{})
 	var err error
 	if invoicesRequest.UserID != "" {
-		paramsMap["i.user_id"], err = strconv.ParseUint(invoicesRequest.UserID, 10, 64)
-		if err != nil {
-			return nil, 0, err
-		}
+		paramsMap["i.user_id"] = invoicesRequest.UserID
 	}
 
 	if invoicesRequest.StatusMap != nil && len(invoicesRequest.StatusMap) > 0 {
@@ -414,6 +415,10 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 		&InvoiceChange{},
 		&InvoicePayment{},
 	)
+
+	// Add foreign key constraints
+	c.db.Model(&Invoice{}).AddIndex("idx_invoice_user_id", "user_id")
+	c.db.Model(&Identity{}).AddIndex("idx_identities_user_id", "user_id")
 
 	return &c, nil
 }

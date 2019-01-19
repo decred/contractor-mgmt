@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -32,9 +33,9 @@ var (
 )
 
 func dumpUser(user *database.User) {
-	fmt.Printf("Key    : %v\n", hex.EncodeToString([]byte(user.Email)))
-	fmt.Printf("Record : %v", spew.Sdump(*user))
-	fmt.Printf("---------------------------------------\n")
+	log.Printf("Key    : %v\n", hex.EncodeToString([]byte(user.Email)))
+	log.Printf("Record : %v", spew.Sdump(*user))
+	log.Printf("---------------------------------------\n")
 }
 
 func dumpUserAction() error {
@@ -50,12 +51,12 @@ func dumpUserAction() error {
 			return err
 		}
 
-		fmt.Printf("---------------------------------------\n")
+		log.Printf("---------------------------------------\n")
 		dumpUser(user)
 		return nil
 	}
 
-	fmt.Printf("---------------------------------------\n")
+	log.Printf("---------------------------------------\n")
 	return db.GetAllUsers(func(user *database.User) {
 		dumpUser(user)
 	})
@@ -109,7 +110,7 @@ func createAdminUserAction() error {
 		}
 	}
 
-	fmt.Printf("Admin user with email %v created\n", user.Email)
+	log.Printf("Admin user with email %v created\n", user.Email)
 	return nil
 }
 
@@ -151,6 +152,8 @@ func _main() error {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags)
+	log.SetOutput(os.Stdout)
 	err := _main()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

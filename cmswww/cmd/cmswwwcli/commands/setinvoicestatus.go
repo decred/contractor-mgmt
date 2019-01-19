@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -52,7 +53,7 @@ func (cmd *SetInvoiceStatusCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Status changed to %v", v1.InvoiceStatus[sisr.Invoice.Status])
+		log.Printf("Status changed to %v", v1.InvoiceStatus[sisr.Invoice.Status])
 	}
 
 	return nil

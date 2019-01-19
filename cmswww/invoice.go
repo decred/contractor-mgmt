@@ -142,7 +142,7 @@ func (c *cmswww) deriveTotalCostFromInvoice(
 
 func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceReview, error) {
 	invoiceReview := v1.InvoiceReview{
-		UserID:    strconv.FormatUint(invoice.UserID, 10),
+		UserID:    invoice.UserID.String(),
 		Username:  invoice.Username,
 		Token:     invoice.Token,
 		LineItems: make([]v1.InvoiceReviewLineItem, 0),
@@ -269,7 +269,7 @@ func (c *cmswww) createInvoicePayment(
 	costUSD uint64,
 ) (*v1.InvoicePayment, error) {
 	invoicePayment := v1.InvoicePayment{
-		UserID:   strconv.FormatUint(dbInvoice.UserID, 10),
+		UserID:   dbInvoice.UserID.String(),
 		Username: dbInvoice.Username,
 		Token:    dbInvoice.Token,
 	}
@@ -634,7 +634,7 @@ func (c *cmswww) HandleUserInvoices(
 	}
 
 	invoices, numMatches, err := c.getInvoices(database.InvoicesRequest{
-		UserID:    strconv.FormatUint(user.ID, 10),
+		UserID:    user.ID.String(),
 		StatusMap: statusMap,
 		Page:      int(ui.Page),
 	})
@@ -845,7 +845,7 @@ func (c *cmswww) HandleSubmitInvoice(
 	}
 
 	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
-		UserID: strconv.FormatUint(user.ID, 10),
+		UserID: user.ID.String(),
 		Month:  ni.Month,
 		Year:   ni.Year,
 	})

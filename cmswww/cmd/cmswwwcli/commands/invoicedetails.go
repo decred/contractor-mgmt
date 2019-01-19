@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -33,11 +33,11 @@ func (cmd *InvoiceDetailsCmd) Execute(args []string) error {
 	if !config.JSONOutput {
 		date := time.Date(int(idr.Invoice.Year), time.Month(idr.Invoice.Month),
 			1, 0, 0, 0, 0, time.UTC)
-		fmt.Printf("%v %v\n", idr.Invoice.CensorshipRecord.Token[0:7],
+		log.Printf("%v %v\n", idr.Invoice.CensorshipRecord.Token[0:7],
 			idr.Invoice.CensorshipRecord.Token)
-		fmt.Printf("    Submitted by: %v\n", idr.Invoice.Username)
-		fmt.Printf("              at: %v\n", time.Unix(idr.Invoice.Timestamp, 0))
-		fmt.Printf("             For: %v\n", date.Format("January 2006"))
+		log.Printf("    Submitted by: %v\n", idr.Invoice.Username)
+		log.Printf("              at: %v\n", time.Unix(idr.Invoice.Timestamp, 0))
+		log.Printf("             For: %v\n", date.Format("January 2006"))
 	}
 
 	return nil

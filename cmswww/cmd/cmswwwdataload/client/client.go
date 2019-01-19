@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -34,7 +35,7 @@ func NewClient(cfg *config.Config) *Client {
 
 func (c *Client) ExecuteCommand(args ...string) *exec.Cmd {
 	if c.cfg.Verbose {
-		fmt.Printf("  $ %v\n", strings.Join(args, " "))
+		log.Printf("  $ %v\n", strings.Join(args, " "))
 	}
 	return exec.Command(args[0], args[1:]...)
 }
@@ -119,24 +120,19 @@ func (c *Client) ExecuteCliCommand(reply interface{}, verify verifyReply, args .
 		return err
 	}
 
-	var stderrBytes, stdoutBytes []byte
-	var errStderr, errStdout error
-	go func() {
-		stderrBytes, errStderr = ioutil.ReadAll(stderr)
-		if errStderr == nil && len(stderrBytes) > 0 {
-			errStderr = fmt.Errorf("unexpected error output from %v: %v", cli,
-				string(stderrBytes))
-		}
-	}()
+	stderrBytes, errStderr := ioutil.ReadAll(stderr)
+	stdoutBytes, errStdout := ioutil.ReadAll(stdout)
 
-	go func() {
-		stdoutBytes, errStdout = ioutil.ReadAll(stdout)
-	}()
+	if errStderr == nil && len(stderrBytes) > 0 {
+		errStderr = fmt.Errorf("unexpected error output from %v: %v", cli,
+			string(stderrBytes))
+	}
 
 	err := cmd.Wait()
 	if err != nil {
 		return err
 	}
+
 	if errStderr != nil {
 		return errStderr
 	}
@@ -160,7 +156,7 @@ func (c *Client) ExecuteCliCommand(reply interface{}, verify verifyReply, args .
 		}
 
 		if c.cfg.Verbose {
-			fmt.Printf("  %v\n", line)
+			log.Printf("  %v\n", line)
 		}
 
 		var er v1.ErrorReply
@@ -182,7 +178,7 @@ func (c *Client) ExecuteCliCommand(reply interface{}, verify verifyReply, args .
 }
 
 func (c *Client) Version() error {
-	fmt.Printf("Getting version\n")
+	log.Printf("Getting version\n")
 
 	var vr v1.VersionReply
 	return c.ExecuteCliCommand(
@@ -195,7 +191,7 @@ func (c *Client) Version() error {
 }
 
 func (c *Client) Login(email, password string) (*v1.LoginReply, error) {
-	fmt.Printf("Logging in as: %v\n", email)
+	log.Printf("Logging in as: %v\n", email)
 
 	var lr v1.LoginReply
 	err := c.ExecuteCliCommand(
@@ -211,12 +207,12 @@ func (c *Client) Login(email, password string) (*v1.LoginReply, error) {
 }
 
 func (c *Client) Logout() error {
-	fmt.Printf("Logging out\n")
+	log.Printf("Logging out\n")
 	return c.ExecuteCommandAndWait(cli, "logout")
 }
 
 func (c *Client) NewIdentity() (string, error) {
-	fmt.Printf("Generating new identity\n")
+	log.Printf("Generating new identity\n")
 	var nir v1.NewIdentityReply
 	err := c.ExecuteCliCommand(
 		&nir,
@@ -230,12 +226,12 @@ func (c *Client) NewIdentity() (string, error) {
 }
 
 func (c *Client) VerifyIdentity(token string) error {
-	fmt.Printf("Verifying new identity\n")
+	log.Printf("Verifying new identity\n")
 	return c.ExecuteCommandAndWait(cli, "verifyidentity", token)
 }
 
 func (c *Client) InviteUser(email string) (string, error) {
-	fmt.Printf("Inviting user: %v\n", email)
+	log.Printf("Inviting user: %v\n", email)
 
 	var inur v1.InviteNewUserReply
 	err := c.ExecuteCliCommand(
@@ -251,7 +247,7 @@ func (c *Client) InviteUser(email string) (string, error) {
 }
 
 func (c *Client) ResendInvite(email string) (string, error) {
-	fmt.Printf("Re-inviting user: %v\n", email)
+	log.Printf("Re-inviting user: %v\n", email)
 
 	var mur v1.ManageUserReply
 	err := c.ExecuteCliCommand(
@@ -272,7 +268,7 @@ func (c *Client) ResendInvite(email string) (string, error) {
 }
 
 func (c *Client) UserDetails(userID string) (*v1.UserDetailsReply, error) {
-	fmt.Printf("Fetching user details\n")
+	log.Printf("Fetching user details\n")
 
 	var udr v1.UserDetailsReply
 	err := c.ExecuteCliCommand(
@@ -288,7 +284,7 @@ func (c *Client) UserDetails(userID string) (*v1.UserDetailsReply, error) {
 }
 
 func (c *Client) EditUser(name, location, extendedPublicKey string) error {
-	fmt.Printf("Editing user\n")
+	log.Printf("Editing user\n")
 
 	var eur v1.EditUserReply
 	err := c.ExecuteCliCommand(
@@ -319,7 +315,7 @@ func (c *Client) RegisterUser(
 	email, username, password, name,
 	location, extendedPublicKey, token string,
 ) error {
-	fmt.Printf("Registering user: %v\n", email)
+	log.Printf("Registering user: %v\n", email)
 
 	var rr v1.RegisterReply
 	return c.ExecuteCliCommand(
@@ -339,7 +335,7 @@ func (c *Client) RegisterUser(
 }
 
 func (c *Client) SubmitInvoice(file string) (string, error) {
-	fmt.Printf("Submitting invoice\n")
+	log.Printf("Submitting invoice\n")
 
 	file = filepath.ToSlash(file)
 
@@ -357,7 +353,7 @@ func (c *Client) SubmitInvoice(file string) (string, error) {
 }
 
 func (c *Client) EditInvoice(token, file string) error {
-	fmt.Printf("Editing invoice\n")
+	log.Printf("Editing invoice\n")
 
 	file = filepath.ToSlash(file)
 
@@ -376,7 +372,7 @@ func (c *Client) EditInvoice(token, file string) error {
 }
 
 func (c *Client) ApproveInvoice(token string) error {
-	fmt.Printf("Approving invoice: %v\n", token)
+	log.Printf("Approving invoice: %v\n", token)
 
 	var sisr v1.SetInvoiceStatusReply
 	return c.ExecuteCliCommand(
@@ -391,7 +387,7 @@ func (c *Client) ApproveInvoice(token string) error {
 }
 
 func (c *Client) RejectInvoice(token, reason string) error {
-	fmt.Printf("Rejecting invoice: %v\n", token)
+	log.Printf("Rejecting invoice: %v\n", token)
 
 	var sisr v1.SetInvoiceStatusReply
 	return c.ExecuteCliCommand(
@@ -475,7 +471,7 @@ func (c *Client) UpdateInvoicePayment(
 }
 
 func (c *Client) GetAllInvoices() ([]v1.InvoiceRecord, error) {
-	fmt.Printf("Fetching all invoices\n")
+	log.Printf("Fetching all invoices\n")
 
 	var ir v1.InvoicesReply
 	err := c.ExecuteCliCommand(
@@ -490,7 +486,7 @@ func (c *Client) GetAllInvoices() ([]v1.InvoiceRecord, error) {
 }
 
 func (c *Client) ChangePassword(currentPassword, newPassword string) error {
-	fmt.Printf("Changing password to: %v\n", newPassword)
+	log.Printf("Changing password to: %v\n", newPassword)
 
 	var cpr v1.ChangePasswordReply
 	return c.ExecuteCliCommand(
@@ -505,7 +501,7 @@ func (c *Client) ChangePassword(currentPassword, newPassword string) error {
 }
 
 func (c *Client) ResetPassword(email, newPassword string) error {
-	fmt.Printf("Resetting password: %v\n", email)
+	log.Printf("Resetting password: %v\n", email)
 
 	var rpr v1.ResetPasswordReply
 	return c.ExecuteCliCommand(
@@ -520,7 +516,7 @@ func (c *Client) ResetPassword(email, newPassword string) error {
 }
 
 func (c *Client) CreateAdminUser(email, username, password string) error {
-	fmt.Printf("Creating admin user: %v\n", c.cfg.AdminEmail)
+	log.Printf("Creating admin user: %v\n", c.cfg.AdminEmail)
 	_, err := c.ExecuteCommandWithErrorHandling(
 		dbutil,
 		"-testnet",

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -177,7 +178,7 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invoice submitted successfully! The censorship record has"+
+		log.Printf("Invoice submitted successfully! The censorship record has"+
 			" been stored in %v for your future reference.", filename)
 	}
 

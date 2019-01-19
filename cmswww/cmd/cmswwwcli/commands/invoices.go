@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -59,18 +60,18 @@ func (cmd *InvoicesCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invoices: ")
+		log.Printf("Invoices: ")
 		if len(ir.Invoices) == 0 {
-			fmt.Printf("none\n")
+			log.Printf("none\n")
 		} else {
 			fmt.Println()
 			for _, v := range ir.Invoices {
-				fmt.Printf("  %v\n", v.CensorshipRecord.Token)
-				fmt.Printf("      Submitted by: %v\n", v.Username)
-				fmt.Printf("                at: %v\n",
+				log.Printf("  %v\n", v.CensorshipRecord.Token)
+				log.Printf("      Submitted by: %v\n", v.Username)
+				log.Printf("                at: %v\n",
 					time.Unix(v.Timestamp, 0).String())
 				if cmd.Status == "" {
-					fmt.Printf("            Status: %v\n",
+					log.Printf("            Status: %v\n",
 						v1.InvoiceStatus[v.Status])
 				}
 			}

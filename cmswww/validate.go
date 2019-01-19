@@ -13,6 +13,7 @@ import (
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/decred/politeia/util"
+	"github.com/gofrs/uuid"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
@@ -168,11 +169,8 @@ func validateInvoice(
 
 // Invoices should only be viewable by admins and the users who submit them.
 func validateUserCanSeeInvoice(invoice *v1.InvoiceRecord, user *database.User) error {
-	authorID, err := strconv.ParseUint(invoice.UserID, 10, 64)
-	if err != nil {
-		return err
-	}
-	if user == nil || (!user.Admin && user.ID != authorID) {
+	authorID := invoice.UserID
+	if user == nil || (!user.Admin && user.ID.String() != authorID) {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvoiceNotFound,
 		}
@@ -247,7 +245,7 @@ func (c *cmswww) validatePubkeyIsUnique(publicKey string, user *database.User) e
 		return err
 	}
 
-	if userID == 0 {
+	if userID == uuid.Nil {
 		return nil
 	}
 

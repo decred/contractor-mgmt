@@ -10,6 +10,7 @@ import (
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/politeia/politeiad/api/v1/identity"
+	"github.com/gofrs/uuid"
 )
 
 var (
@@ -45,8 +46,8 @@ type Database interface {
 	UpdateUser(*User) error                                  // Update existing user
 	GetUserByEmail(string) (*User, error)                    // Return user record given the email address
 	GetUserByUsername(string) (*User, error)                 // Return user record given the username
-	GetUserById(uint64) (*User, error)                       // Return user record given its id
-	GetUserIdByPublicKey(string) (uint64, error)             // Return user id by public key
+	GetUserById(uuid.UUID) (*User, error)                    // Return user record given its id
+	GetUserIdByPublicKey(string) (uuid.UUID, error)          // Return user id by public key
 	GetAllUsers(callbackFn func(u *User)) error              // Iterate all users
 	GetUsers(username string, page int) ([]User, int, error) // Returns a list of users and total count that match the provided username.
 
@@ -65,7 +66,7 @@ type Database interface {
 
 // User record.
 type User struct {
-	ID                                        uint64
+	ID                                        uuid.UUID
 	Email                                     string
 	Username                                  string
 	Name                                      string
@@ -92,8 +93,8 @@ type User struct {
 // Identity wraps an ed25519 public key and timestamps to indicate if it is
 // active.  If deactivated != 0 then the key is no longer valid.
 type Identity struct {
-	ID          uint64
-	UserID      uint64
+	ID          uuid.UUID
+	UserID      uuid.UUID
 	Key         [identity.PublicKeySize]byte
 	Activated   int64
 	Deactivated int64
@@ -101,7 +102,7 @@ type Identity struct {
 
 type Invoice struct {
 	Token              string
-	UserID             uint64
+	UserID             uuid.UUID
 	Username           string // Only populated when reading from the database
 	Month              uint16
 	Year               uint16
@@ -133,7 +134,7 @@ type InvoiceChange struct {
 }
 
 type InvoicePayment struct {
-	ID           uint64
+	ID           uuid.UUID
 	InvoiceToken string
 	IsTotalCost  bool // Whether this payment represents the total cost of the invoice
 	Address      string

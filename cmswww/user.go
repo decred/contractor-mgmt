@@ -9,6 +9,7 @@ import (
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/decred/politeia/util"
+	"github.com/gofrs/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -42,7 +43,7 @@ func (c *cmswww) generateVerificationTokenAndExpiry() ([]byte, int64, error) {
 // getUsernameByID returns the username given its id. If the id is invalid,
 // it returns an empty string.
 func (c *cmswww) getUsernameByID(idStr string) string {
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	id, err := uuid.FromString(idStr)
 	if err != nil {
 		return ""
 	}
@@ -64,7 +65,7 @@ func (c *cmswww) findUser(idStr, email, username string, isAdmin bool) (*databas
 	)
 
 	if idStr != "" {
-		id, err := strconv.ParseUint(idStr, 10, 64)
+		id, err := uuid.FromString(idStr)
 		if err == nil {
 			user, err = c.db.GetUserById(id)
 			if err != nil && err != database.ErrUserNotFound {

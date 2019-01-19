@@ -12,7 +12,7 @@ import (
 func EncodeUser(dbUser *database.User) *User {
 	user := User{}
 
-	user.ID = uint(dbUser.ID)
+	user.ID = dbUser.ID
 	user.Email = dbUser.Email
 	user.Name = dbUser.Name
 	user.Location = dbUser.Location
@@ -79,7 +79,7 @@ func EncodeUser(dbUser *database.User) *User {
 // DecodeUser decodes a cockroachdb User instance into a generic database.User.
 func DecodeUser(user *User) (*database.User, error) {
 	dbUser := database.User{
-		ID:                  uint64(user.ID),
+		ID:                  user.ID,
 		Email:               user.Email,
 		Username:            user.Username.String,
 		Name:                user.Name,
@@ -151,8 +151,8 @@ func DecodeUser(user *User) (*database.User, error) {
 func EncodeIdentity(dbID *database.Identity) *Identity {
 	id := Identity{}
 
-	id.ID = uint(dbID.ID)
-	id.UserID = uint(dbID.UserID)
+	id.ID = dbID.ID
+	id.UserID = dbID.UserID
 
 	if len(dbID.Key) != 0 {
 		id.Key.Valid = true
@@ -176,8 +176,8 @@ func EncodeIdentity(dbID *database.Identity) *Identity {
 func DecodeIdentity(id *Identity) (*database.Identity, error) {
 	dbID := database.Identity{}
 
-	dbID.ID = uint64(id.ID)
-	dbID.UserID = uint64(id.UserID)
+	dbID.ID = id.ID
+	dbID.UserID = id.UserID
 
 	if id.Key.Valid {
 		pk, err := hex.DecodeString(id.Key.String)
@@ -205,7 +205,7 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice := Invoice{}
 
 	invoice.Token = dbInvoice.Token
-	invoice.UserID = uint(dbInvoice.UserID)
+	invoice.UserID = dbInvoice.UserID
 	invoice.Month = uint(dbInvoice.Month)
 	invoice.Year = uint(dbInvoice.Year)
 	invoice.Status = uint(dbInvoice.Status)
@@ -255,7 +255,7 @@ func EncodeInvoiceChange(dbInvoiceChange *database.InvoiceChange) *InvoiceChange
 func EncodeInvoicePayment(dbInvoicePayment *database.InvoicePayment) *InvoicePayment {
 	invoicePayment := InvoicePayment{}
 
-	invoicePayment.ID = uint(dbInvoicePayment.ID)
+	invoicePayment.ID = dbInvoicePayment.ID
 	invoicePayment.InvoiceToken = dbInvoicePayment.InvoiceToken
 	invoicePayment.IsTotalCost = dbInvoicePayment.IsTotalCost
 	invoicePayment.Address = dbInvoicePayment.Address
@@ -272,7 +272,7 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	dbInvoice := database.Invoice{}
 
 	dbInvoice.Token = invoice.Token
-	dbInvoice.UserID = uint64(invoice.UserID)
+	dbInvoice.UserID = invoice.UserID
 	dbInvoice.Username = invoice.Username
 	dbInvoice.Month = uint16(invoice.Month)
 	dbInvoice.Year = uint16(invoice.Year)
@@ -322,7 +322,7 @@ func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 func DecodeInvoicePayment(invoicePayment *InvoicePayment) *database.InvoicePayment {
 	dbInvoicePayment := database.InvoicePayment{}
 
-	dbInvoicePayment.ID = uint64(invoicePayment.ID)
+	dbInvoicePayment.ID = invoicePayment.ID
 	dbInvoicePayment.InvoiceToken = invoicePayment.InvoiceToken
 	dbInvoicePayment.IsTotalCost = invoicePayment.IsTotalCost
 	dbInvoicePayment.Address = invoicePayment.Address

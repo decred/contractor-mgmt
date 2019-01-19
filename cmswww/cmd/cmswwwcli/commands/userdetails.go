@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -34,14 +34,14 @@ func (cmd *UserDetailsCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("                     ID: %v\n", udr.User.ID)
-		fmt.Printf("                  Email: %v\n", udr.User.Email)
-		fmt.Printf("               Username: %v\n", udr.User.Username)
-		fmt.Printf("                  Admin: %v\n", udr.User.Admin)
-		fmt.Printf("    Extended public key: %v\n", udr.User.ExtendedPublicKey)
-		fmt.Printf("             Last login: %v\n", udr.User.LastLogin)
-		fmt.Printf("  Failed login attempts: %v\n", udr.User.FailedLoginAttempts)
-		fmt.Printf("                 Locked: %v\n",
+		log.Printf("                     ID: %v\n", udr.User.ID)
+		log.Printf("                  Email: %v\n", udr.User.Email)
+		log.Printf("               Username: %v\n", udr.User.Username)
+		log.Printf("                  Admin: %v\n", udr.User.Admin)
+		log.Printf("    Extended public key: %v\n", udr.User.ExtendedPublicKey)
+		log.Printf("             Last login: %v\n", udr.User.LastLogin)
+		log.Printf("  Failed login attempts: %v\n", udr.User.FailedLoginAttempts)
+		log.Printf("                 Locked: %v\n",
 			udr.User.FailedLoginAttempts >= v1.LoginAttemptsToLockUser)
 	}
 

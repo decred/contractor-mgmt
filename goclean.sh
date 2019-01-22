@@ -31,7 +31,6 @@ unset GO111MODULE
 gometalinter --vendor --disable-all --deadline=10m \
   --enable=gofmt \
   --enable=vet \
-  --enable=staticcheck \
   --enable=unconvert \
   --enable=ineffassign \
   ./...

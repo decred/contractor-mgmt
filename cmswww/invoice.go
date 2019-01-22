@@ -221,7 +221,7 @@ func (c *cmswww) updateMDPayments(
 		MDOverwrite: []pd.MetadataStream{
 			{
 				ID:      mdStreamPayments,
-				Payload: string(mdPayments),
+				Payload: mdPayments,
 			},
 		},
 	}

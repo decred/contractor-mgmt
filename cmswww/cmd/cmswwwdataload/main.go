@@ -184,12 +184,12 @@ func rejectInvoice(email, password, token, reason string) error {
 	return c.Logout()
 }
 
-func payApprovedInvoices(email, password string, month, year uint16, dcrUSDRate float64) error {
+func payApprovedInvoices(email, password string, month, year uint16, usdDCRRate float64) error {
 	if _, err := c.Login(email, password); err != nil {
 		return err
 	}
 
-	err := c.PayInvoices(month, year, dcrUSDRate)
+	err := c.PayInvoices(month, year, usdDCRRate)
 	if err != nil {
 		return err
 	}

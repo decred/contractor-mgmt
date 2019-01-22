@@ -32,6 +32,7 @@ type BackendInvoiceMDChange struct {
 
 type BackendInvoiceMDPayment struct {
 	Version     uint   `json:"version"`     // Version of the struct
+	IsTotalCost bool   `json:"istotalcost"` // Whether this payment represents the total cost of the invoice
 	Address     string `json:"address"`     // Payment address
 	Amount      uint64 `json:"amount"`      // Payment amount in atoms
 	TxNotBefore int64  `json:"txnotbefore"` // Minimum UNIX time for the transaction to be accepted as payment
@@ -210,12 +211,35 @@ func convertStreamChangeToDatabaseInvoiceChange(mdChange BackendInvoiceMDChange)
 func convertStreamPaymentToDatabaseInvoicePayment(mdPayment BackendInvoiceMDPayment) database.InvoicePayment {
 	dbInvoicePayment := database.InvoicePayment{}
 
+	dbInvoicePayment.IsTotalCost = mdPayment.IsTotalCost
 	dbInvoicePayment.Address = mdPayment.Address
 	dbInvoicePayment.Amount = mdPayment.Amount
 	dbInvoicePayment.TxNotBefore = mdPayment.TxNotBefore
 	dbInvoicePayment.TxID = mdPayment.TxID
 
 	return dbInvoicePayment
+}
+
+func convertDatabaseInvoicePaymentsToStreamPayments(dbInvoice *database.Invoice) (string, error) {
+	mdPayments := ""
+	for _, dbInvoicePayment := range dbInvoice.Payments {
+		log.Infof("address from loop: %v", dbInvoicePayment.Address)
+		mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
+			Version:     VersionBackendInvoiceMDPayment,
+			IsTotalCost: dbInvoicePayment.IsTotalCost,
+			Address:     dbInvoicePayment.Address,
+			Amount:      dbInvoicePayment.Amount,
+			TxNotBefore: dbInvoicePayment.TxNotBefore,
+			TxID:        dbInvoicePayment.TxID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("cannot marshal backend payment: %v", err)
+		}
+
+		mdPayments += string(mdPayment)
+	}
+
+	return mdPayments, nil
 }
 
 func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRecord {

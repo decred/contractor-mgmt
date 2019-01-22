@@ -299,7 +299,7 @@ func _main() error {
 		return err
 	}
 
-	// Setup DCR-USD rate calculator
+	// Setup USD/DCR rate calculator
 	ratecalc.UseLogger(rateCalculatorLog)
 	c.rateCalculator = ratecalc.New(c.cfg.DataDir)
 

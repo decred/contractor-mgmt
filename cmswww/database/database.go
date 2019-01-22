@@ -135,6 +135,7 @@ type InvoiceChange struct {
 type InvoicePayment struct {
 	ID           uint64
 	InvoiceToken string
+	IsTotalCost  bool // Whether this payment represents the total cost of the invoice
 	Address      string
 	Amount       uint64
 	TxNotBefore  int64

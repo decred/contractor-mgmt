@@ -105,6 +105,7 @@ func (i InvoiceChange) TableName() string {
 type InvoicePayment struct {
 	gorm.Model
 	InvoiceToken string
+	IsTotalCost  bool   `gorm:"not_null"`
 	Address      string `gorm:"not_null"`
 	Amount       uint   `gorm:"not_null"`
 	TxNotBefore  int64  `gorm:"not_null"`

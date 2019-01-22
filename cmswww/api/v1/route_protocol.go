@@ -27,6 +27,7 @@ const (
 	RouteEditInvoice               = "/invoice/edit"
 	RouteInvoiceDetails            = "/invoice"
 	RouteSetInvoiceStatus          = "/invoice/status"
+	RoutePayInvoice                = "/invoice/pay"
 	RouteUpdateInvoicePayment      = "/invoice/payments/update"
 	RoutePolicy                    = "/policy"
 	RouteRate                      = "/rate"
@@ -317,18 +318,34 @@ type InvoiceReviewLineItem struct {
 }
 
 // PayInvoices retrieves all approved invoices and returns them
-// along with their amounts in DCR, using the provided DCR-USD rate.
+// along with their amounts in DCR, using the provided USD/DCR rate.
 //
 // Note: This call requires admin privileges.
 type PayInvoices struct {
 	Month      uint16  `json:"month"`
 	Year       uint16  `json:"year"`
-	DCRUSDRate float64 `json:"dcrusdrate"`
+	USDDCRRate float64 `json:"usddcrrate"`
 }
 
-// PayInvoicesReply is used to reply with a list of invoices.
+// PayInvoicesReply is used to reply with a list of invoice payments.
 type PayInvoicesReply struct {
 	Invoices []InvoicePayment `json:"invoices"`
+}
+
+// PayInvoice generates payment instructions for the given invoice,
+// which may already be paid, allowing admins to make multiple
+// payments for an invoice.
+//
+// Note: This call requires admin privileges.
+type PayInvoice struct {
+	Token      string  `json:"token"`
+	CostUSD    uint64  `json:"costusd"`
+	USDDCRRate float64 `json:"usddcrrate"`
+}
+
+// PayInvoiceReply is used to reply with the invoice payment information.
+type PayInvoiceReply struct {
+	Invoice InvoicePayment `json:"invoice"`
 }
 
 // InvoicePayment represents a submitted invoice which has been processed
@@ -414,7 +431,7 @@ type Rate struct {
 }
 
 type RateReply struct {
-	DCRUSDRate    float64 `json:"dcrusdrate"`
+	USDDCRRate    float64 `json:"usddcrrate"`
 	IsDataMissing bool    `json:"isdatamissing"`
 }
 

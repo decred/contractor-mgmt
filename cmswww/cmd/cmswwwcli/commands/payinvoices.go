@@ -11,7 +11,7 @@ type PayInvoicesCmd struct {
 	Args struct {
 		Month      string  `positional-arg-name:"month"`
 		Year       uint16  `positional-arg-name:"year"`
-		DCRUSDRate float64 `positional-arg-name:"dcrusdrate"`
+		USDDCRRate float64 `positional-arg-name:"usddcrrate"`
 	} `positional-args:"true" required:"true"`
 }
 
@@ -29,7 +29,7 @@ func (cmd *PayInvoicesCmd) Execute(args []string) error {
 	pi := v1.PayInvoices{
 		Month:      month,
 		Year:       cmd.Args.Year,
-		DCRUSDRate: cmd.Args.DCRUSDRate,
+		USDDCRRate: cmd.Args.USDDCRRate,
 	}
 
 	var pir v1.PayInvoicesReply

@@ -406,7 +406,7 @@ func (c *Client) RejectInvoice(token, reason string) error {
 	)
 }
 
-func (c *Client) PayInvoices(month, year uint16, dcrUSDRate float64) error {
+func (c *Client) PayInvoices(month, year uint16, usdDCRRate float64) error {
 	fmt.Printf("Paying invoices\n")
 
 	var pir v1.PayInvoicesReply
@@ -418,7 +418,7 @@ func (c *Client) PayInvoices(month, year uint16, dcrUSDRate float64) error {
 		"payinvoices",
 		strconv.FormatUint(uint64(month), 10),
 		strconv.FormatUint(uint64(year), 10),
-		strconv.FormatFloat(dcrUSDRate, 'f', -1, 64),
+		strconv.FormatFloat(usdDCRRate, 'f', -1, 64),
 	)
 }
 

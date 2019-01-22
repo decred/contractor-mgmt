@@ -955,7 +955,7 @@ Note: This call requires admin privileges.
 |-|-|-|-|
 | month | int16 | A specific month, from 1 to 12. | Yes |
 | year | int16 | A specific year. | Yes |
-| dcrusdrate | float64 | The USD/DCR rate to use for generating invoice payment summaries. | Yes |
+| usddcrrate | float64 | The USD/DCR rate to use for generating invoice payment summaries. | Yes |
 
 **Results:**
 
@@ -971,7 +971,7 @@ Request:
 {
   "month": 12,
   "year": 2018,
-  "dcrusdrate": 20
+  "usddcrrate": 20
 }
 ```
 

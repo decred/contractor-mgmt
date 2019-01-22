@@ -77,6 +77,69 @@ func validateStatusTransition(
 	return nil
 }
 
+func (c *cmswww) refreshExistingInvoicePayments(dbInvoice *database.Invoice) error {
+	for _, dbInvoicePayment := range dbInvoice.Payments {
+		if dbInvoicePayment.TxID != "" {
+			continue
+		}
+
+		dbInvoicePayment.PollExpiry =
+			time.Now().Add(pollExpiryDuration).Unix()
+
+		err := c.db.UpdateInvoicePayment(&dbInvoicePayment)
+		if err != nil {
+			return err
+		}
+
+		c.addInvoicePaymentForPolling(dbInvoice.Token, &dbInvoicePayment)
+	}
+
+	return nil
+}
+
+func (c *cmswww) deriveTotalCostFromInvoice(
+	dbInvoice *database.Invoice,
+	invoicePayment *v1.InvoicePayment,
+) error {
+	b, err := base64.StdEncoding.DecodeString(dbInvoice.File.Payload)
+	if err != nil {
+		return err
+	}
+
+	csvReader := csv.NewReader(strings.NewReader(string(b)))
+	csvReader.Comma = v1.PolicyInvoiceFieldDelimiterChar
+	csvReader.Comment = v1.PolicyInvoiceCommentChar
+	csvReader.TrimLeadingSpace = true
+
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		for idx := range v1.InvoiceFields {
+			switch idx {
+			case 4:
+				hours, err := strconv.ParseUint(record[idx], 10, 64)
+				if err != nil {
+					return err
+				}
+
+				invoicePayment.TotalHours += hours
+			case 5:
+				totalCost, err := strconv.ParseUint(record[idx], 10, 64)
+				if err != nil {
+					return err
+				}
+
+				invoicePayment.TotalCostUSD += totalCost
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceReview, error) {
 	invoiceReview := v1.InvoiceReview{
 		UserID:    strconv.FormatUint(invoice.UserID, 10),
@@ -136,50 +199,105 @@ func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceRevi
 	return &invoiceReview, nil
 }
 
-func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate float64) (*v1.InvoicePayment, error) {
+func (c *cmswww) updateMDPayments(
+	dbInvoice *database.Invoice,
+	updatingInvoicePayment bool,
+	ts int64,
+) error {
+	// Create the payments metadata record.
+	mdPayments, err := convertDatabaseInvoicePaymentsToStreamPayments(dbInvoice)
+	if err != nil {
+		return err
+	}
+
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return fmt.Errorf("could not create challenge: %v", err)
+	}
+
+	pdCommand := pd.UpdateVettedMetadata{
+		Challenge: hex.EncodeToString(challenge),
+		Token:     dbInvoice.Token,
+		MDOverwrite: []pd.MetadataStream{
+			{
+				ID:      mdStreamPayments,
+				Payload: string(mdPayments),
+			},
+		},
+	}
+
+	// Create the change metadata record if an existing invoice payment
+	// is being updated.
+	if updatingInvoicePayment && dbInvoice.Status != v1.InvoiceStatusPaid {
+		mdChange, err := json.Marshal(BackendInvoiceMDChange{
+			Version:   VersionBackendInvoiceMDChange,
+			Timestamp: ts,
+			NewStatus: v1.InvoiceStatusPaid,
+		})
+		if err != nil {
+			return fmt.Errorf("cannot marshal backend change: %v", err)
+		}
+
+		pdCommand.MDAppend = []pd.MetadataStream{
+			{
+				ID:      mdStreamChanges,
+				Payload: string(mdChange),
+			},
+		}
+	}
+
+	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
+		pdCommand)
+	if err != nil {
+		return err
+	}
+
+	var pdReply pd.UpdateVettedMetadataReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
+			err)
+	}
+
+	// Verify the challenge.
+	return util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+}
+
+func (c *cmswww) createInvoicePayment(
+	dbInvoice *database.Invoice,
+	usdDCRRate float64,
+	costUSD uint64,
+) (*v1.InvoicePayment, error) {
 	invoicePayment := v1.InvoicePayment{
 		UserID:   strconv.FormatUint(dbInvoice.UserID, 10),
 		Username: dbInvoice.Username,
 		Token:    dbInvoice.Token,
 	}
 
-	b, err := base64.StdEncoding.DecodeString(dbInvoice.File.Payload)
-	if err != nil {
-		return nil, err
-	}
+	var recreatingTotalCostPayment bool
+	dbInvoicePayment := &database.InvoicePayment{}
+	if costUSD == 0 {
+		err := c.deriveTotalCostFromInvoice(dbInvoice, &invoicePayment)
+		if err != nil {
+			return nil, err
+		}
 
-	csvReader := csv.NewReader(strings.NewReader(string(b)))
-	csvReader.Comma = v1.PolicyInvoiceFieldDelimiterChar
-	csvReader.Comment = v1.PolicyInvoiceCommentChar
-	csvReader.TrimLeadingSpace = true
-
-	records, err := csvReader.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, record := range records {
-		for idx := range v1.InvoiceFields {
-			switch idx {
-			case 4:
-				hours, err := strconv.ParseUint(record[idx], 10, 64)
-				if err != nil {
-					return nil, err
-				}
-
-				invoicePayment.TotalHours += hours
-			case 5:
-				totalCost, err := strconv.ParseUint(record[idx], 10, 64)
-				if err != nil {
-					return nil, err
-				}
-
-				invoicePayment.TotalCostUSD += totalCost
+		// If there's already payments on this invoice, determine
+		// if one of them is for the total cost.
+		for i, payment := range dbInvoice.Payments {
+			if payment.IsTotalCost {
+				recreatingTotalCostPayment = true
+				dbInvoicePayment = &dbInvoice.Payments[i]
+				break
 			}
 		}
 
-		invoicePayment.TotalCostDCR = float64(invoicePayment.TotalCostUSD) / dcrUSDRate
+		dbInvoicePayment.IsTotalCost = true
+	} else {
+		invoicePayment.TotalCostUSD = costUSD
 	}
+
+	invoicePayment.TotalCostDCR = float64(invoicePayment.TotalCostUSD) / usdDCRRate
 
 	// Generate the user's address.
 	user, err := c.db.GetUserById(dbInvoice.UserID)
@@ -198,86 +316,34 @@ func (c *cmswww) createInvoicePayment(dbInvoice *database.Invoice, dcrUSDRate fl
 		return nil, err
 	}
 
-	// Create the payment metadata record.
-	mdPayment := BackendInvoiceMDPayment{
-		Version:     VersionBackendInvoiceMDPayment,
-		Address:     address,
-		Amount:      uint64(amount),
-		TxNotBefore: txNotBefore,
-	}
-
-	blob, err := json.Marshal(mdPayment)
-	if err != nil {
-		return nil, err
-	}
-
-	challenge, err := util.Random(pd.ChallengeSize)
-	if err != nil {
-		return nil, err
-	}
-
-	pdCommand := pd.UpdateVettedMetadata{
-		Challenge: hex.EncodeToString(challenge),
-		Token:     dbInvoice.Token,
-	}
-
-	if len(dbInvoice.Payments) > 0 {
-		pdCommand.MDOverwrite = []pd.MetadataStream{
-			{
-				ID:      mdStreamPayments,
-				Payload: string(blob),
-			},
-		}
-	} else {
-		pdCommand.MDAppend = []pd.MetadataStream{
-			{
-				ID:      mdStreamPayments,
-				Payload: string(blob),
-			},
-		}
-	}
-
-	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
-		pdCommand)
-	if err != nil {
-		return nil, err
-	}
-
-	var pdReply pd.UpdateVettedMetadataReply
-	err = json.Unmarshal(responseBody, &pdReply)
-	if err != nil {
-		return nil, fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
-			err)
-	}
-
-	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-	if err != nil {
-		return nil, err
-	}
-
-	var dbInvoicePayment database.InvoicePayment
-	if len(dbInvoice.Payments) > 0 {
-		dbInvoicePayment = dbInvoice.Payments[0]
-	}
+	oldAddress := dbInvoicePayment.Address
 
 	dbInvoicePayment.Address = address
 	dbInvoicePayment.TxNotBefore = txNotBefore
 	dbInvoicePayment.Amount = uint64(amount)
 	dbInvoicePayment.PollExpiry = time.Now().Add(pollExpiryDuration).Unix()
-
-	if len(dbInvoice.Payments) > 0 {
-		err = c.db.UpdateInvoicePayment(&dbInvoicePayment)
-	} else {
-		dbInvoice.Payments = append(dbInvoice.Payments, dbInvoicePayment)
-		err = c.db.UpdateInvoice(dbInvoice)
+	if !recreatingTotalCostPayment {
+		dbInvoice.Payments = append(dbInvoice.Payments, *dbInvoicePayment)
 	}
 
+	err = c.updateMDPayments(dbInvoice, false, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	c.addInvoiceForPolling(dbInvoice.Token, &dbInvoicePayment)
+	if recreatingTotalCostPayment {
+		err = c.db.UpdateInvoicePayment(dbInvoicePayment)
+	} else {
+		err = c.db.UpdateInvoice(dbInvoice)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if recreatingTotalCostPayment {
+		c.removeInvoicePaymentsFromPolling([]string{oldAddress})
+	}
+	c.addInvoicePaymentForPolling(dbInvoice.Token, dbInvoicePayment)
 
 	invoicePayment.PaymentAddress = address
 	return &invoicePayment, nil
@@ -305,76 +371,20 @@ func (c *cmswww) updateInvoicePayment(
 	}
 
 	ts := time.Now().Unix()
-
-	// Create the change metadata record.
-	mdChange, err := json.Marshal(BackendInvoiceMDChange{
-		Version:   VersionBackendInvoiceMDChange,
-		Timestamp: ts,
-		NewStatus: v1.InvoiceStatusPaid,
-	})
+	err := c.updateMDPayments(dbInvoice, true, ts)
 	if err != nil {
-		return fmt.Errorf("cannot marshal backend change: %v", err)
-	}
-
-	// Create the payment metadata record.
-	mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
-		Version:     VersionBackendInvoiceMDPayment,
-		Address:     dbInvoicePayment.Address,
-		Amount:      dbInvoicePayment.Amount,
-		TxNotBefore: dbInvoicePayment.TxNotBefore,
-		TxID:        dbInvoicePayment.TxID,
-	})
-	if err != nil {
-		return fmt.Errorf("cannot marshal backend payment: %v", err)
-	}
-
-	challenge, err := util.Random(pd.ChallengeSize)
-	if err != nil {
-		return fmt.Errorf("could not create challenge: %v", err)
-	}
-
-	pdCommand := pd.UpdateVettedMetadata{
-		Challenge: hex.EncodeToString(challenge),
-		Token:     dbInvoice.Token,
-		MDOverwrite: []pd.MetadataStream{
-			{
-				ID:      mdStreamPayments,
-				Payload: string(mdPayment),
-			},
-		},
-		MDAppend: []pd.MetadataStream{
-			{
-				ID:      mdStreamChanges,
-				Payload: string(mdChange),
-			},
-		},
-	}
-
-	responseBody, err := c.rpc(http.MethodPost,
-		pd.UpdateVettedMetadataRoute, pdCommand)
-	if err != nil {
-		return fmt.Errorf("problem communicating with politeiad: %v", err)
-	}
-
-	var pdReply pd.UpdateVettedMetadataReply
-	err = json.Unmarshal(responseBody, &pdReply)
-	if err != nil {
-		return fmt.Errorf("could not unmarshal UpdateVettedMetadataReply: %v",
-			err)
-	}
-
-	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
-	if err != nil {
-		return fmt.Errorf("could not verify challenge: %v", err)
+		return err
 	}
 
 	// Update the invoice in the database.
-	dbInvoice.Status = v1.InvoiceStatusPaid
-	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
-		Timestamp: ts,
-		NewStatus: v1.InvoiceStatusPaid,
-	})
+	if dbInvoice.Status != v1.InvoiceStatusPaid {
+		// Update the status in the database if necessary.
+		dbInvoice.Status = v1.InvoiceStatusPaid
+		dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
+			Timestamp: ts,
+			NewStatus: v1.InvoiceStatusPaid,
+		})
+	}
 	err = c.db.UpdateInvoice(dbInvoice)
 	if err != nil {
 		return fmt.Errorf("cannot update invoice with token %v: %v",
@@ -493,7 +503,7 @@ func (c *cmswww) HandleReviewInvoices(
 	}, nil
 }
 
-// HandlePayInvoices returns an array of all invoices.
+// HandlePayInvoices creates new invoice payments and returns their data.
 func (c *cmswww) HandlePayInvoices(
 	req interface{},
 	user *database.User,
@@ -527,23 +537,12 @@ func (c *cmswww) HandlePayInvoices(
 			return nil, err
 		}
 
-		for _, invoicePayment := range invoice.Payments {
-			if invoicePayment.TxID != "" {
-				continue
-			}
-
-			invoicePayment.PollExpiry =
-				time.Now().Add(pollExpiryDuration).Unix()
-
-			err = c.db.UpdateInvoicePayment(&invoicePayment)
-			if err != nil {
-				return nil, err
-			}
-
-			c.addInvoiceForPolling(invoice.Token, &invoicePayment)
+		err = c.refreshExistingInvoicePayments(invoice)
+		if err != nil {
+			return nil, err
 		}
 
-		invoicePayment, err := c.createInvoicePayment(invoice, pi.DCRUSDRate)
+		invoicePayment, err := c.createInvoicePayment(invoice, pi.USDDCRRate, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -553,6 +552,41 @@ func (c *cmswww) HandlePayInvoices(
 
 	return &v1.PayInvoicesReply{
 		Invoices: invoicePayments,
+	}, nil
+}
+
+// HandlePayInvoice creates a new invoice payment and returns it.
+func (c *cmswww) HandlePayInvoice(
+	req interface{},
+	user *database.User,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, error) {
+	pi := req.(*v1.PayInvoice)
+
+	invoice, err := c.db.GetInvoiceByToken(pi.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.fetchInvoiceFileIfNecessary(invoice)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.refreshExistingInvoicePayments(invoice)
+	if err != nil {
+		return nil, err
+	}
+
+	invoicePayment, err := c.createInvoicePayment(invoice, pi.USDDCRRate,
+		pi.CostUSD)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v1.PayInvoiceReply{
+		Invoice: *invoicePayment,
 	}, nil
 }
 

@@ -74,6 +74,11 @@ API.  It does not render HTML.
 - [`ErrorStatusInvalidInvoiceVoteStatus`](#ErrorStatusInvalidInvoiceVoteStatus)
 - [`ErrorStatusNoInvoiceCredits`](#ErrorStatusNoInvoiceCredits)
 - [`ErrorStatusInvalidUserManageAction`](#ErrorStatusInvalidUserManageAction)
+- [`ErrorStatusUserAlreadyExists`](#ErrorStatusUserAlreadyExists)
+- [`ErrorStatusReasonNotProvided`](#ErrorStatusReasonNotProvided)
+- [`ErrorStatusMalformedInvoiceFile`](#ErrorStatusMalformedInvoiceFile)
+- [`ErrorStatusInvoicePaymentNotFound`](#ErrorStatusInvoicePaymentNotFound)
+- [`ErrorStatusDuplicateInvoice`](#ErrorStatusDuplicateInvoice)
 
 **Invoice status codes**
 
@@ -1023,6 +1028,10 @@ Note: This call requires admin privileges.
 
 **Results:** none
 
+This call can return one of the following error codes:
+
+- [`ErrorStatusInvoicePaymentNotFound`](#ErrorStatusInvoicePaymentNotFound)
+
 **Example**
 
 Request:
@@ -1071,6 +1080,7 @@ This call can return one of the following error codes:
 - [`ErrorStatusNoPublicKey`](#ErrorStatusNoPublicKey)
 - [`ErrorStatusInvalidInput`](#ErrorStatusInvalidInput)
 - [`ErrorStatusMalformedInvoiceFile`](#ErrorStatusMalformedInvoiceFile)
+- [`ErrorStatusDuplicateInvoice`](#ErrorStatusDuplicateInvoice)
 
 **Example**
 
@@ -1284,42 +1294,37 @@ Reply:
 | <a name="ErrorStatusMalformedEmail">ErrorStatusMalformedEmail</a> | 2 | The provided email address was malformed. |
 | <a name="ErrorStatusVerificationTokenInvalid">ErrorStatusVerificationTokenInvalid</a> | 3 | The provided user activation token is invalid. |
 | <a name="ErrorStatusVerificationTokenExpired">ErrorStatusVerificationTokenExpired</a> | 4 | The provided user activation token is expired. |
-| <a name="ErrorStatusInvoiceMissingFiles">ErrorStatusInvoiceMissingFiles</a> | 5 | The provided invoice does not have files. This error may include additional context: index file is missing - "index.md". |
+| <a name="ErrorStatusVerificationTokenUnexpired">ErrorStatusVerificationTokenUnexpired</a> | 5 | A verification token has already been generated and hasn't expired yet. | |
 | <a name="ErrorStatusInvoiceNotFound">ErrorStatusInvoiceNotFound</a> | 6 | The requested invoice does not exist. |
-| <a name="ErrorStatusInvoiceDuplicateFilenames">ErrorStatusInvoiceDuplicateFilenames</a> | 7 | The provided invoice has duplicate files. This error is provided with additional context: the duplicate name(s). |
-| <a name="ErrorStatusInvoiceInvalidTitle">ErrorStatusInvoiceInvalidTitle</a> | 8 | The provided invoice title is invalid. This error is provided with additional context: the regular expression accepted. |
-| <a name="ErrorStatusMaxMDsExceededPolicy">ErrorStatusMaxMDsExceededPolicy</a> | 9 | The submitted invoice has too many markdown files. Limits can be obtained by issuing the [Policy](#policy) command. |
+| <a name="ErrorStatusMalformedPassword">ErrorStatusMalformedPassword</a> | 7 | The provided password was malformed. |
+| <a name="ErrorStatusInvalidFileDigest">ErrorStatusInvalidFileDigest</a> | 8 | The digest (SHA-256 checksum) provided for one of the invoice files was incorrect. This error is provided with additional context: The name of the file with the invalid digest. |
+| <a name="ErrorStatusInvalidBase64">ErrorStatusInvalidBase64</a> | 9 | The name of the file with the invalid encoding.The Base64 encoding provided for one of the invoice files was incorrect. This error is provided with additional context: the name of the file with the invalid encoding. |
+| <a name="ErrorStatusInvalidMIMEType">ErrorStatusInvalidMIMEType</a> | 10 | The MIME type provided for one of the invoice files was not the same as the one derived from the file's content. This error is provided with additional context: The name of the file with the invalid MIME type and the MIME type detected for the file's content. |
+| <a name="ErrorStatusUnsupportedMIMEType">ErrorStatusUnsupportedMIMEType</a> | 11 | The MIME type provided for one of the invoice files is not supported. This error is provided with additional context: The name of the file with the unsupported MIME type and the MIME type that is unsupported. |
+| <a name="ErrorStatusInvalidInvoiceStatusTransition">ErrorStatusInvalidInvoiceStatusTransition</a> | 12 | The provided invoice cannot be changed to the given status. |
+| <a name="ErrorStatusInvalidPublicKey">ErrorStatusInvalidPublicKey</a> | 13 | Invalid public key. |
+| <a name="ErrorStatusDuplicatePublicKey">ErrorStatusDuplicatePublicKey</a> | 14 | The public key provided is already taken by another user. |
+| <a name="ErrorStatusNoPublicKey">ErrorStatusNoPublicKey</a> | 15 | User does not have an active public key. |
+| <a name="ErrorStatusInvalidSignature">ErrorStatusInvalidSignature</a> | 16 | Invalid signature. |
+| <a name="ErrorStatusInvalidInput">ErrorStatusInvalidInput</a> | 17 | Invalid input. |
+| <a name="ErrorStatusInvalidSigningKey">ErrorStatusInvalidSigningKey</a> | 18 | Invalid signing key. |
+| <a name="ErrorStatusUserNotFound">ErrorStatusUserNotFound</a> | 19 | The user was not found. |
+| <a name="ErrorStatusNotLoggedIn">ErrorStatusNotLoggedIn</a> | 20 | The user must be logged in for this action. |
+| <a name="ErrorStatusMalformedUsername">ErrorStatusMalformedUsername</a> | 21 | The provided username was malformed. |
+| <a name="ErrorStatusDuplicateUsername">ErrorStatusDuplicateUsername</a> | 22 | The provided username is already taken by another user. |
+| <a name="ErrorStatusUserLocked">ErrorStatusUserLocked</a> | 23 | User locked due to too many login attempts. |
+| <a name="ErrorStatusInvalidUserManageAction">ErrorStatusInvalidUserManageAction</a> | 24 | Invalid action for editing a user. |
+| <a name="ErrorStatusUserAlreadyExists">ErrorStatusUserAlreadyExists</a> | 25 | The user already exists in the system. |
+| <a name="ErrorStatusReasonNotProvided">ErrorStatusReasonNotProvided</a> | 26 | The reason for this action is required, but was not provided. |
+| <a name="ErrorStatusMalformedInvoiceFile">ErrorStatusMalformedInvoiceFile</a> | 27 | The invoice file is not formatted correctly according to the policy. |
+| <a name="ErrorStatusInvoicePaymentNotFound">ErrorStatusInvoicePaymentNotFound</a> | 28 | The invoice payment matching those parameters was not found in the system. |
+| <a name="ErrorStatusDuplicateInvoice">ErrorStatusDuplicateInvoice</a> | 29 | An invoice for that month and year has already been submitted. |
+
 | <a name="ErrorStatusMaxImagesExceededPolicy">ErrorStatusMaxImagesExceededPolicy</a> | 10 | The submitted invoice has too many images. Limits can be obtained by issuing the [Policy](#policy) command. |
-| <a name="ErrorStatusMaxMDSizeExceededPolicy">ErrorStatusMaxMDSizeExceededPolicy</a> | 11 | The submitted invoice markdown is too large. Limits can be obtained by issuing the [Policy](#policy) command. |
 | <a name="ErrorStatusMaxImageSizeExceededPolicy">ErrorStatusMaxImageSizeExceededPolicy</a> | 12 | The submitted invoice has one or more images that are too large. Limits can be obtained by issuing the [Policy](#policy) command. |
-| <a name="ErrorStatusMalformedPassword">ErrorStatusMalformedPassword</a> | 13 | The provided password was malformed. |
 | <a name="ErrorStatusCommentNotFound">ErrorStatusCommentNotFound</a> | 14 | The requested comment does not exist. |
-| <a name="ErrorStatusInvalidInvoiceName">ErrorStatusInvalidInvoiceName</a> | 15 | The invoice's name was invalid. |
-| <a name="ErrorStatusInvalidFileDigest">ErrorStatusInvalidFileDigest</a> | 16 | The digest (SHA-256 checksum) provided for one of the invoice files was incorrect. This error is provided with additional context: The name of the file with the invalid digest. |
-| <a name="ErrorStatusInvalidBase64">ErrorStatusInvalidBase64</a> | 17 | The name of the file with the invalid encoding.The Base64 encoding provided for one of the invoice files was incorrect. This error is provided with additional context: the name of the file with the invalid encoding. |
-| <a name="ErrorStatusInvalidMIMEType">ErrorStatusInvalidMIMEType</a> | 18 | The MIME type provided for one of the invoice files was not the same as the one derived from the file's content. This error is provided with additional context: The name of the file with the invalid MIME type and the MIME type detected for the file's content. |
-| <a name="ErrorStatusUnsupportedMIMEType">ErrorStatusUnsupportedMIMEType</a> | 19 | The MIME type provided for one of the invoice files is not supported. This error is provided with additional context: The name of the file with the unsupported MIME type and the MIME type that is unsupported. |
-| <a name="ErrorStatusInvalidInvoiceStatusTransition">ErrorStatusInvalidInvoiceStatusTransition</a> | 20 | The provided invoice cannot be changed to the given status. |
-| <a name="ErrorStatusInvalidPublicKey">ErrorStatusInvalidPublicKey</a> | 21 | Invalid public key. |
-| <a name="ErrorStatusNoPublicKey">ErrorStatusNoPublicKey</a> | 22 | User does not have an active public key. |
-| <a name="ErrorStatusInvalidSignature">ErrorStatusInvalidSignature</a> | 23 | Invalid signature. |
-| <a name="ErrorStatusInvalidInput">ErrorStatusInvalidInput</a> | 24 | Invalid input. |
-| <a name="ErrorStatusInvalidSigningKey">ErrorStatusInvalidSigningKey</a> | 25 | Invalid signing key. |
 | <a name="ErrorStatusCommentLengthExceededPolicy">ErrorStatusCommentLengthExceededPolicy</a> | 26 | The submitted comment length is too large. |
-| <a name="ErrorStatusUserNotFound">ErrorStatusUserNotFound</a> | 27 | The user was not found. |
-| <a name="ErrorStatusWrongStatus">ErrorStatusWrongStatus</a> | 28 | The invoice has the wrong status. |
-| <a name="ErrorStatusNotLoggedIn">ErrorStatusNotLoggedIn</a> | 29 | The user must be logged in for this action. |
-| <a name="ErrorStatusUserNotPaid">ErrorStatusUserNotPaid</a> | 30 | The user hasn't paid the registration fee. |
 | <a name="ErrorStatusReviewerAdminEqualsAuthor">ErrorStatusReviewerAdminEqualsAuthor</a> | 31 | The user cannot change the status of his own invoice. |
-| <a name="ErrorStatusMalformedUsername">ErrorStatusMalformedUsername</a> | 32 | The provided username was malformed. |
-| <a name="ErrorStatusDuplicateUsername">ErrorStatusDuplicateUsername</a> | 33 | The provided username is already taken by another user. |
-| <a name="ErrorStatusVerificationTokenUnexpired">ErrorStatusVerificationTokenUnexpired</a> | 34 | A verification token has already been generated and hasn't expired yet. |
-| <a name="ErrorStatusCannotVerifyPayment">ErrorStatusCannotVerifyPayment</a> | 35 | The server cannot verify the payment at this time, please try again later. |
-| <a name="ErrorStatusDuplicatePublicKey">ErrorStatusDuplicatePublicKey</a> | 36 | The public key provided is already taken by another user. |
-| <a name="ErrorStatusInvalidInvoiceVoteStatus">ErrorStatusInvalidInvoiceVoteStatus</a> | 37 | Invalid invoice vote status. |
-| <a name="ErrorStatusUserLocked">ErrorStatusUserLocked</a> | 38 | User locked due to too many login attempts. |
-| <a name="ErrorStatusNoInvoiceCredits">ErrorStatusNoInvoiceCredits</a> | 39 | No invoice credits. |
-| <a name="ErrorStatusInvalidUserManageAction">ErrorStatusInvalidUserManageAction</a> | 40 | Invalid action for editing a user. |
 
 ### Invoice status codes
 

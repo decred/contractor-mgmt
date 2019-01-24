@@ -844,6 +844,22 @@ func (c *cmswww) HandleSubmitInvoice(
 		return nil, err
 	}
 
+	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
+		UserID: strconv.FormatUint(user.ID, 10),
+		Month:  ni.Month,
+		Year:   ni.Year,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(invoices) > 0 {
+		return nil, v1.UserError{
+			ErrorCode:    v1.ErrorStatusDuplicateInvoice,
+			ErrorContext: []string{invoices[0].Token},
+		}
+	}
+
 	var nir v1.SubmitInvoiceReply
 	challenge, err := util.Random(pd.ChallengeSize)
 	if err != nil {

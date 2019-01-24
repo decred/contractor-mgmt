@@ -33,11 +33,11 @@ const (
 	ErrorStatusDuplicateUsername              ErrorStatusT = 22
 	ErrorStatusUserLocked                     ErrorStatusT = 23
 	ErrorStatusInvalidUserManageAction        ErrorStatusT = 24
-	ErrorStatusMissingInvoiceFile             ErrorStatusT = 25
-	ErrorStatusUserAlreadyExists              ErrorStatusT = 26
-	ErrorStatusReasonNotProvided              ErrorStatusT = 27
-	ErrorStatusMalformedInvoiceFile           ErrorStatusT = 28
-	ErrorStatusInvoicePaymentNotFound         ErrorStatusT = 29
+	ErrorStatusUserAlreadyExists              ErrorStatusT = 25
+	ErrorStatusReasonNotProvided              ErrorStatusT = 26
+	ErrorStatusMalformedInvoiceFile           ErrorStatusT = 27
+	ErrorStatusInvoicePaymentNotFound         ErrorStatusT = 28
+	ErrorStatusDuplicateInvoice               ErrorStatusT = 29
 
 	// Invoice status codes
 	InvoiceStatusInvalid           InvoiceStatusT = 0 // Invalid status
@@ -92,10 +92,11 @@ var (
 		ErrorStatusDuplicateUsername:              "duplicate username",
 		ErrorStatusUserLocked:                     "user locked due to too many login attempts",
 		ErrorStatusInvalidUserManageAction:        "invalid user manage action",
-		ErrorStatusMissingInvoiceFile:             "invoice file is missing",
 		ErrorStatusUserAlreadyExists:              "user already exists",
 		ErrorStatusReasonNotProvided:              "reason for action not provided",
 		ErrorStatusMalformedInvoiceFile:           "malformed invoice file",
+		ErrorStatusInvoicePaymentNotFound:         "invoice payment not found",
+		ErrorStatusDuplicateInvoice:               "duplicate invoice for this month and year",
 	}
 
 	// InvoiceStatus converts propsal status codes to human readable text

@@ -135,7 +135,7 @@ $ cmswwwcli setinvoicestatus <invoice token> rejected <reason for rejection>
 #### Generate a list of approved invoices (to be paid)
 
 ```
-$ cmswwwcli payinvoices dec 2018 <DCR-USD rate> > 2018-12_payouts.txt
+$ cmswwwcli payinvoices dec 2018 <USD/DCR rate> > 2018-12_payouts.txt
 ```
 
 ## Application Options

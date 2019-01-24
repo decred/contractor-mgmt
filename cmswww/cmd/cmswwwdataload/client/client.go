@@ -406,11 +406,11 @@ func (c *Client) RejectInvoice(token, reason string) error {
 	)
 }
 
-func (c *Client) PayInvoices(month, year uint16, dcrUSDRate float64) error {
+func (c *Client) PayInvoices(month, year uint16, usdDCRRate float64) (*v1.PayInvoicesReply, error) {
 	fmt.Printf("Paying invoices\n")
 
 	var pir v1.PayInvoicesReply
-	return c.ExecuteCliCommand(
+	err := c.ExecuteCliCommand(
 		&pir,
 		func() bool {
 			return true
@@ -418,8 +418,60 @@ func (c *Client) PayInvoices(month, year uint16, dcrUSDRate float64) error {
 		"payinvoices",
 		strconv.FormatUint(uint64(month), 10),
 		strconv.FormatUint(uint64(year), 10),
-		strconv.FormatFloat(dcrUSDRate, 'f', -1, 64),
+		strconv.FormatFloat(usdDCRRate, 'f', -1, 64),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pir, nil
+}
+
+func (c *Client) PayInvoice(invoiceToken string, costUSD uint64, usdDCRRate float64) (*v1.PayInvoiceReply, error) {
+	fmt.Printf("Paying invoice\n")
+
+	var pir v1.PayInvoiceReply
+	err := c.ExecuteCliCommand(
+		&pir,
+		func() bool {
+			return true
+		},
+		"payinvoice",
+		invoiceToken,
+		strconv.FormatUint(costUSD, 10),
+		strconv.FormatFloat(usdDCRRate, 'f', -1, 64),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pir, nil
+}
+
+func (c *Client) UpdateInvoicePayment(
+	token, address string,
+	amount uint64,
+	txID string,
+) (*v1.UpdateInvoicePaymentReply, error) {
+	fmt.Printf("Updating invoice as paid\n")
+
+	var uipr v1.UpdateInvoicePaymentReply
+	err := c.ExecuteCliCommand(
+		&uipr,
+		func() bool {
+			return true
+		},
+		"updateinvoicepayment",
+		token,
+		address,
+		strconv.FormatUint(amount, 10),
+		txID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &uipr, nil
 }
 
 func (c *Client) GetAllInvoices() ([]v1.InvoiceRecord, error) {

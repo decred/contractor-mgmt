@@ -181,6 +181,8 @@ func (c *cmswww) SetupRoutes() {
 		v1.ReviewInvoices{}, permissionAdmin, true)
 	c.addPostRoute(v1.RoutePayInvoices, c.HandlePayInvoices,
 		v1.PayInvoices{}, permissionAdmin, true)
+	c.addPostRoute(v1.RoutePayInvoice, c.HandlePayInvoice,
+		v1.PayInvoice{}, permissionAdmin, true)
 	c.addPostRoute(v1.RouteUpdateInvoicePayment, c.HandleUpdateInvoicePayment,
 		v1.UpdateInvoicePayment{}, permissionAdmin, true)
 	c.addGetRoute(v1.RouteUsers, c.HandleUsers, v1.Users{},

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	cliconfig "github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 	wwwconfig "github.com/decred/contractor-mgmt/cmswww/sharedconfig"
 	"github.com/decred/dcrd/chaincfg"
@@ -184,12 +185,12 @@ func rejectInvoice(email, password, token, reason string) error {
 	return c.Logout()
 }
 
-func payApprovedInvoices(email, password string, month, year uint16, dcrUSDRate float64) error {
+func payApprovedInvoices(email, password string, month, year uint16, usdDCRRate float64) error {
 	if _, err := c.Login(email, password); err != nil {
 		return err
 	}
 
-	err := c.PayInvoices(month, year, dcrUSDRate)
+	_, err := c.PayInvoices(month, year, usdDCRRate)
 	if err != nil {
 		return err
 	}
@@ -308,6 +309,73 @@ func testEditUser(email, password string) error {
 	}
 
 	return c.Logout()
+}
+
+func testMultiplePayments(email, pass, invoiceToken string, month, year uint16) error {
+	if _, err := c.Login(email, pass); err != nil {
+		return err
+	}
+
+	// Generate a new total cost payment for the invoice.
+	pir, err := c.PayInvoices(month, year, 10.0)
+	if err != nil {
+		return err
+	}
+
+	var invoicePayment *v1.InvoicePayment
+	for _, ip := range pir.Invoices {
+		if ip.Token == invoiceToken {
+			invoicePayment = &ip
+			break
+		}
+	}
+
+	if invoicePayment == nil {
+		return fmt.Errorf("payment for invoice with token %v not found",
+			invoiceToken)
+	}
+
+	// Update the invoice as paid with a fake transaction.
+	amount, err := dcrutil.NewAmount(invoicePayment.TotalCostDCR)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.UpdateInvoicePayment(invoiceToken,
+		invoicePayment.PaymentAddress, uint64(amount),
+		"9ab1f8413bb895f46088e317d42a950e929ab8649961cc4a9311cba5c7bff73a")
+	if err != nil {
+		return err
+	}
+
+	// Create a one-off additional payment for this invoice.
+	reply, err := c.PayInvoice(invoiceToken, 20, 10.0)
+	if err != nil {
+		return err
+	}
+	addlInvoicePayment := reply.Invoice
+
+	// Restart the server to verify that the additional payment is correctly
+	// stored and retrieved from politeiad.
+	stopCmswww()
+	if err = startCmswww(); err != nil {
+		return err
+	}
+	if _, err := c.Login(email, pass); err != nil {
+		return err
+	}
+
+	// Update the one-off additional invoice payment as paid with a fake
+	// transaction.
+	amount, err = dcrutil.NewAmount(addlInvoicePayment.TotalCostDCR)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.UpdateInvoicePayment(invoiceToken,
+		addlInvoicePayment.PaymentAddress, uint64(amount),
+		"9ab1f8413bb895f46088e317d42a950e929ab8649961cc4a9311cba5c7bff73a")
+	return err
 }
 
 func createContractorUser(
@@ -544,6 +612,9 @@ func _main() error {
 		if err != nil {
 			return err
 		}
+
+		return testMultiplePayments(cfg.AdminEmail, cfg.AdminPass,
+			invoiceToPayToken, 12, 2018)
 	}
 
 	fmt.Printf("Load data complete\n")

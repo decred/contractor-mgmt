@@ -15,14 +15,14 @@ func (c *cmswww) HandleRate(
 	r *http.Request,
 ) (interface{}, error) {
 	rate := req.(*v1.Rate)
-	dcrUSDRate, isDataMissing, err := c.rateCalculator.CalculateRateForMonth(
+	usdDCRRate, isDataMissing, err := c.rateCalculator.CalculateRateForMonth(
 		time.Month(rate.Month), int(rate.Year))
 	if err != nil {
 		return nil, err
 	}
 
 	return &v1.RateReply{
-		DCRUSDRate:    dcrUSDRate,
+		USDDCRRate:    usdDCRRate,
 		IsDataMissing: isDataMissing,
 	}, nil
 }

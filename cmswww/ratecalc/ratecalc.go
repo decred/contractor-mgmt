@@ -12,7 +12,7 @@ import (
 )
 
 // Calculator contains functions used to fetch data from exchanges, log that
-// data over an entire month, and then calculate the DCR-USD rate for that
+// data over an entire month, and then calculate the USD/DCR rate for that
 // month.
 type Calculator struct {
 	sync.RWMutex // lock for file reading/writing
@@ -393,7 +393,7 @@ func (c *Calculator) getRecords(filename string) ([][]string, error) {
 }
 
 // CalculateRateForMonth reads the data from the file for the given month and
-// year, and uses it to calculate the DCR-USD rate.
+// year, and uses it to calculate the USD/DCR rate.
 func (c *Calculator) CalculateRateForMonth(
 	month time.Month,
 	year int,
@@ -447,7 +447,7 @@ func (c *Calculator) CalculateRateForMonth(
 
 		// The algorithm currently just averages the open and close values for
 		// for both DCR-BTC and BTC-USD, and then multiples them together
-		// to get an average DCR-USD rate for each interval, and then averages
+		// to get an average USD/DCR rate for each interval, and then averages
 		// all intervals for the entire month.
 		dcrBTCAvg := (dcrBTCCandlestick.Open + dcrBTCCandlestick.Close) / 2
 		btcUSDAvg := (btcUSDCandlestick.Open + btcUSDCandlestick.Close) / 2

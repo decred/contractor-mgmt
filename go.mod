@@ -8,6 +8,7 @@ require (
 	github.com/decred/dcrd/chaincfg v1.2.1
 	github.com/decred/dcrd/dcrutil v1.2.0
 	github.com/decred/dcrd/wire v1.2.0
+	github.com/decred/dcrtime v0.0.0-20180808181920-4c91c4cbed09
 	github.com/decred/dcrwallet v1.2.2
 	github.com/decred/politeia v0.0.0-20190114033329-793ab1b7b1e9
 	github.com/decred/slog v1.0.0

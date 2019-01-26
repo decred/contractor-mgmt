@@ -42,6 +42,14 @@ const (
 	// values for each line item in the CSV.
 	PolicyInvoiceFieldDelimiterChar rune = ','
 
+	// PolicyMaxAttachments is the maximum number of attachments that a
+	// contractor can submit along with an invoice.
+	PolicyMaxAttachments = 10
+
+	// PolicyMaxAttachmentSize is the maximum file size (in bytes)
+	// accepted for an attachment when creating a new invoice.
+	PolicyMaxAttachmentSize = 512 * 1024
+
 	// ListPageSize is the maximum number of entries returned
 	// for the routes that return lists
 	ListPageSize = 25

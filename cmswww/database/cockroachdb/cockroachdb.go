@@ -258,6 +258,12 @@ func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error)
 	}
 
 	result = c.db.Where("invoice_token = ?", invoice.Token).Find(
+		&invoice.Files)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	result = c.db.Where("invoice_token = ?", invoice.Token).Find(
 		&invoice.Payments)
 	if result.Error != nil {
 		return nil, result.Error
@@ -345,6 +351,22 @@ func (c *cockroachdb) UpdateInvoicePayment(dbInvoicePayment *database.InvoicePay
 	return c.db.Save(invoicePayment).Error
 }
 
+func (c *cockroachdb) CreateInvoiceFiles(token string, dbInvoiceFiles []database.InvoiceFile) error {
+	log.Debugf("CreateInvoiceFiles: %v", token)
+
+	for _, dbInvoiceFile := range dbInvoiceFiles {
+		invoiceFile := EncodeInvoiceFile(&dbInvoiceFile)
+		invoiceFile.InvoiceToken = token
+
+		err := c.db.Create(invoiceFile).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Deletes all data from all tables.
 //
 // DeleteAllData satisfies the backend interface.
@@ -417,6 +439,11 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 		return nil, fmt.Errorf("error dropping %v table: %v",
 			tableNameInvoicePayment, err)
 	}
+	err = c.dropTable(tableNameInvoiceFile)
+	if err != nil {
+		return nil, fmt.Errorf("error dropping %v table: %v",
+			tableNameInvoiceFile, err)
+	}
 	err = c.dropTable(tableNameInvoice)
 	if err != nil {
 		return nil, fmt.Errorf("error dropping %v table: %v", tableNameInvoice,
@@ -427,6 +454,7 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 		&User{},
 		&Identity{},
 		&Invoice{},
+		&InvoiceFile{},
 		&InvoiceChange{},
 		&InvoicePayment{},
 	)

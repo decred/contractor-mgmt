@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/hex"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrtime/merkle"
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/decred/politeia/util"
 
@@ -94,7 +96,8 @@ func checkSignature(id []byte, signature string, elements ...string) error {
 }
 
 func validateInvoice(
-	signature, publicKey, payload string,
+	signature, publicKey string,
+	files []v1.File,
 	month, year int,
 	user *database.User,
 ) error {
@@ -119,21 +122,52 @@ func validateInvoice(
 		return err
 	}
 
-	// Check for the presence of the file.
-	if payload == "" {
+	if len(files) == 0 {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidInput,
 		}
 	}
 
-	data, err := base64.StdEncoding.DecodeString(payload)
-	if err != nil {
-		return err
+	if len(files)-1 > v1.PolicyMaxAttachments {
+		return v1.UserError{
+			ErrorCode: v1.ErrorStatusMaxAttachmentsExceeded,
+		}
 	}
-	digest := util.Digest(data)
 
-	// Validate the string representation of the digest against the signature.
-	if !pk.VerifyMessage([]byte(hex.EncodeToString(digest)), sig) {
+	var invoiceData []byte
+	var hashes []*[sha256.Size]byte
+	for idx, file := range files {
+		// Check for the presence of the file.
+		if file.Payload == "" || file.Digest == "" {
+			return v1.UserError{
+				ErrorCode: v1.ErrorStatusInvalidInput,
+			}
+		}
+
+		data, err := base64.StdEncoding.DecodeString(file.Payload)
+		if err != nil {
+			return err
+		}
+		if idx == 0 {
+			invoiceData = data
+		}
+
+		if len(data) > v1.PolicyMaxAttachmentSize {
+			return v1.UserError{
+				ErrorCode: v1.ErrorStatusMaxAttachmentSizeExceeded,
+			}
+		}
+
+		// Append digest to array for merkle root calculation
+		digest := util.Digest(data)
+		var d [sha256.Size]byte
+		copy(d[:], digest)
+		hashes = append(hashes, &d)
+	}
+
+	// Note that we need validate the string representation of the merkle
+	mr := merkle.Root(hashes)
+	if !pk.VerifyMessage([]byte(hex.EncodeToString(mr[:])), sig) {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusInvalidSignature,
 		}
@@ -143,15 +177,15 @@ func validateInvoice(
 	t := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	str := fmt.Sprintf("%v %v", v1.PolicyInvoiceCommentChar,
 		t.Format("2006-01"))
-	if strings.HasPrefix(string(data), str) ||
-		strings.Contains(string(data), "\n"+str) {
+	if strings.HasPrefix(string(invoiceData), str) ||
+		strings.Contains(string(invoiceData), "\n"+str) {
 		return v1.UserError{
 			ErrorCode: v1.ErrorStatusMalformedInvoiceFile,
 		}
 	}
 
 	// Validate that the invoice is CSV-formatted.
-	csvReader := csv.NewReader(strings.NewReader(string(data)))
+	csvReader := csv.NewReader(strings.NewReader(string(invoiceData)))
 	csvReader.Comma = v1.PolicyInvoiceFieldDelimiterChar
 	csvReader.Comment = v1.PolicyInvoiceCommentChar
 	csvReader.TrimLeadingSpace = true

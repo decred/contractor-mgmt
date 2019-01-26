@@ -56,6 +56,7 @@ type Database interface {
 	GetInvoiceByToken(string) (*Invoice, error)          // Return invoice given its token
 	GetInvoices(InvoicesRequest) ([]Invoice, int, error) // Return a list of invoices
 	UpdateInvoicePayment(*InvoicePayment) error          // Update an existing invoice's payment
+	CreateInvoiceFiles(string, []InvoiceFile) error      // Create invoice files
 
 	DeleteAllData() error // Delete all data from all tables
 
@@ -108,18 +109,20 @@ type Invoice struct {
 	Timestamp          int64
 	Status             v1.InvoiceStatusT
 	StatusChangeReason string
-	File               *File
 	PublicKey          string
 	UserSignature      string
 	ServerSignature    string
+	MerkleRoot         string
 	Proposal           string // Optional link to a Politeia proposal
 	Version            string // Version number of this invoice
 
+	Files    []InvoiceFile
 	Changes  []InvoiceChange
 	Payments []InvoicePayment
 }
 
-type File struct {
+type InvoiceFile struct {
+	Name    string
 	Payload string
 	MIME    string
 	Digest  string

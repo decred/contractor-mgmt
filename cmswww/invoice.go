@@ -77,6 +77,26 @@ func validateStatusTransition(
 	return nil
 }
 
+func (c *cmswww) validateInvoiceUnique(user *database.User, month, year uint16) error {
+	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
+		UserID: strconv.FormatUint(user.ID, 10),
+		Month:  month,
+		Year:   year,
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(invoices) > 0 {
+		return v1.UserError{
+			ErrorCode:    v1.ErrorStatusDuplicateInvoice,
+			ErrorContext: []string{invoices[0].Token},
+		}
+	}
+
+	return nil
+}
+
 func (c *cmswww) refreshExistingInvoicePayments(dbInvoice *database.Invoice) error {
 	for _, dbInvoicePayment := range dbInvoice.Payments {
 		if dbInvoicePayment.TxID != "" {
@@ -101,7 +121,7 @@ func (c *cmswww) deriveTotalCostFromInvoice(
 	dbInvoice *database.Invoice,
 	invoicePayment *v1.InvoicePayment,
 ) error {
-	b, err := base64.StdEncoding.DecodeString(dbInvoice.File.Payload)
+	b, err := base64.StdEncoding.DecodeString(dbInvoice.Files[0].Payload)
 	if err != nil {
 		return err
 	}
@@ -148,7 +168,7 @@ func (c *cmswww) createInvoiceReview(invoice *database.Invoice) (*v1.InvoiceRevi
 		LineItems: make([]v1.InvoiceReviewLineItem, 0),
 	}
 
-	b, err := base64.StdEncoding.DecodeString(invoice.File.Payload)
+	b, err := base64.StdEncoding.DecodeString(invoice.Files[0].Payload)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +415,7 @@ func (c *cmswww) updateInvoicePayment(
 }
 
 func (c *cmswww) fetchInvoiceFileIfNecessary(invoice *database.Invoice) error {
-	if invoice.File != nil {
+	if len(invoice.Files) == 0 {
 		return nil
 	}
 
@@ -426,7 +446,7 @@ func (c *cmswww) fetchInvoiceFileIfNecessary(invoice *database.Invoice) error {
 		return err
 	}
 
-	invoice.File = convertRecordFilesToDatabaseInvoiceFile(pdReply.Record.Files)
+	invoice.Files = convertRecordFilesToDatabaseInvoiceFiles(pdReply.Record.Files)
 	return nil
 }
 
@@ -800,6 +820,14 @@ func (c *cmswww) HandleInvoiceDetails(
 		return nil, err
 	}
 
+	// If the files are already loaded for this invoice, return the version
+	// from the database; no need to make a request to Politeiad.
+	if len(invoice.Files) > 0 {
+		idr.Invoice = *invoice
+		return &idr, nil
+	}
+
+	// Fetch the full record from Politeiad.
 	responseBody, err := c.rpc(http.MethodPost, pd.GetVettedRoute,
 		pd.GetVetted{
 			Token:     id.Token,
@@ -823,8 +851,15 @@ func (c *cmswww) HandleInvoiceDetails(
 		return nil, err
 	}
 
-	invoice.File = convertInvoiceFileFromPD(pdReply.Record.Files)
-	invoice.Username = c.getUsernameByID(invoice.UserID)
+	invoice.Files = convertRecordFilesToInvoiceFiles(pdReply.Record.Files)
+
+	// Update the database with the files fetched from Politeiad.
+	err = c.db.CreateInvoiceFiles(dbInvoice.Token,
+		convertRecordFilesToDatabaseInvoiceFiles(pdReply.Record.Files))
+	if err != nil {
+		return nil, err
+	}
+
 	idr.Invoice = *invoice
 	return &idr, nil
 }
@@ -836,28 +871,17 @@ func (c *cmswww) HandleSubmitInvoice(
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, error) {
-	ni := req.(*v1.SubmitInvoice)
-	fmt.Println(ni)
-	err := validateInvoice(ni.Signature, ni.PublicKey, ni.File.Payload,
-		int(ni.Month), int(ni.Year), user)
+	si := req.(*v1.SubmitInvoice)
+
+	err := validateInvoice(si.Signature, si.PublicKey, si.Files,
+		int(si.Month), int(si.Year), user)
 	if err != nil {
 		return nil, err
 	}
 
-	invoices, _, err := c.db.GetInvoices(database.InvoicesRequest{
-		UserID: strconv.FormatUint(user.ID, 10),
-		Month:  ni.Month,
-		Year:   ni.Year,
-	})
+	err = c.validateInvoiceUnique(user, si.Month, si.Year)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(invoices) > 0 {
-		return nil, v1.UserError{
-			ErrorCode:    v1.ErrorStatusDuplicateInvoice,
-			ErrorContext: []string{invoices[0].Token},
-		}
 	}
 
 	var nir v1.SubmitInvoiceReply
@@ -869,12 +893,12 @@ func (c *cmswww) HandleSubmitInvoice(
 	// Assemble metadata record
 	ts := time.Now().Unix()
 	md, err := json.Marshal(BackendInvoiceMetadata{
-		Month:     ni.Month,
-		Year:      ni.Year,
 		Version:   VersionBackendInvoiceMetadata,
+		Month:     si.Month,
+		Year:      si.Year,
 		Timestamp: ts,
-		PublicKey: ni.PublicKey,
-		Signature: ni.Signature,
+		PublicKey: si.PublicKey,
+		Signature: si.Signature,
 	})
 	if err != nil {
 		return nil, err
@@ -886,7 +910,7 @@ func (c *cmswww) HandleSubmitInvoice(
 			ID:      mdStreamGeneral,
 			Payload: string(md),
 		}},
-		Files: convertInvoiceFileFromWWW(&ni.File),
+		Files: convertInvoiceFilesToRecordFiles(si.Files),
 	}
 
 	var pdNewRecordReply pd.NewRecordReply
@@ -968,7 +992,7 @@ func (c *cmswww) HandleSubmitInvoice(
 		return nil, err
 	}
 
-	nir.CensorshipRecord = convertInvoiceCensorFromPD(
+	nir.CensorshipRecord = convertRecordCensorToInvoiceCensor(
 		pdNewRecordReply.CensorshipRecord)
 	return &nir, nil
 }
@@ -987,7 +1011,7 @@ func (c *cmswww) HandleEditInvoice(
 		return nil, err
 	}
 
-	err = validateInvoice(ei.Signature, ei.PublicKey, ei.File.Payload,
+	err = validateInvoice(ei.Signature, ei.PublicKey, ei.Files,
 		int(dbInvoice.Month), int(dbInvoice.Year), user)
 	if err != nil {
 		return nil, err
@@ -1032,7 +1056,7 @@ func (c *cmswww) HandleEditInvoice(
 			ID:      mdStreamChanges,
 			Payload: string(changes),
 		}},
-		FilesAdd: convertInvoiceFileFromWWW(&ei.File),
+		FilesAdd: convertInvoiceFilesToRecordFiles(ei.Files),
 	}
 
 	var pdUpdateRecordReply pd.UpdateRecordReply

@@ -13,6 +13,7 @@ const (
 	tableNameUser           = "users"
 	tableNameIdentity       = "identities"
 	tableNameInvoice        = "invoices"
+	tableNameInvoiceFile    = "invoice_files"
 	tableNameInvoiceChange  = "invoice_changes"
 	tableNameInvoicePayment = "invoice_payments"
 )
@@ -68,15 +69,14 @@ type Invoice struct {
 	Timestamp          time.Time `gorm:"not_null"`
 	Status             uint      `gorm:"not_null"`
 	StatusChangeReason string
-	FilePayload        string `gorm:"type:text"`
-	FileMIME           string
-	FileDigest         string
 	PublicKey          string `gorm:"not_null"`
 	UserSignature      string `gorm:"not_null"`
 	ServerSignature    string `gorm:"not_null"`
+	MerkleRoot         string `gorm:"not_null"`
 	Proposal           string
 	Version            string
 
+	Files    []InvoiceFile
 	Changes  []InvoiceChange
 	Payments []InvoicePayment
 
@@ -88,6 +88,19 @@ type Invoice struct {
 
 func (i Invoice) TableName() string {
 	return tableNameInvoice
+}
+
+type InvoiceFile struct {
+	gorm.Model
+	InvoiceToken string
+	Name         string
+	MIME         string
+	Digest       string
+	Payload      string `gorm:"type:text"`
+}
+
+func (i InvoiceFile) TableName() string {
+	return tableNameInvoiceFile
 }
 
 type InvoiceChange struct {

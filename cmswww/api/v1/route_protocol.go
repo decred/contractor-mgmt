@@ -42,6 +42,8 @@ var (
 // directory structure must be flattened.  The server side SHALL verify MIME
 // and Digest.
 type File struct {
+	Name    string `json:"name"`    // Filename
+	MIME    string `json:"mime"`    // MIME type of file
 	Digest  string `json:"digest"`  // Digest of unencoded payload
 	Payload string `json:"payload"` // File content, base64 encoded
 }
@@ -70,7 +72,7 @@ type InvoiceRecord struct {
 	Username           string         `json:"username"`                     // Username of user who submitted invoice
 	PublicKey          string         `json:"publickey"`                    // User's public key, used to verify signature.
 	Signature          string         `json:"signature"`                    // Signature of file digest
-	File               *File          `json:"file"`                         // Actual invoice file
+	Files              []File         `json:"files"`                        // Actual invoice file and attachments
 	Version            string         `json:"version"`                      // Record version
 
 	CensorshipRecord CensorshipRecord `json:"censorshiprecord"`
@@ -207,7 +209,7 @@ type LogoutReply struct{}
 type SubmitInvoice struct {
 	Month     uint16 `json:"month"`
 	Year      uint16 `json:"year"`
-	File      File   `json:"file"`      // Invoice file
+	Files     []File `json:"files"`     // Invoice file and any attachments
 	PublicKey string `json:"publickey"` // Key used to verify signature
 	Signature string `json:"signature"` // Signature of file hash
 }
@@ -220,7 +222,7 @@ type SubmitInvoiceReply struct {
 // EditInvoice attempts to submit an edit to an existing invoice.
 type EditInvoice struct {
 	Token     string `json:"token"`     // Invoice token
-	File      File   `json:"file"`      // Invoice file
+	Files     []File `json:"files"`     // Invoice file and any attachments
 	PublicKey string `json:"publickey"` // Key used to verify signature
 	Signature string `json:"signature"` // Signature of file hash
 

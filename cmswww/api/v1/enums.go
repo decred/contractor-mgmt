@@ -38,6 +38,8 @@ const (
 	ErrorStatusMalformedInvoiceFile           ErrorStatusT = 27
 	ErrorStatusInvoicePaymentNotFound         ErrorStatusT = 28
 	ErrorStatusDuplicateInvoice               ErrorStatusT = 29
+	ErrorStatusMaxAttachmentsExceeded         ErrorStatusT = 30
+	ErrorStatusMaxAttachmentSizeExceeded      ErrorStatusT = 31
 
 	// Invoice status codes
 	InvoiceStatusInvalid           InvoiceStatusT = 0 // Invalid status
@@ -97,6 +99,8 @@ var (
 		ErrorStatusMalformedInvoiceFile:           "malformed invoice file",
 		ErrorStatusInvoicePaymentNotFound:         "invoice payment not found",
 		ErrorStatusDuplicateInvoice:               "duplicate invoice for this month and year",
+		ErrorStatusMaxAttachmentsExceeded:         "max number of attachments exceeded",
+		ErrorStatusMaxAttachmentSizeExceeded:      "max attachment size exceeded",
 	}
 
 	// InvoiceStatus converts propsal status codes to human readable text

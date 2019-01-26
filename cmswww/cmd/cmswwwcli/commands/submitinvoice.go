@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bufio"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/hex"
@@ -10,19 +9,25 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/decred/politeia/politeiad/api/v1/mime"
+	"github.com/decred/politeia/util"
+
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/client"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
 type SubmitInvoiceCmd struct {
 	Args struct {
-		Month string `positional-arg-name:"month"`
-		Year  uint16 `positional-arg-name:"year"`
+		Attachments []string `positional-arg-name:"attachmentFilepaths"`
 	} `positional-args:"true" optional:"true"`
 	InvoiceFilename string `long:"invoice" optional:"true" description:"Filepath to an invoice CSV"`
+	Month           string `long:"month" optional:"true" description:"Month to specify a prebuilt invoice"`
+	Year            uint16 `long:"year" optional:"true" description:"Year to specify a prebuilt invoice"`
 }
 
 // SubmissionRecord is a record of an invoice submission to the server,
@@ -100,12 +105,12 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 	}
 
 	var filename string
-	if cmd.Args.Month != "" && cmd.Args.Year != 0 {
-		month, err := ParseMonth(cmd.Args.Month)
+	if cmd.Month != "" && cmd.Year != 0 {
+		month, err := ParseMonth(cmd.Month)
 		if err != nil {
 			return err
 		}
-		year = cmd.Args.Year
+		year = cmd.Year
 
 		filename, err = config.GetInvoiceFilename(month, year)
 		if err != nil {
@@ -123,43 +128,71 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 		return err
 	}
 
+	// Read attachment files into memory and convert to type File
+	files := make([]v1.File, 0, len(cmd.Args.Attachments)+1)
+
+	// Add the invoice file.
 	payload, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return err
+		fmt.Errorf("error reading invoice file %v: %v", filename, err)
 	}
 
-	h := sha256.New()
-	h.Write(payload)
-	digest := hex.EncodeToString(h.Sum(nil))
-	signature := id.SignMessage([]byte(digest))
+	files = append(files, v1.File{
+		Digest:  hex.EncodeToString(util.Digest(payload)),
+		Payload: base64.StdEncoding.EncodeToString(payload),
+	})
 
-	ni := v1.SubmitInvoice{
-		Month: month,
-		Year:  year,
-		File: v1.File{
-			Digest:  digest,
-			Payload: base64.StdEncoding.EncodeToString(payload),
-		},
+	for _, path := range cmd.Args.Attachments {
+		attachment, err := ioutil.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("error reading invoice attachment file %v: %v",
+				path, err)
+		}
+
+		files = append(files, v1.File{
+			Name:    filepath.Base(path),
+			MIME:    mime.DetectMimeType(attachment),
+			Digest:  hex.EncodeToString(util.Digest(attachment)),
+			Payload: base64.StdEncoding.EncodeToString(attachment),
+		})
+	}
+
+	// Compute merkle root and sign it.
+	sig, err := client.SignMerkleRoot(files, id)
+	if err != nil {
+		return fmt.Errorf("SignMerkleRoot: %v", err)
+	}
+
+	si := v1.SubmitInvoice{
+		Month:     month,
+		Year:      year,
+		Files:     files,
 		PublicKey: hex.EncodeToString(id.Public.Key[:]),
-		Signature: hex.EncodeToString(signature[:]),
+		Signature: sig,
 	}
 
-	var nir v1.SubmitInvoiceReply
-	err = Ctx.Post(v1.RouteSubmitInvoice, ni, &nir)
+	var sir v1.SubmitInvoiceReply
+	err = Ctx.Post(v1.RouteSubmitInvoice, si, &sir)
 	if err != nil {
 		return err
 	}
 
-	if nir.CensorshipRecord.Merkle != digest {
-		return fmt.Errorf("Digest returned from server did not match client's"+
-			" digest: %v %v", digest, nir.CensorshipRecord.Merkle)
+	ir := v1.InvoiceRecord{
+		Files:            si.Files,
+		PublicKey:        si.PublicKey,
+		Signature:        si.Signature,
+		CensorshipRecord: sir.CensorshipRecord,
+	}
+	err = client.VerifyInvoice(ir, config.ServerPublicKey)
+	if err != nil {
+		return err
 	}
 
 	// Store the submission record in case the submitter ever needs it.
 	submissionRecord := SubmissionRecord{
 		ServerPublicKey:  config.ServerPublicKey,
-		Submission:       ni,
-		CensorshipRecord: nir.CensorshipRecord,
+		Submission:       si,
+		CensorshipRecord: sir.CensorshipRecord,
 	}
 	data, err := json.MarshalIndent(submissionRecord, "", "  ")
 	if err != nil {

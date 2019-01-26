@@ -1,0 +1,55 @@
+version: '2'
+
+vars:
+  INSTALL_DIR: "{{env \"HOME\"}}/cmswww"
+  DATA_DIR: "{{env \"HOME\"}}/.cmswww/data/{{.NAME}}/cockroachdb/data"
+  # Name is used to give an identity for where to create persistent storage
+  # items, and has been set in this instance to the name of the network we
+  # connect to
+  NAME: testnet3
+
+tasks:
+  dataload:
+    desc: Runs cmswwwdataload to fill out database with some sample data
+    cmds:
+      - cmswwwdataload --verbose --deletedata
+
+  init_cdb:
+    desc: Deletes (if necessary) and (re)creates database ready for use
+    cmds:
+      - task: quit_cdb
+      - task: reset_cdb
+      - rm -rf ~/.cmswww/data/{{.NAME}}/cockroachdb
+      - mkdir -p ~/.cmswww/data/{{.NAME}}/cockroachdb
+      - mkdir -p {{.INSTALL_DIR}}
+      - cockroach cert create-ca --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" --ca-key="{{.INSTALL_DIR}}/ca.key" --allow-ca-key-reuse
+      - cockroach cert create-client root --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" --ca-key="{{.INSTALL_DIR}}/ca.key"
+      - cockroach cert create-node localhost --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" --ca-key="{{.INSTALL_DIR}}/ca.key"
+      - task: start_cdb
+      - sleep 1
+      - cockroach user set cmswwwuser --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb"
+      - cockroach cert create-client cmswwwuser --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" --ca-key="{{.INSTALL_DIR}}/ca.key"
+      - cockroach sql --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" -e 'CREATE DATABASE cmswww'
+      - cockroach sql --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" -e 'GRANT ALL ON DATABASE cmswww TO cmswwwuser'
+      - cockroach sql --user=cmswwwuser --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" -e 'GRANT ALL ON DATABASE cmswww TO cmswwwuser'
+
+  start_cdb:
+    desc: Start database
+    cmds:
+      - cockroach start --background --store={{.DATA_DIR}} --host=localhost --http-host=localhost --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb" &
+
+  quit_cdb:
+    desc: Stops database
+    cmds:
+      - cmd: cockroach quit --certs-dir="$(echo ~)/.cmswww/data/{{.NAME}}/cockroachdb"
+        ignore_error: true
+  
+  reset_cdb:
+    desc: Deletes database data from system
+    cmds:
+      - rm -rf {{.DATA_DIR}}
+
+  vendor:
+    desc: Vendor go modules
+    cmds:
+      - GO111MODULE=on go mod vendor

@@ -5,6 +5,7 @@
 *.so
 *.dylib
 cmswww/cmswww
+cmswww/cmd/cmswwwcli/cmswwwcli
 
 # Test binary, build with `go test -c`
 *.test

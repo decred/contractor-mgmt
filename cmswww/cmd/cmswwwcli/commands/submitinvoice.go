@@ -134,7 +134,7 @@ func (cmd *SubmitInvoiceCmd) Execute(args []string) error {
 	// Add the invoice file.
 	payload, err := ioutil.ReadFile(filename)
 	if err != nil {
-		fmt.Errorf("error reading invoice file %v: %v", filename, err)
+		return fmt.Errorf("error reading invoice file %v: %v", filename, err)
 	}
 
 	files = append(files, v1.File{

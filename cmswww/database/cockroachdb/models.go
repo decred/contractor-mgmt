@@ -62,6 +62,7 @@ func (i Identity) TableName() string {
 
 type Invoice struct {
 	Token              string    `gorm:"primary_key"`
+	Version            string    `gorm:"primary_key"`
 	UserID             uint      `gorm:"not_null"`
 	Username           string    `gorm:"-"` // Only populated when reading from the database
 	Month              uint      `gorm:"not_null"`
@@ -74,7 +75,6 @@ type Invoice struct {
 	ServerSignature    string `gorm:"not_null"`
 	MerkleRoot         string `gorm:"not_null"`
 	Proposal           string
-	Version            string
 
 	Files    []InvoiceFile
 	Changes  []InvoiceChange
@@ -92,11 +92,12 @@ func (i Invoice) TableName() string {
 
 type InvoiceFile struct {
 	gorm.Model
-	InvoiceToken string
-	Name         string
-	MIME         string
-	Digest       string
-	Payload      string `gorm:"type:text"`
+	InvoiceToken   string
+	InvoiceVersion string
+	Name           string
+	MIME           string
+	Digest         string
+	Payload        string `gorm:"type:text"`
 }
 
 func (i InvoiceFile) TableName() string {
@@ -106,6 +107,7 @@ func (i InvoiceFile) TableName() string {
 type InvoiceChange struct {
 	gorm.Model
 	InvoiceToken   string
+	InvoiceVersion string
 	AdminPublicKey string
 	NewStatus      uint
 	Timestamp      time.Time
@@ -117,13 +119,14 @@ func (i InvoiceChange) TableName() string {
 
 type InvoicePayment struct {
 	gorm.Model
-	InvoiceToken string
-	IsTotalCost  bool   `gorm:"not_null"`
-	Address      string `gorm:"not_null"`
-	Amount       uint   `gorm:"not_null"`
-	TxNotBefore  int64  `gorm:"not_null"`
-	PollExpiry   int64
-	TxID         string
+	InvoiceToken   string
+	InvoiceVersion string
+	IsTotalCost    bool   `gorm:"not_null"`
+	Address        string `gorm:"not_null"`
+	Amount         uint   `gorm:"not_null"`
+	TxNotBefore    int64  `gorm:"not_null"`
+	PollExpiry     int64
+	TxID           string
 }
 
 func (i InvoicePayment) TableName() string {

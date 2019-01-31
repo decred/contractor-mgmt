@@ -51,12 +51,12 @@ type Database interface {
 	GetUsers(username string, page int) ([]User, int, error) // Returns a list of users and total count that match the provided username.
 
 	// Invoice functions
-	CreateInvoice(*Invoice) error                        // Create new invoice
-	UpdateInvoice(*Invoice) error                        // Update existing invoice
-	GetInvoiceByToken(string) (*Invoice, error)          // Return invoice given its token
-	GetInvoices(InvoicesRequest) ([]Invoice, int, error) // Return a list of invoices
-	UpdateInvoicePayment(*InvoicePayment) error          // Update an existing invoice's payment
-	CreateInvoiceFiles(string, []InvoiceFile) error      // Create invoice files
+	CreateInvoice(*Invoice) error                           // Create new invoice
+	UpdateInvoice(*Invoice) error                           // Update existing invoice
+	GetInvoiceByToken(string) (*Invoice, error)             // Return invoice given its token
+	GetInvoices(InvoicesRequest) ([]Invoice, int, error)    // Return a list of invoices
+	UpdateInvoicePayment(*InvoicePayment) error             // Update an existing invoice's payment
+	CreateInvoiceFiles(string, string, []InvoiceFile) error // Create invoice files
 
 	DeleteAllData() error // Delete all data from all tables
 
@@ -100,8 +100,10 @@ type Identity struct {
 	Deactivated int64
 }
 
+// Invoice represents an invoice submitted by a contractor for payment.
 type Invoice struct {
-	Token              string
+	Token              string // Unique id for this invoice
+	Version            string // Version number of this invoice
 	UserID             uint64
 	Username           string // Only populated when reading from the database
 	Month              uint16
@@ -114,7 +116,6 @@ type Invoice struct {
 	ServerSignature    string
 	MerkleRoot         string
 	Proposal           string // Optional link to a Politeia proposal
-	Version            string // Version number of this invoice
 
 	Files    []InvoiceFile
 	Changes  []InvoiceChange
@@ -136,14 +137,13 @@ type InvoiceChange struct {
 }
 
 type InvoicePayment struct {
-	ID           uint64
-	InvoiceToken string
-	IsTotalCost  bool // Whether this payment represents the total cost of the invoice
-	Address      string
-	Amount       uint64
-	TxNotBefore  int64
-	PollExpiry   int64
-	TxID         string
+	ID          uint64
+	IsTotalCost bool // Whether this payment represents the total cost of the invoice
+	Address     string
+	Amount      uint64
+	TxNotBefore int64
+	PollExpiry  int64
+	TxID        string
 }
 
 func (id *Identity) IsActive() bool {

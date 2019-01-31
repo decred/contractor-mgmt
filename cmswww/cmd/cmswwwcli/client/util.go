@@ -75,7 +75,7 @@ func VerifyInvoice(record v1.InvoiceRecord, serverPubKey string) error {
 		}
 		if mr != record.CensorshipRecord.Merkle {
 			return fmt.Errorf("merkle roots do not match; expected %v, got %v",
-				record.CensorshipRecord.Merkle, mr)
+				mr, record.CensorshipRecord.Merkle)
 		}
 	}
 

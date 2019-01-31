@@ -444,6 +444,7 @@ func deleteExistingData() error {
 func stopPoliteiad() {
 	if politeiadCmd != nil {
 		fmt.Printf("Stopping politeiad\n")
+		pdLogFile.Sync()
 		politeiadCmd.Process.Kill()
 		politeiadCmd = nil
 	}
@@ -452,6 +453,7 @@ func stopPoliteiad() {
 func stopCmswww() {
 	if cmswwwCmd != nil {
 		fmt.Printf("Stopping cmswww\n")
+		cmswwwLogFile.Sync()
 		cmswwwCmd.Process.Kill()
 		cmswwwCmd = nil
 	}

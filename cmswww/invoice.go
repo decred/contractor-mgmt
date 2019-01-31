@@ -283,6 +283,64 @@ func (c *cmswww) updateMDPayments(
 	return util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
 }
 
+func (c *cmswww) addMDChange(
+	invoiceToken string,
+	ts int64,
+	status v1.InvoiceStatusT,
+	adminPublicKey string,
+	reason *string,
+) (*BackendInvoiceMDChange, error) {
+	// Create the change record.
+	mdChange := BackendInvoiceMDChange{
+		Version:   VersionBackendInvoiceMDChange,
+		Timestamp: time.Now().Unix(),
+		NewStatus: status,
+		Reason:    reason,
+	}
+
+	blob, err := json.Marshal(mdChange)
+	if err != nil {
+		return nil, err
+	}
+
+	challenge, err := util.Random(pd.ChallengeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	pdCommand := pd.UpdateVettedMetadata{
+		Challenge: hex.EncodeToString(challenge),
+		Token:     invoiceToken,
+		MDAppend: []pd.MetadataStream{
+			{
+				ID:      mdStreamChanges,
+				Payload: string(blob),
+			},
+		},
+	}
+
+	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
+		pdCommand)
+	if err != nil {
+		return nil, err
+	}
+
+	var pdReply pd.UpdateVettedMetadataReply
+	err = json.Unmarshal(responseBody, &pdReply)
+	if err != nil {
+		return nil, fmt.Errorf("could not unmarshal "+
+			"UpdateVettedMetadataReply: %v", err)
+	}
+
+	// Verify the challenge.
+	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mdChange, nil
+}
+
 func (c *cmswww) createInvoicePayment(
 	dbInvoice *database.Invoice,
 	usdDCRRate float64,
@@ -390,6 +448,7 @@ func (c *cmswww) updateInvoicePayment(
 		}
 	}
 
+	// Update the Politeia record.
 	ts := time.Now().Unix()
 	err := c.updateMDPayments(dbInvoice, true, ts)
 	if err != nil {
@@ -700,74 +759,25 @@ func (c *cmswww) HandleSetInvoiceStatus(
 		return nil, err
 	}
 
-	// Create the change record.
-	changes := BackendInvoiceMDChange{
-		Version:   VersionBackendInvoiceMDChange,
-		Timestamp: time.Now().Unix(),
-		NewStatus: sis.Status,
-		Reason:    sis.Reason,
-	}
-
-	var ok bool
-	changes.AdminPublicKey, ok = database.ActiveIdentityString(user.Identities)
+	adminPublicKey, ok := database.ActiveIdentityString(user.Identities)
 	if !ok {
 		return nil, fmt.Errorf("invalid admin identity: %v",
 			user.ID)
 	}
 
-	blob, err := json.Marshal(changes)
-	if err != nil {
-		return nil, err
-	}
-
-	challenge, err := util.Random(pd.ChallengeSize)
-	if err != nil {
-		return nil, err
-	}
-
-	pdCommand := pd.UpdateVettedMetadata{
-		Challenge: hex.EncodeToString(challenge),
-		Token:     sis.Token,
-		MDAppend: []pd.MetadataStream{
-			{
-				ID:      mdStreamChanges,
-				Payload: string(blob),
-			},
-		},
-	}
-
-	responseBody, err := c.rpc(http.MethodPost, pd.UpdateVettedMetadataRoute,
-		pdCommand)
-	if err != nil {
-		return nil, err
-	}
-
-	var pdReply pd.UpdateVettedMetadataReply
-	err = json.Unmarshal(responseBody, &pdReply)
-	if err != nil {
-		return nil, fmt.Errorf("Could not unmarshal UpdateVettedMetadataReply: %v",
-			err)
-	}
-
-	// Verify the challenge.
-	err = util.VerifyChallenge(c.cfg.Identity, challenge, pdReply.Response)
+	mdChange, err := c.addMDChange(sis.Token, time.Now().Unix(), sis.Status,
+		adminPublicKey, sis.Reason)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update the database with the metadata changes.
-	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
-		Timestamp:      changes.Timestamp,
-		AdminPublicKey: changes.AdminPublicKey,
-		NewStatus:      changes.NewStatus,
-	})
-	dbInvoice.Status = changes.NewStatus
-	if changes.Reason != nil {
-		dbInvoice.Changes[len(dbInvoice.Changes)-1].Reason = *changes.Reason
-		dbInvoice.StatusChangeReason = *changes.Reason
-	} else {
-		dbInvoice.StatusChangeReason = ""
-	}
+	dbInvoiceChange := convertStreamChangeToDatabaseInvoiceChange(*mdChange)
+	dbInvoice.Changes = append(dbInvoice.Changes, dbInvoiceChange)
+
+	dbInvoice.Status = dbInvoiceChange.NewStatus
+	dbInvoice.StatusChangeReason = dbInvoiceChange.Reason
+
 	err = c.db.UpdateInvoice(dbInvoice)
 	if err != nil {
 		return nil, err
@@ -854,7 +864,7 @@ func (c *cmswww) HandleInvoiceDetails(
 	invoice.Files = convertRecordFilesToInvoiceFiles(pdReply.Record.Files)
 
 	// Update the database with the files fetched from Politeiad.
-	err = c.db.CreateInvoiceFiles(dbInvoice.Token,
+	err = c.db.CreateInvoiceFiles(dbInvoice.Token, dbInvoice.Version,
 		convertRecordFilesToDatabaseInvoiceFiles(pdReply.Record.Files))
 	if err != nil {
 		return nil, err
@@ -1036,7 +1046,7 @@ func (c *cmswww) HandleEditInvoice(
 	}
 
 	// Create the change record.
-	changes, err := json.Marshal(BackendInvoiceMDChange{
+	mdChanges, err := json.Marshal(BackendInvoiceMDChange{
 		Version:   VersionBackendInvoiceMDChange,
 		Timestamp: ts,
 		NewStatus: v1.InvoiceStatusUnreviewedChanges,
@@ -1044,6 +1054,21 @@ func (c *cmswww) HandleEditInvoice(
 	if err != nil {
 		return nil, err
 	}
+
+	/*
+		var delFiles []string
+		for _, v := range invRecord.record.Files {
+			found := false
+			for _, c := range ep.Files {
+				if v.Name == c.Name {
+					found = true
+				}
+			}
+			if !found {
+				delFiles = append(delFiles, v.Name)
+			}
+		}
+	*/
 
 	u := pd.UpdateRecord{
 		Token:     ei.Token,
@@ -1054,7 +1079,7 @@ func (c *cmswww) HandleEditInvoice(
 		}},
 		MDAppend: []pd.MetadataStream{{
 			ID:      mdStreamChanges,
-			Payload: string(changes),
+			Payload: string(mdChanges),
 		}},
 		FilesAdd: convertInvoiceFilesToRecordFiles(ei.Files),
 	}
@@ -1078,14 +1103,13 @@ func (c *cmswww) HandleEditInvoice(
 		return nil, err
 	}
 
-	// Update the database with the metadata changes.
-	dbInvoice.Changes = append(dbInvoice.Changes, database.InvoiceChange{
-		Timestamp: ts,
-		NewStatus: v1.InvoiceStatusUnreviewedChanges,
-	})
-	dbInvoice.Version = pdUpdateRecordReply.Record.Version
-	dbInvoice.Status = v1.InvoiceStatusUnreviewedChanges
-	err = c.db.UpdateInvoice(dbInvoice)
+	dbInvoice, err = c.convertRecordToDatabaseInvoice(
+		pdUpdateRecordReply.Record)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.db.CreateInvoice(dbInvoice)
 	if err != nil {
 		return nil, err
 	}

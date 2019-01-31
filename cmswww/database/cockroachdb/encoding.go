@@ -271,7 +271,7 @@ func EncodeInvoicePayment(dbInvoicePayment *database.InvoicePayment) *InvoicePay
 	invoicePayment := InvoicePayment{}
 
 	invoicePayment.ID = uint(dbInvoicePayment.ID)
-	invoicePayment.InvoiceToken = dbInvoicePayment.InvoiceToken
+	//invoicePayment.InvoiceToken = dbInvoicePayment.InvoiceToken
 	invoicePayment.IsTotalCost = dbInvoicePayment.IsTotalCost
 	invoicePayment.Address = dbInvoicePayment.Address
 	invoicePayment.Amount = uint(dbInvoicePayment.Amount)
@@ -350,7 +350,7 @@ func DecodeInvoicePayment(invoicePayment *InvoicePayment) *database.InvoicePayme
 	dbInvoicePayment := database.InvoicePayment{}
 
 	dbInvoicePayment.ID = uint64(invoicePayment.ID)
-	dbInvoicePayment.InvoiceToken = invoicePayment.InvoiceToken
+	//dbInvoicePayment.InvoiceToken = invoicePayment.InvoiceToken
 	dbInvoicePayment.IsTotalCost = invoicePayment.IsTotalCost
 	dbInvoicePayment.Address = invoicePayment.Address
 	dbInvoicePayment.Amount = uint64(invoicePayment.Amount)

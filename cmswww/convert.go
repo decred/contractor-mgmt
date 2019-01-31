@@ -149,6 +149,7 @@ func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice,
 		Files:           convertRecordFilesToDatabaseInvoiceFiles(p.Files),
 		Token:           p.CensorshipRecord.Token,
 		ServerSignature: p.CensorshipRecord.Signature,
+		MerkleRoot:      p.CensorshipRecord.Merkle,
 		Version:         p.Version,
 	}
 	for _, m := range p.Metadata {
@@ -245,7 +246,6 @@ func convertStreamPaymentToDatabaseInvoicePayment(mdPayment BackendInvoiceMDPaym
 func convertDatabaseInvoicePaymentsToStreamPayments(dbInvoice *database.Invoice) (string, error) {
 	mdPayments := ""
 	for _, dbInvoicePayment := range dbInvoice.Payments {
-		log.Infof("address from loop: %v", dbInvoicePayment.Address)
 		mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
 			Version:     VersionBackendInvoiceMDPayment,
 			IsTotalCost: dbInvoicePayment.IsTotalCost,

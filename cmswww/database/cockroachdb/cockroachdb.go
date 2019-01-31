@@ -246,9 +246,20 @@ func (c *cockroachdb) UpdateInvoice(dbInvoice *database.Invoice) error {
 func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error) {
 	log.Debugf("GetInvoiceByToken: %v", token)
 
+	tbl := fmt.Sprintf("%v i", tableNameInvoice)
+	sel := "i.*, u.username"
+	joins := fmt.Sprintf(
+		"inner join %v u on i.user_id = u.id "+
+			"inner join ("+
+			"select token, max(version) version from %v group by token"+
+			") i2 "+
+			"on ("+
+			"i2.token = i.token and i2.version = i.version"+
+			")",
+		tableNameUser, tableNameInvoice)
+
 	var invoice Invoice
-	result := c.db.Table(fmt.Sprintf("%v i", tableNameInvoice)).Select("i.*, u.username").Joins(
-		"inner join users u on i.user_id = u.id").Where(
+	result := c.db.Table(tbl).Select(sel).Joins(joins).Where(
 		"i.token = ?", token).Scan(&invoice)
 	if result.Error != nil {
 		if gorm.IsRecordNotFoundError(result.Error) {
@@ -303,7 +314,15 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 
 	tbl := fmt.Sprintf("%v i", tableNameInvoice)
 	sel := "i.*, u.username"
-	join := fmt.Sprintf("inner join %v u on i.user_id = u.id", tableNameUser)
+	joins := fmt.Sprintf(
+		"inner join %v u on i.user_id = u.id "+
+			"inner join ("+
+			"select token, max(version) version from %v group by token"+
+			") i2 "+
+			"on ("+
+			"i2.token = i.token and i2.version = i.version"+
+			")",
+		tableNameUser, tableNameInvoice)
 	order := "i.timestamp asc"
 
 	db := c.db.Table(tbl)
@@ -311,7 +330,7 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 		offset := invoicesRequest.Page * v1.ListPageSize
 		db = db.Offset(offset).Limit(v1.ListPageSize)
 	}
-	db = db.Select(sel).Joins(join)
+	db = db.Select(sel).Joins(joins)
 	db = c.addWhereClause(db, paramsMap)
 	db = db.Order(order)
 
@@ -324,11 +343,11 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 		return nil, 0, result.Error
 	}
 
-	// If the number of users returned equals the apage size,
+	// If the number of users returned equals the page size,
 	// find the count of all users that match the query.
 	numMatches := len(invoices)
 	if len(invoices) == v1.ListPageSize {
-		db = c.db.Table(tbl).Select(sel).Joins(join)
+		db = c.db.Table(tbl).Select(sel).Joins(joins)
 		db = c.addWhereClause(db, paramsMap)
 		result = db.Count(&numMatches)
 		if result.Error != nil {
@@ -351,7 +370,10 @@ func (c *cockroachdb) UpdateInvoicePayment(dbInvoicePayment *database.InvoicePay
 	return c.db.Save(invoicePayment).Error
 }
 
-func (c *cockroachdb) CreateInvoiceFiles(token string, dbInvoiceFiles []database.InvoiceFile) error {
+func (c *cockroachdb) CreateInvoiceFiles(
+	token, version string,
+	dbInvoiceFiles []database.InvoiceFile,
+) error {
 	log.Debugf("CreateInvoiceFiles: %v", token)
 
 	for _, dbInvoiceFile := range dbInvoiceFiles {

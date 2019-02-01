@@ -34,6 +34,7 @@ var (
 )
 
 func createLogFile(path string) (*os.File, error) {
+	os.Remove(path)
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 }
 
@@ -626,7 +627,7 @@ func _main() error {
 func main() {
 	err := _main()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "main error: %v\n", err)
 	}
 	stopServers()
 	if err != nil {

@@ -31,11 +31,13 @@ var (
 // InvoicesRequest is used for passing parameters into the
 // GetInvoices() function.
 type InvoicesRequest struct {
-	UserID    string
-	Month     uint16
-	Year      uint16
-	StatusMap map[v1.InvoiceStatusT]bool
-	Page      int
+	UserID          string
+	Month           uint16
+	Year            uint16
+	StatusMap       map[v1.InvoiceStatusT]bool
+	IncludePayments bool
+	IncludeFiles    bool
+	Page            int
 }
 
 // Database interface that is required by the web server.
@@ -51,12 +53,12 @@ type Database interface {
 	GetUsers(username string, page int) ([]User, int, error) // Returns a list of users and total count that match the provided username.
 
 	// Invoice functions
-	CreateInvoice(*Invoice) error                           // Create new invoice
-	UpdateInvoice(*Invoice) error                           // Update existing invoice
-	GetInvoiceByToken(string) (*Invoice, error)             // Return invoice given its token
-	GetInvoices(InvoicesRequest) ([]Invoice, int, error)    // Return a list of invoices
-	UpdateInvoicePayment(*InvoicePayment) error             // Update an existing invoice's payment
-	CreateInvoiceFiles(string, string, []InvoiceFile) error // Create invoice files
+	CreateInvoice(*Invoice) error                               // Create a new invoice version
+	UpdateInvoice(*Invoice) error                               // Update an existing invoice version
+	GetInvoiceByToken(string) (*Invoice, error)                 // Return the latest invoice version given its token
+	GetInvoices(InvoicesRequest) ([]Invoice, int, error)        // Return a list of the latest invoices
+	UpdateInvoicePayment(string, string, *InvoicePayment) error // Update an existing invoice's payment
+	CreateInvoiceFiles(string, string, []InvoiceFile) error     // Create files for an invoice version.
 
 	DeleteAllData() error // Delete all data from all tables
 
@@ -100,7 +102,11 @@ type Identity struct {
 	Deactivated int64
 }
 
-// Invoice represents an invoice submitted by a contractor for payment.
+// Invoice represents a specific "invoice version" submitted by a contractor
+// for payment. Invoices have a unique token, and may have multiple versions
+// as contractors can submit edits to them. So the `Invoice` struct represents
+// a specific version of an invoice, thus it has 2 primary keys: `Token` and
+// `Version`.
 type Invoice struct {
 	Token              string // Unique id for this invoice
 	Version            string // Version number of this invoice
@@ -137,7 +143,6 @@ type InvoiceChange struct {
 }
 
 type InvoicePayment struct {
-	ID          uint64
 	IsTotalCost bool // Whether this payment represents the total cost of the invoice
 	Address     string
 	Amount      uint64

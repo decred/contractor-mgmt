@@ -218,15 +218,22 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.Proposal = dbInvoice.Proposal
 	invoice.Version = dbInvoice.Version
 
-	for _, dbInvoiceFile := range dbInvoice.Files {
+	for idx, dbInvoiceFile := range dbInvoice.Files {
 		invoiceFile := EncodeInvoiceFile(&dbInvoiceFile)
+
+		// Start the ID at 1 because gorm thinks it's a blank field if 0 is
+		// passed and will automatically derive a value for it.
+		invoiceFile.ID = int64(idx + 1)
+
 		invoiceFile.InvoiceToken = invoice.Token
+		invoiceFile.InvoiceVersion = invoice.Version
 		invoice.Files = append(invoice.Files, *invoiceFile)
 	}
 
 	for _, dbInvoiceChange := range dbInvoice.Changes {
 		invoiceChange := EncodeInvoiceChange(&dbInvoiceChange)
 		invoiceChange.InvoiceToken = invoice.Token
+		invoiceChange.InvoiceVersion = invoice.Version
 		invoice.Changes = append(invoice.Changes, *invoiceChange)
 		invoice.Status = invoiceChange.NewStatus
 	}
@@ -234,6 +241,7 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	for _, dbInvoicePayment := range dbInvoice.Payments {
 		invoicePayment := EncodeInvoicePayment(&dbInvoicePayment)
 		invoicePayment.InvoiceToken = invoice.Token
+		invoicePayment.InvoiceVersion = invoice.Version
 		invoice.Payments = append(invoice.Payments, *invoicePayment)
 	}
 
@@ -270,8 +278,6 @@ func EncodeInvoiceChange(dbInvoiceChange *database.InvoiceChange) *InvoiceChange
 func EncodeInvoicePayment(dbInvoicePayment *database.InvoicePayment) *InvoicePayment {
 	invoicePayment := InvoicePayment{}
 
-	invoicePayment.ID = uint(dbInvoicePayment.ID)
-	//invoicePayment.InvoiceToken = dbInvoicePayment.InvoiceToken
 	invoicePayment.IsTotalCost = dbInvoicePayment.IsTotalCost
 	invoicePayment.Address = dbInvoicePayment.Address
 	invoicePayment.Amount = uint(dbInvoicePayment.Amount)
@@ -349,8 +355,7 @@ func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 func DecodeInvoicePayment(invoicePayment *InvoicePayment) *database.InvoicePayment {
 	dbInvoicePayment := database.InvoicePayment{}
 
-	dbInvoicePayment.ID = uint64(invoicePayment.ID)
-	//dbInvoicePayment.InvoiceToken = invoicePayment.InvoiceToken
+	//dbInvoicePayment.ID = uint64(invoicePayment.ID)
 	dbInvoicePayment.IsTotalCost = invoicePayment.IsTotalCost
 	dbInvoicePayment.Address = invoicePayment.Address
 	dbInvoicePayment.Amount = uint64(invoicePayment.Amount)

@@ -45,6 +45,18 @@ func (c *cockroachdb) addWhereClause(db *gorm.DB, paramsMap map[string]interface
 	return db
 }
 
+func (c *cockroachdb) fetchInvoiceFiles(invoice *Invoice) error {
+	result := c.db.Where("invoice_token = ? and invoice_version = ?",
+		invoice.Token, invoice.Version).Find(&invoice.Files)
+	return result.Error
+}
+
+func (c *cockroachdb) fetchInvoicePayments(invoice *Invoice) error {
+	result := c.db.Where("invoice_token = ? and invoice_version = ?",
+		invoice.Token, invoice.Version).Find(&invoice.Payments)
+	return result.Error
+}
+
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func (c *cockroachdb) dropTable(tableName string) error {
@@ -221,19 +233,19 @@ func (c *cockroachdb) GetUsers(username string, page int) ([]database.User, int,
 	return dbUsers, numMatches, nil
 }
 
-// Create new invoice.
+// Create a new invoice version.
 //
 // CreateInvoice satisfies the backend interface.
 func (c *cockroachdb) CreateInvoice(dbInvoice *database.Invoice) error {
 	invoice := EncodeInvoice(dbInvoice)
 
-	log.Debugf("CreateInvoice: %v", invoice.Token)
+	log.Debugf("CreateInvoice: %v %v", invoice.Token, len(dbInvoice.Files))
 	return c.db.Create(invoice).Error
 }
 
-// Update existing invoice.
+// Update an existing invoice version.
 //
-// CreateInvoice satisfies the backend interface.
+// UpdateInvoice satisfies the backend interface.
 func (c *cockroachdb) UpdateInvoice(dbInvoice *database.Invoice) error {
 	invoice := EncodeInvoice(dbInvoice)
 
@@ -242,7 +254,9 @@ func (c *cockroachdb) UpdateInvoice(dbInvoice *database.Invoice) error {
 	return c.db.Save(invoice).Error
 }
 
-// Return invoice by its token.
+// Return the latest invoice version given its token.
+//
+// GetInvoiceByToken satisfies the backend interface.
 func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error) {
 	log.Debugf("GetInvoiceByToken: %v", token)
 
@@ -268,22 +282,22 @@ func (c *cockroachdb) GetInvoiceByToken(token string) (*database.Invoice, error)
 		return nil, result.Error
 	}
 
-	result = c.db.Where("invoice_token = ?", invoice.Token).Find(
-		&invoice.Files)
-	if result.Error != nil {
-		return nil, result.Error
+	err := c.fetchInvoiceFiles(&invoice)
+	if err != nil {
+		return nil, err
 	}
 
-	result = c.db.Where("invoice_token = ?", invoice.Token).Find(
-		&invoice.Payments)
-	if result.Error != nil {
-		return nil, result.Error
+	err = c.fetchInvoicePayments(&invoice)
+	if err != nil {
+		return nil, err
 	}
 
 	return DecodeInvoice(&invoice)
 }
 
-// Return a list of invoices.
+// Return a list of the latest invoices.
+//
+// GetInvoices satisfies the backend interface.
 func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]database.Invoice, int, error) {
 	log.Debugf("GetInvoices")
 
@@ -343,6 +357,25 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 		return nil, 0, result.Error
 	}
 
+	// Set the invoice payments and files on each invoice.
+	if invoicesRequest.IncludePayments || invoicesRequest.IncludeFiles {
+		for idx := range invoices {
+			if invoicesRequest.IncludeFiles {
+				err = c.fetchInvoiceFiles(&invoices[idx])
+				if err != nil {
+					return nil, 0, err
+				}
+			}
+
+			if invoicesRequest.IncludePayments {
+				err = c.fetchInvoicePayments(&invoices[idx])
+				if err != nil {
+					return nil, 0, err
+				}
+			}
+		}
+	}
+
 	// If the number of users returned equals the page size,
 	// find the count of all users that match the query.
 	numMatches := len(invoices)
@@ -362,23 +395,40 @@ func (c *cockroachdb) GetInvoices(invoicesRequest database.InvoicesRequest) ([]d
 	return dbInvoices, numMatches, nil
 }
 
-func (c *cockroachdb) UpdateInvoicePayment(dbInvoicePayment *database.InvoicePayment) error {
+// Update an existing invoice's payment.
+//
+// UpdateInvoicePayment satisfies the backend interface.
+func (c *cockroachdb) UpdateInvoicePayment(
+	token, version string,
+	dbInvoicePayment *database.InvoicePayment,
+) error {
 	invoicePayment := EncodeInvoicePayment(dbInvoicePayment)
+	invoicePayment.InvoiceToken = token
+	invoicePayment.InvoiceVersion = version
 
 	log.Debugf("UpdateInvoicePayment: %v", invoicePayment.InvoiceToken)
 
 	return c.db.Save(invoicePayment).Error
 }
 
+// Create files for an invoice version.
+//
+// CreateInvoiceFiles satisfies the backend interface.
 func (c *cockroachdb) CreateInvoiceFiles(
 	token, version string,
 	dbInvoiceFiles []database.InvoiceFile,
 ) error {
 	log.Debugf("CreateInvoiceFiles: %v", token)
 
-	for _, dbInvoiceFile := range dbInvoiceFiles {
+	for idx, dbInvoiceFile := range dbInvoiceFiles {
 		invoiceFile := EncodeInvoiceFile(&dbInvoiceFile)
+
+		// Start the ID at 1 because gorm thinks it's a blank field if 0 is
+		// passed and will automatically derive a value for it.
+		invoiceFile.ID = int64(idx + 1)
+
 		invoiceFile.InvoiceToken = token
+		invoiceFile.InvoiceVersion = version
 
 		err := c.db.Create(invoiceFile).Error
 		if err != nil {

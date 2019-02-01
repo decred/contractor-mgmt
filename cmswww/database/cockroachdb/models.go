@@ -76,9 +76,9 @@ type Invoice struct {
 	MerkleRoot         string `gorm:"not_null"`
 	Proposal           string
 
-	Files    []InvoiceFile
-	Changes  []InvoiceChange
-	Payments []InvoicePayment
+	Files    []InvoiceFile    `gorm:"foreignkey:invoice_token,invoice_version;association_foreignkey:token,version"`
+	Changes  []InvoiceChange  `gorm:"foreignkey:invoice_token,invoice_version;association_foreignkey:token,version"`
+	Payments []InvoicePayment `gorm:"foreignkey:invoice_token,invoice_version;association_foreignkey:token,version"`
 
 	// gorm.Model fields, included manually
 	CreatedAt time.Time
@@ -91,12 +91,12 @@ func (i Invoice) TableName() string {
 }
 
 type InvoiceFile struct {
-	gorm.Model
-	InvoiceToken   string
-	InvoiceVersion string
-	Name           string
-	MIME           string
-	Digest         string
+	ID             int64  `gorm:"primary_key;auto_increment:false"`
+	InvoiceToken   string `gorm:"primary_key"`
+	InvoiceVersion string `gorm:"primary_key"`
+	Name           string `gorm:"not_null"`
+	MIME           string `gorm:"not_null"`
+	Digest         string `gorm:"not_null"`
 	Payload        string `gorm:"type:text"`
 }
 
@@ -105,9 +105,8 @@ func (i InvoiceFile) TableName() string {
 }
 
 type InvoiceChange struct {
-	gorm.Model
-	InvoiceToken   string
-	InvoiceVersion string
+	InvoiceToken   string `gorm:"primary_key"`
+	InvoiceVersion string `gorm:"primary_key"`
 	AdminPublicKey string
 	NewStatus      uint
 	Timestamp      time.Time
@@ -118,9 +117,8 @@ func (i InvoiceChange) TableName() string {
 }
 
 type InvoicePayment struct {
-	gorm.Model
-	InvoiceToken   string
-	InvoiceVersion string
+	InvoiceToken   string `gorm:"primary_key"`
+	InvoiceVersion string `gorm:"primary_key"`
 	IsTotalCost    bool   `gorm:"not_null"`
 	Address        string `gorm:"not_null"`
 	Amount         uint   `gorm:"not_null"`

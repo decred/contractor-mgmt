@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -30,7 +30,7 @@ func (cmd *InviteNewUserCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invitation created and sent to %v. Their invitation will expire"+
+		log.Printf("Invitation created and sent to %v. Their invitation will expire"+
 			" in %v.\n", cmd.Args.Email, v1.VerificationExpiryTime.String())
 	}
 	return nil

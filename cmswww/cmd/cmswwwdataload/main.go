@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -38,7 +39,7 @@ func createLogFile(path string) (*os.File, error) {
 }
 
 func createInvoiceFile(month, year uint16, numRecords int) (string, error) {
-	fmt.Printf("Creating invoice file\n")
+	log.Printf("Creating invoice file\n")
 	date := time.Date(int(year), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	filepath := path.Join(cfg.DataDir, date.Format("2006-01.csv"))
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0644)
@@ -65,7 +66,7 @@ func waitForStartOfDay(out io.Reader) {
 }
 
 func startCmswww() error {
-	fmt.Printf("Starting cmswww\n")
+	log.Printf("Starting cmswww\n")
 	cmswwwCmd = c.CreateCmswwwCmd()
 
 	stdout, _ := cmswwwCmd.StdoutPipe()
@@ -91,7 +92,7 @@ func startCmswww() error {
 }
 
 func startPoliteiad() error {
-	fmt.Printf("Starting politeiad\n")
+	log.Printf("Starting politeiad\n")
 	politeiadCmd = c.CreatePoliteiadCmd()
 
 	stdout, _ := politeiadCmd.StdoutPipe()
@@ -417,7 +418,7 @@ func createContractorUser(
 }
 
 func deleteExistingData() error {
-	fmt.Printf("Deleting existing data\n")
+	log.Printf("Deleting existing data\n")
 
 	// politeiad data dir
 	politeiadDataDir := filepath.Join(dcrutil.AppDataDir("politeiad", false), "data")
@@ -443,7 +444,7 @@ func deleteExistingData() error {
 
 func stopPoliteiad() {
 	if politeiadCmd != nil {
-		fmt.Printf("Stopping politeiad\n")
+		log.Printf("Stopping politeiad\n")
 		politeiadCmd.Process.Kill()
 		politeiadCmd = nil
 	}
@@ -451,7 +452,7 @@ func stopPoliteiad() {
 
 func stopCmswww() {
 	if cmswwwCmd != nil {
-		fmt.Printf("Stopping cmswww\n")
+		log.Printf("Stopping cmswww\n")
 		cmswwwCmd.Process.Kill()
 		cmswwwCmd = nil
 	}
@@ -617,14 +618,16 @@ func _main() error {
 			invoiceToPayToken, 12, 2018)
 	}
 
-	fmt.Printf("Load data complete\n")
+	log.Printf("Load data complete\n")
 	return nil
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags)
+	log.SetOutput(os.Stdout)
 	err := _main()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "main error: %v\n", err)
 	}
 	stopServers()
 	if err != nil {

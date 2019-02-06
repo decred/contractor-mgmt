@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	flags "github.com/jessevdk/go-flags"
@@ -45,6 +46,8 @@ func _main() error {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags)
+	log.SetOutput(os.Stdout)
 	err := _main()
 	if err != nil {
 		//fmt.Fprintf(os.Stderr, "%v\n", err)

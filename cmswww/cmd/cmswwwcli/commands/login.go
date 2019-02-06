@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -33,13 +33,13 @@ func (cmd *LoginCmd) Execute(args []string) error {
 
 	config.LoggedInUser = &lr
 	if !config.JSONOutput {
-		fmt.Printf("You are now logged in as %v\n", lr.Username)
+		log.Printf("You are now logged in as %v\n", lr.Username)
 	}
 
 	// Load identity, if available.
 	_, err = config.LoadUserIdentity(cmd.Args.Email)
 	if err != nil && !config.JSONOutput {
-		fmt.Printf("WARNING: Your identity could not be loaded, please generate" +
+		log.Printf("WARNING: Your identity could not be loaded, please generate" +
 			" a new one using the newidentity command\n")
 	}
 

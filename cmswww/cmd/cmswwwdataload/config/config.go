@@ -7,6 +7,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,7 +187,7 @@ func Load() (*Config, error) {
 	}
 
 	if configFileError != nil {
-		fmt.Printf("WARNING: %v\n", configFileError)
+		log.Printf("WARNING: %v\n", configFileError)
 	}
 
 	cfg.PoliteiadLogFile = filepath.Join(cfg.DataDir,

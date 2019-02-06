@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
@@ -41,7 +40,7 @@ type BackendInvoiceMDPayment struct {
 
 func convertDatabaseUserToUser(user *database.User) v1.User {
 	return v1.User{
-		ID:                               strconv.FormatUint(user.ID, 10),
+		ID:                               user.ID.String(),
 		Email:                            user.Email,
 		Username:                         user.Username,
 		Name:                             user.Name,
@@ -249,7 +248,7 @@ func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRec
 	invoice.Timestamp = dbInvoice.Timestamp
 	invoice.Month = dbInvoice.Month
 	invoice.Year = dbInvoice.Year
-	invoice.UserID = strconv.FormatUint(dbInvoice.UserID, 10)
+	invoice.UserID = dbInvoice.UserID.String()
 	invoice.Username = dbInvoice.Username
 	invoice.PublicKey = dbInvoice.PublicKey
 	invoice.Signature = dbInvoice.UserSignature

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -84,7 +85,7 @@ func (c *Ctx) makeRequest(method, route string, requestJSON interface{}, respons
 	}
 
 	if config.Verbose {
-		fmt.Printf("Request: %v %v ", method, fullRoute)
+		log.Printf("Request: %v %v ", method, fullRoute)
 		if method != http.MethodGet {
 			prettyPrintJSON(requestJSON)
 		} else {
@@ -129,7 +130,7 @@ func (c *Ctx) handleResponse(r *http.Response, responseJSON interface{}) error {
 
 	if r.StatusCode != http.StatusOK {
 		if config.Verbose {
-			fmt.Printf("Response: %v ", r.Status)
+			log.Printf("Response: %v ", r.Status)
 			var errJSON interface{}
 			err := json.Unmarshal(responseBody, &errJSON)
 			if err == nil {
@@ -163,7 +164,7 @@ func (c *Ctx) handleResponse(r *http.Response, responseJSON interface{}) error {
 	}
 
 	if config.Verbose {
-		fmt.Printf("Response: %v ", r.Status)
+		log.Printf("Response: %v ", r.Status)
 		if responseJSON != nil {
 			prettyPrintJSON(responseJSON)
 		} else {

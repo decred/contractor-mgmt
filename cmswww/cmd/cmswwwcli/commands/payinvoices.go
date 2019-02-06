@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -39,9 +40,9 @@ func (cmd *PayInvoicesCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invoices ready to be paid: ")
+		log.Printf("Invoices ready to be paid: ")
 		if len(pir.Invoices) == 0 {
-			fmt.Printf("none\n")
+			log.Printf("none\n")
 		} else {
 			for _, invoice := range pir.Invoices {
 				fmt.Println()
@@ -49,16 +50,16 @@ func (cmd *PayInvoicesCmd) Execute(args []string) error {
 
 				rate := float64(invoice.TotalCostUSD) / float64(invoice.TotalHours)
 
-				fmt.Printf("           User ID: %v\n", invoice.UserID)
-				fmt.Printf("          Username: %v\n", invoice.Username)
-				fmt.Printf("     Invoice token: %v\n", invoice.Token)
-				fmt.Printf("   ------------------------------------------\n")
-				fmt.Printf("             Hours: %v\n", invoice.TotalHours)
-				fmt.Printf("        Total cost: $%v\n", invoice.TotalCostUSD)
-				fmt.Printf("      Average Rate: $%.2f / hr\n", rate)
-				fmt.Printf("   ------------------------------------------\n")
-				fmt.Printf("        Total cost: %v DCR\n", invoice.TotalCostDCR)
-				fmt.Printf("   Payment Address: %v\n", invoice.PaymentAddress)
+				log.Printf("           User ID: %v\n", invoice.UserID)
+				log.Printf("          Username: %v\n", invoice.Username)
+				log.Printf("     Invoice token: %v\n", invoice.Token)
+				log.Printf("   ------------------------------------------\n")
+				log.Printf("             Hours: %v\n", invoice.TotalHours)
+				log.Printf("        Total cost: $%v\n", invoice.TotalCostUSD)
+				log.Printf("      Average Rate: $%.2f / hr\n", rate)
+				log.Printf("   ------------------------------------------\n")
+				log.Printf("        Total cost: %v DCR\n", invoice.TotalCostDCR)
+				log.Printf("   Payment Address: %v\n", invoice.PaymentAddress)
 			}
 		}
 	}

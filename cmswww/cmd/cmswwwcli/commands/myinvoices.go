@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -166,28 +167,28 @@ func (cmd *MyInvoicesCmd) Execute(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Invoices: ")
+	log.Printf("Invoices: ")
 	if len(allInvoices) == 0 {
-		fmt.Printf("none\n")
+		log.Printf("none\n")
 	} else {
 		for _, v := range allInvoices {
 			fmt.Println()
 
 			date := time.Date(int(v.Year), time.Month(v.Month),
 				1, 0, 0, 0, 0, time.UTC)
-			fmt.Printf("  %v • ", date.Format("January 2006"))
+			log.Printf("  %v • ", date.Format("January 2006"))
 			if v.Token != nil {
-				fmt.Printf("%v\n", *v.Token)
+				log.Printf("%v\n", *v.Token)
 			} else {
-				fmt.Printf("Draft\n")
+				log.Printf("Draft\n")
 			}
 
 			if v.Timestamp != nil {
-				fmt.Printf("    Submitted: %v\n",
+				log.Printf("    Submitted: %v\n",
 					time.Unix(*v.Timestamp, 0).String())
 			}
 
-			fmt.Printf("       Status: %v\n", v.Status)
+			log.Printf("       Status: %v\n", v.Status)
 		}
 	}
 

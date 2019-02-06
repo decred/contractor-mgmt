@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -37,9 +38,9 @@ func (cmd *ReviewInvoicesCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("Invoices to review: ")
+		log.Printf("Invoices to review: ")
 		if len(rir.Invoices) == 0 {
-			fmt.Printf("none\n")
+			log.Printf("none\n")
 		} else {
 			for _, invoice := range rir.Invoices {
 				fmt.Println()
@@ -47,32 +48,32 @@ func (cmd *ReviewInvoicesCmd) Execute(args []string) error {
 
 				totalRate := float64(invoice.TotalCostUSD) / float64(invoice.TotalHours)
 
-				fmt.Printf("           User ID: %v\n", invoice.UserID)
-				fmt.Printf("          Username: %v\n", invoice.Username)
-				fmt.Printf("             Token: %v\n", invoice.Token)
-				fmt.Printf("   ------------------------------------------\n")
+				log.Printf("           User ID: %v\n", invoice.UserID)
+				log.Printf("          Username: %v\n", invoice.Username)
+				log.Printf("             Token: %v\n", invoice.Token)
+				log.Printf("   ------------------------------------------\n")
 				for lineItemIdx, lineItem := range invoice.LineItems {
 					if lineItemIdx > 0 {
-						fmt.Printf("        --------------------------------\n")
+						log.Printf("        --------------------------------\n")
 					}
 
 					rate := float64(lineItem.TotalCost) / float64(lineItem.Hours)
-					fmt.Printf("                 Type: %v\n", lineItem.Type)
+					log.Printf("                 Type: %v\n", lineItem.Type)
 					if lineItem.Subtype != "" {
-						fmt.Printf("              Subtype: %v\n", lineItem.Subtype)
+						log.Printf("              Subtype: %v\n", lineItem.Subtype)
 					}
-					fmt.Printf("          Description: %v\n", lineItem.Description)
+					log.Printf("          Description: %v\n", lineItem.Description)
 					if lineItem.Proposal != "" {
-						fmt.Printf("    Politeia proposal: %v\n", lineItem.Proposal)
+						log.Printf("    Politeia proposal: %v\n", lineItem.Proposal)
 					}
-					fmt.Printf("                Hours: %v\n", lineItem.Hours)
-					fmt.Printf("           Total cost: $%v\n", lineItem.TotalCost)
-					fmt.Printf("                 Rate: $%.2f / hr\n", rate)
+					log.Printf("                Hours: %v\n", lineItem.Hours)
+					log.Printf("           Total cost: $%v\n", lineItem.TotalCost)
+					log.Printf("                 Rate: $%.2f / hr\n", rate)
 				}
-				fmt.Printf("   ------------------------------------------\n")
-				fmt.Printf("             Hours: %v\n", invoice.TotalHours)
-				fmt.Printf("        Total cost: $%v\n", invoice.TotalCostUSD)
-				fmt.Printf("      Average Rate: $%.2f / hr\n", totalRate)
+				log.Printf("   ------------------------------------------\n")
+				log.Printf("             Hours: %v\n", invoice.TotalHours)
+				log.Printf("        Total cost: $%v\n", invoice.TotalCostUSD)
+				log.Printf("      Average Rate: $%.2f / hr\n", totalRate)
 			}
 		}
 	}

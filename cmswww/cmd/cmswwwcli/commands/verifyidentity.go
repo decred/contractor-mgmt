@@ -2,7 +2,7 @@ package commands
 
 import (
 	"encoding/hex"
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -21,7 +21,7 @@ func (cmd *VerifyIdentityCmd) Execute(args []string) error {
 	}
 
 	if config.LoggedInUser == nil {
-		fmt.Printf("You must be logged in to perform this action.\n")
+		log.Printf("You must be logged in to perform this action.\n")
 		return nil
 	}
 

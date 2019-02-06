@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
@@ -21,7 +21,7 @@ func (cmd *LogoutCmd) Execute(args []string) error {
 	}
 
 	if !config.JSONOutput {
-		fmt.Printf("You are now logged out\n")
+		log.Printf("You are now logged out\n")
 	}
 	config.LoggedInUser = nil
 	config.LoggedInUserIdentity = nil

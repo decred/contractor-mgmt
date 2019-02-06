@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -55,7 +56,7 @@ func promptForFieldValues() ([]string, error) {
 			if !field.Required {
 				optionalStr = " (optional)"
 			}
-			fmt.Printf("%v%v: ", field.Name, optionalStr)
+			log.Printf("%v%v: ", field.Name, optionalStr)
 		}
 		valueStr, err := reader.ReadString('\n')
 		if err != nil {

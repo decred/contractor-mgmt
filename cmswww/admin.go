@@ -6,20 +6,15 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
+	"github.com/gofrs/uuid"
 )
 
-func (c *cmswww) getUserByIDStr(userIDStr string) (*database.User, error) {
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *cmswww) getUserByIDStr(userID uuid.UUID) (*database.User, error) {
 	user, err := c.db.GetUserById(userID)
 	if err != nil {
 		return nil, err
@@ -323,7 +318,7 @@ func (c *cmswww) HandleUsers(
 	ur.Users = make([]v1.AbridgedUser, 0, len(users))
 	for _, user := range users {
 		ur.Users = append(ur.Users, v1.AbridgedUser{
-			ID:       strconv.FormatUint(user.ID, 10),
+			ID:       user.ID.String(),
 			Email:    user.Email,
 			Username: user.Username,
 			Admin:    user.Admin,

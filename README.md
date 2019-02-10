@@ -68,7 +68,7 @@ To set up CockroachDB for use with cmswww, you can either do this manually or, o
 
 ##### Task method
 
-  1.  Ensure that [task](https://taskfile.org) is installed)
+  1.  Ensure that [task](https://taskfile.org) is installed
 
   2.  Run ```task init_cdb```
 

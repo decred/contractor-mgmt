@@ -12,7 +12,7 @@ https://contractors.decred.org/user/signup
 Email: {.Email}
 Token: {.Token}
 
-You will need to complete the rest of the requested information and upon submission you will be fully registered and ready.
+You will need to complete the rest of the requested information and upon submission you will be fully registered and ready to submit invoices.
 
 Otherwise you can download and build cmswwwcli (from https://github.com/decred/contractor-mgmt/tree/master/cmswww/cmd/cmswwwcli) and execute it as follows:
 

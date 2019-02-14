@@ -3,7 +3,7 @@ module github.com/decred/contractor-mgmt
 require (
 	github.com/badoux/checkmail v0.0.0-20181210160741-9661bd69e9ad
 	github.com/btcsuite/go-flags v0.0.0-20150116065318-6c288d648c1c
-	github.com/dajohi/goemail v0.0.0-20190114173832-5e45dffd8b13
+	github.com/dajohi/goemail v0.0.0-20190207191308-61faa215f94d
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/chaincfg v1.2.1
 	github.com/decred/dcrd/dcrutil v1.2.0
@@ -29,5 +29,5 @@ require (
 	github.com/lib/pq v1.0.0
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc
-	golang.org/x/net v0.0.0-20190110200230-915654e7eabc
+	golang.org/x/net v0.0.0-20190110200230-915654e7eabc // indirect
 )

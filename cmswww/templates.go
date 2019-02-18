@@ -9,8 +9,8 @@ You are invited to join Decred as a contractor! To complete your registration, y
 
 https://contractors.decred.org/user/signup
 
-Email: {.Email}
-Token: {.Token}
+Email: {{.Email}}
+Token: {{.Token}}
 
 You will need to complete the rest of the requested information and upon submission you will be fully registered and ready to submit invoices.
 

@@ -99,7 +99,7 @@ func DecodeUser(user *User) (*database.User, error) {
 			return nil, err
 		}
 	}
-
+	
 	if user.RegisterVerificationToken.Valid {
 		dbUser.RegisterVerificationToken, err = hex.DecodeString(user.RegisterVerificationToken.String)
 		if err != nil {

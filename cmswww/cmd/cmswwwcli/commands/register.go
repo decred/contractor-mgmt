@@ -74,7 +74,7 @@ func (cmd *RegisterCmd) Execute(args []string) error {
 	nu := v1.Register{
 		Email:             cmd.Args.Email,
 		Username:          cmd.Username,
-		Password:          cmd.Password,
+		Password:          DigestSHA3(cmd.Password),
 		Name:              cmd.Name,
 		Location:          cmd.Location,
 		ExtendedPublicKey: cmd.ExtendedPublicKey,

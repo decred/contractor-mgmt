@@ -9,8 +9,9 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/golang/crypto/sha3"
+	"github.com/golang/crypto/bcrypt"
 	"github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/decred/contractor-mgmt/cmswww/database"
 	"github.com/decred/contractor-mgmt/cmswww/database/cockroachdb"
@@ -76,26 +77,33 @@ func deleteDataAction() error {
 	return db.DeleteAllData()
 }
 
+// Digest returns the hex encoded SHA3-256 of a string.
+func DigestSHA3(s string) string {
+	h := sha3.New256()
+	h.Write([]byte(s))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func createAdminUserAction() error {
 	args := flag.Args()
 	if len(args) < 3 {
 		flag.Usage()
 		return nil
 	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(args[2]),
-		bcrypt.DefaultCost)
+	password := DigestSHA3(args[2])
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password),
+	    bcrypt.DefaultCost)
 	if err != nil {
-		return err
+	    return err
 	}
-
 	user := &database.User{}
 	user.Email = args[0]
 	user.Username = args[1]
+	
 	user.HashedPassword = hashedPassword
 	user.Admin = true
 
-	if err = db.CreateUser(user); err != nil {
+	if err := db.CreateUser(user); err != nil {
 		pqErr, ok := err.(*pq.Error)
 		if !ok {
 			return err

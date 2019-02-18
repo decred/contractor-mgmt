@@ -22,9 +22,9 @@ func (cmd *LoginCmd) Execute(args []string) error {
 
 	l := v1.Login{
 		Email:    cmd.Args.Email,
-		Password: cmd.Args.Password,
+		Password: DigestSHA3(cmd.Args.Password),
 	}
-
+	
 	var lr v1.LoginReply
 	err = Ctx.Post(v1.RouteLogin, l, &lr)
 	if err != nil {

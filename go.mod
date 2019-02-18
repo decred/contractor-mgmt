@@ -15,6 +15,8 @@ require (
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
+	github.com/golang/crypto v0.0.0-20190211182817-74369b46fc67
+	github.com/golang/net v0.0.0-20190213061140-3a22650c66bd
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gorilla/csrf v1.5.1
 	github.com/gorilla/mux v1.6.2
@@ -29,5 +31,4 @@ require (
 	github.com/lib/pq v1.0.0
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc
-	golang.org/x/net v0.0.0-20190110200230-915654e7eabc
 )

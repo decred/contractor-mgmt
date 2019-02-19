@@ -94,12 +94,12 @@ func createAdminUserAction() error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password),
 	    bcrypt.DefaultCost)
 	if err != nil {
-	    return err
+		return err
 	}
+
 	user := &database.User{}
 	user.Email = args[0]
 	user.Username = args[1]
-	
 	user.HashedPassword = hashedPassword
 	user.Admin = true
 

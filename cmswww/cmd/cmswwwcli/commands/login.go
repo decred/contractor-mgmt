@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
@@ -24,7 +24,7 @@ func (cmd *LoginCmd) Execute(args []string) error {
 		Email:    cmd.Args.Email,
 		Password: DigestSHA3(cmd.Args.Password),
 	}
-	
+
 	var lr v1.LoginReply
 	err = Ctx.Post(v1.RouteLogin, l, &lr)
 	if err != nil {

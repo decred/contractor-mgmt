@@ -9,8 +9,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/golang/crypto/sha3"
 	"github.com/golang/crypto/bcrypt"
+	"github.com/golang/crypto/sha3"
 	"github.com/lib/pq"
 
 	"github.com/decred/contractor-mgmt/cmswww/database"
@@ -92,7 +92,7 @@ func createAdminUserAction() error {
 	}
 	password := DigestSHA3(args[2])
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password),
-	    bcrypt.DefaultCost)
+		bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}

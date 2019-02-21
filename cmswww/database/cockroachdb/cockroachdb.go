@@ -1,9 +1,11 @@
 package cockroachdb
 
 import (
+	"crypto/tls"
 	"fmt"
 	"math/rand"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -370,13 +372,27 @@ func New(dataDir, dbName, username, host string) (*cockroachdb, error) {
 
 	cockroachDBFile := filepath.Join(dataDir, "cockroachdb")
 
+	sslCA := filepath.Join(cockroachDBFile, "ca.crt")
+	sslCert := filepath.Join(cockroachDBFile, fmt.Sprintf("client.%v.crt", username))
+	sslKey := filepath.Join(cockroachDBFile, fmt.Sprintf("client.%v.key", username))
+
+	// verify CA certificate exists and is readable.
+	f, err := os.Open(sslCA)
+	if err != nil {
+		return nil, err
+	}
+	_ = f.Close()
+
+	// verify client keypair
+	if _, err := tls.LoadX509KeyPair(sslCert, sslKey); err != nil {
+		return nil, err
+	}
+
 	v := url.Values{}
-	v.Set("sslcert", filepath.Join(cockroachDBFile,
-		fmt.Sprintf("client.%v.crt", username)))
-	v.Set("sslkey", filepath.Join(cockroachDBFile,
-		fmt.Sprintf("client.%v.key", username)))
+	v.Set("sslrootcert", sslCA)
+	v.Set("sslcert", sslCert)
+	v.Set("sslkey", sslKey)
 	v.Set("sslmode", "verify-full")
-	v.Set("sslrootcert", filepath.Join(cockroachDBFile, "ca.crt"))
 	dataSource := fmt.Sprintf("postgresql://%v@%v/%v?%v", username, host,
 		dbName, v.Encode())
 

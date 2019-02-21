@@ -15,7 +15,7 @@ import (
 	pd "github.com/decred/politeia/politeiad/api/v1"
 	"github.com/decred/politeia/util"
 
-	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 
@@ -837,7 +837,7 @@ func (c *cmswww) HandleSubmitInvoice(
 	r *http.Request,
 ) (interface{}, error) {
 	ni := req.(*v1.SubmitInvoice)
-
+	fmt.Println(ni)
 	err := validateInvoice(ni.Signature, ni.PublicKey, ni.File.Payload,
 		int(ni.Month), int(ni.Year), user)
 	if err != nil {

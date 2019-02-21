@@ -1,9 +1,12 @@
 package commands
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/golang/crypto/sha3"
 )
 
 var (
@@ -48,4 +51,11 @@ func ParseMonth(monthStr string) (uint16, error) {
 	}
 
 	return 0, fmt.Errorf("invalid month specified")
+}
+
+// Digest returns the hex encoded SHA3-256 of a string.
+func DigestSHA3(s string) string {
+	h := sha3.New256()
+	h.Write([]byte(s))
+	return hex.EncodeToString(h.Sum(nil))
 }

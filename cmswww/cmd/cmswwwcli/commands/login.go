@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
@@ -22,7 +22,7 @@ func (cmd *LoginCmd) Execute(args []string) error {
 
 	l := v1.Login{
 		Email:    cmd.Args.Email,
-		Password: cmd.Args.Password,
+		Password: DigestSHA3(cmd.Args.Password),
 	}
 
 	var lr v1.LoginReply

@@ -11,7 +11,7 @@ import (
 	"github.com/decred/politeia/util"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/database"
 )
 

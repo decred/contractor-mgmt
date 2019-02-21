@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 
-	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	v1 "github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
@@ -73,8 +74,8 @@ func (cmd *RegisterCmd) Execute(args []string) error {
 
 	nu := v1.Register{
 		Email:             cmd.Args.Email,
-		Username:          cmd.Username,
-		Password:          cmd.Password,
+		Username:          strings.TrimSpace(cmd.Username),
+		Password:          DigestSHA3(strings.TrimSpace(cmd.Password)),
 		Name:              cmd.Name,
 		Location:          cmd.Location,
 		ExtendedPublicKey: cmd.ExtendedPublicKey,

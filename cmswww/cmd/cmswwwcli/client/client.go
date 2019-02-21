@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/decred/politeia/util"
+	"github.com/golang/net/publicsuffix"
 	"github.com/gorilla/schema"
-	"golang.org/x/net/publicsuffix"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"

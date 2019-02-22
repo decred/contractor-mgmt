@@ -5,9 +5,9 @@
 package main
 
 const templateRegisterEmailRaw = `
-You are invited to join Decred as a contractor! To complete your registration, you will need to follow the following link and register on the CMS site:
+You are invited to join Decred as a contractor! To complete your registration, you will need to use the following link and register on the CMS site:
 
-https://contractors.decred.org/user/signup
+https://cms.decred.org/user/signup
 
 Email: {{.Email}}
 Token: {{.Token}}

@@ -5,10 +5,20 @@
 package main
 
 const templateRegisterEmailRaw = `
-You are invited to join Decred as a contractor! To complete your registration, you will need to download and build cmswwwcli (from https://github.com/decred/contractor-mgmt/tree/master/cmswww/cmd/cmswwwcli) and execute it as follows:
+You are invited to join Decred as a contractor! To complete your registration, you will need to use the following link and register on the CMS site:
+
+https://cms.decred.org
+
+Email: {{.Email}}
+Token: {{.Token}}
+
+You will need to complete the rest of the requested information and upon submission you will be fully registered and ready to submit invoices.
+
+Otherwise you can download and build cmswwwcli (from https://github.com/decred/contractor-mgmt/tree/master/cmswww/cmd/cmswwwcli) and execute it as follows:
 
 $ cmswwwcli register {{.Email}} {{.Token}}
 
+Or you can use the follwoing
 You are receiving this email because {{.Email}} was invited to join Decred. If you have no knowledge of this invitation, please ignore this email.
 `
 

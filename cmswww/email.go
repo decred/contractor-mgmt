@@ -124,7 +124,7 @@ func (c *cmswww) emailRegisterVerificationLink(email, token string) error {
 		Token: token,
 	}
 
-	subject := "Verify Your Email"
+	subject := "You've been invited!"
 	body, err := createBody(templateRegisterEmail, &tplData)
 	if err != nil {
 		return err

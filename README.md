@@ -38,36 +38,37 @@ To set up CockroachDB for use with cmswww, you can either do this manually or, o
   2. Create the root and cmswwwuser clients, the cmswww database, and a node on localhost.
 
      Replace `<install dir>` with the installation location for CockroachDB on your machine:
-
+                   
          cd <install dir>
-         mkdir ~/.cmswww/data/testnet3/cockroachdb
+         
+         mkdir -p ${HOME}/.cmswww/data/testnet3/cockroachdb
 
-         cockroach cert create-ca --certs-dir="~/.cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key" --allow-ca-key-reuse
+         cockroach cert create-ca --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb --ca-key=<install dir>/ca.key --allow-ca-key-reuse
 
-         cockroach cert create-client root --certs-dir="~/.cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key"
+         cockroach cert create-client root --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb --ca-key=<install dir>/ca.key
 
-         cockroach cert create-node localhost --certs-dir="~/.cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key"
+         cockroach cert create-node localhost --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb --ca-key=<install dir>/ca.key
 
-         cockroach start --host=localhost --http-host=localhost --certs-dir="~/.cmswww/data/testnet3/cockroachdb"
+         cockroach start --host=localhost --http-host=localhost --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb
 
-         cockroach user set cmswwwuser --certs-dir="~/.cmswww/data/testnet3/cockroachdb"
+         cockroach user set cmswwwuser --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb
 
-         cockroach cert create-client cmswwwuser --certs-dir="~/.cmswww/data/testnet3/cockroachdb" --ca-key="<install dir>/ca.key"
+         cockroach cert create-client cmswwwuser --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb --ca-key=<install dir>/ca.key
 
-         cockroach sql --certs-dir="~/.cmswww/data/testnet3/cockroachdb" -e 'CREATE DATABASE cmswww'
+         cockroach sql --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb -e 'CREATE DATABASE cmswww'
 
-         cockroach sql --certs-dir="~/.cmswww/data/testnet3/cockroachdb" -e 'GRANT ALL ON DATABASE cmswww TO cmswwwuser'
+         cockroach sql --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb -e 'GRANT ALL ON DATABASE cmswww TO cmswwwuser'
 
-         cockroach sql --user=cmswwwuser --certs-dir="~/.cmswww/data/testnet3/cockroachdb" -e 'GRANT ALL ON DATABASE cmswww TO cmswwwuser'
+         cockroach sql --user=cmswwwuser --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb -e 'GRANT ALL ON DATABASE cmswww TO cmswwwuser'
 
    3. Start CockroachDB.
 
           cd <install dir>
-          cockroach start --host=localhost --http-host=localhost --certs-dir="~/.cmswww/data/testnet3/cockroachdb"
+          cockroach start --host=localhost --http-host=localhost --certs-dir=${HOME}/.cmswww/data/testnet3/cockroachdb
 
 ##### Task method
 
-  1.  Ensure that [task](https://taskfile.org) is installed)
+  1.  Ensure that [task](https://taskfile.org) is installed
 
   2.  Run ```task init_cdb```
 
@@ -150,7 +151,7 @@ GO111MODULE=on go mod vendor && go install -v ./...
 
     politeiad
 
-#### 6. Download politeiad's identity to politeiawww:
+#### 6. Download politeiad's identity to cmswww:
 
     cmswww --fetchidentity
 

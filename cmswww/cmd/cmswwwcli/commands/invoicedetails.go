@@ -38,6 +38,21 @@ func (cmd *InvoiceDetailsCmd) Execute(args []string) error {
 		fmt.Printf("    Submitted by: %v\n", idr.Invoice.Username)
 		fmt.Printf("              at: %v\n", time.Unix(idr.Invoice.Timestamp, 0))
 		fmt.Printf("             For: %v\n", date.Format("January 2006"))
+
+		var attachments string
+		for idx, file := range idr.Invoice.Files {
+			if idx == 0 {
+				continue
+			}
+
+			if idx == 1 {
+				attachments += fmt.Sprintf("%v  %v\n", idx, file.Name)
+			} else {
+				attachments += fmt.Sprintf("                  %v  %v\n", idx,
+					file.Name)
+			}
+		}
+		fmt.Printf("     Attachments: %v\n", attachments)
 	}
 
 	return nil

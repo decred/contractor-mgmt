@@ -75,46 +75,68 @@ func convertDatabaseIdentityToIdentity(dbIdentity database.Identity) v1.UserIden
 	}
 }
 
-func convertInvoiceFileFromWWW(f *v1.File) []pd.File {
-	return []pd.File{{
-		Name:    "invoice.csv",
-		MIME:    "text/plain; charset=utf-8",
+func convertInvoiceFileToRecordFile(f v1.File) pd.File {
+	return pd.File{
+		Name:    f.Name,
+		MIME:    f.MIME,
 		Digest:  f.Digest,
 		Payload: f.Payload,
-	}}
-}
-
-func convertInvoiceCensorFromWWW(f v1.CensorshipRecord) pd.CensorshipRecord {
-	return pd.CensorshipRecord{
-		Token:     f.Token,
-		Merkle:    f.Merkle,
-		Signature: f.Signature,
 	}
 }
 
-func convertInvoiceFileFromPD(files []pd.File) *v1.File {
-	if len(files) == 0 {
-		return nil
-	}
+func convertInvoiceFilesToRecordFiles(files []v1.File) []pd.File {
+	pdFiles := make([]pd.File, 0, len(files))
+	for idx, f := range files {
+		if idx == 0 {
+			pdFiles = append(pdFiles, pd.File{
+				Name:    "invoice.csv",
+				MIME:    "text/plain; charset=utf-8",
+				Digest:  f.Digest,
+				Payload: f.Payload,
+			})
+			continue
+		}
 
-	return &v1.File{
-		Digest:  files[0].Digest,
-		Payload: files[0].Payload,
+		pdFiles = append(pdFiles, convertInvoiceFileToRecordFile(f))
+	}
+	return pdFiles
+}
+
+func convertRecordFilesToInvoiceFiles(pdFiles []pd.File) []v1.File {
+	files := make([]v1.File, 0, len(pdFiles))
+	for _, f := range pdFiles {
+		files = append(files, convertRecordFileToInvoiceFile(f))
+	}
+	return files
+}
+
+func convertRecordFileToInvoiceFile(f pd.File) v1.File {
+	return v1.File{
+		Name:    f.Name,
+		MIME:    f.MIME,
+		Digest:  f.Digest,
+		Payload: f.Payload,
 	}
 }
 
-func convertRecordFilesToDatabaseInvoiceFile(files []pd.File) *database.File {
-	if len(files) == 0 {
-		return nil
+func convertRecordFilesToDatabaseInvoiceFiles(pdFiles []pd.File) []database.InvoiceFile {
+	files := make([]database.InvoiceFile, 0, len(pdFiles))
+	for _, pdFile := range pdFiles {
+		files = append(files, convertRecordFileToDatabaseInvoiceFile(pdFile))
 	}
+	return files
+}
 
-	return &database.File{
-		Digest:  files[0].Digest,
-		Payload: files[0].Payload,
+func convertRecordFileToDatabaseInvoiceFile(f pd.File) database.InvoiceFile {
+	return database.InvoiceFile{
+		Name:    f.Name,
+		MIME:    f.MIME,
+		Digest:  f.Digest,
+		Payload: f.Payload,
 	}
 }
 
-func convertInvoiceCensorFromPD(f pd.CensorshipRecord) v1.CensorshipRecord {
+func convertRecordCensorToInvoiceCensor(f pd.CensorshipRecord) v1.CensorshipRecord {
 	return v1.CensorshipRecord{
 		Token:     f.Token,
 		Merkle:    f.Merkle,
@@ -124,9 +146,10 @@ func convertInvoiceCensorFromPD(f pd.CensorshipRecord) v1.CensorshipRecord {
 
 func (c *cmswww) convertRecordToDatabaseInvoice(p pd.Record) (*database.Invoice, error) {
 	dbInvoice := database.Invoice{
-		File:            convertRecordFilesToDatabaseInvoiceFile(p.Files),
+		Files:           convertRecordFilesToDatabaseInvoiceFiles(p.Files),
 		Token:           p.CensorshipRecord.Token,
 		ServerSignature: p.CensorshipRecord.Signature,
+		MerkleRoot:      p.CensorshipRecord.Merkle,
 		Version:         p.Version,
 	}
 	for _, m := range p.Metadata {
@@ -223,7 +246,6 @@ func convertStreamPaymentToDatabaseInvoicePayment(mdPayment BackendInvoiceMDPaym
 func convertDatabaseInvoicePaymentsToStreamPayments(dbInvoice *database.Invoice) (string, error) {
 	mdPayments := ""
 	for _, dbInvoicePayment := range dbInvoice.Payments {
-		log.Infof("address from loop: %v", dbInvoicePayment.Address)
 		mdPayment, err := json.Marshal(BackendInvoiceMDPayment{
 			Version:     VersionBackendInvoiceMDPayment,
 			IsTotalCost: dbInvoicePayment.IsTotalCost,
@@ -254,21 +276,19 @@ func convertDatabaseInvoiceToInvoice(dbInvoice *database.Invoice) *v1.InvoiceRec
 	invoice.PublicKey = dbInvoice.PublicKey
 	invoice.Signature = dbInvoice.UserSignature
 	invoice.Version = dbInvoice.Version
-	if dbInvoice.File != nil {
-		invoice.File = &v1.File{
-			Digest:  dbInvoice.File.Digest,
-			Payload: dbInvoice.File.Payload,
-		}
-	}
 	invoice.CensorshipRecord = v1.CensorshipRecord{
-		Token: dbInvoice.Token,
-		//Merkle:    dbInvoice.File.Digest,
+		Token:     dbInvoice.Token,
+		Merkle:    dbInvoice.MerkleRoot,
 		Signature: dbInvoice.ServerSignature,
 	}
 
-	// TODO: clean up, merkle should always be set
-	if dbInvoice.File != nil {
-		invoice.CensorshipRecord.Merkle = dbInvoice.File.Digest
+	for _, f := range dbInvoice.Files {
+		invoice.Files = append(invoice.Files, v1.File{
+			Name:    f.Name,
+			MIME:    f.MIME,
+			Digest:  f.Digest,
+			Payload: f.Payload,
+		})
 	}
 
 	return &invoice
@@ -282,7 +302,7 @@ func convertDatabaseInvoicesToInvoices(dbInvoices []database.Invoice) []v1.Invoi
 	return invoices
 }
 
-func convertErrorStatusFromPD(s int) v1.ErrorStatusT {
+func convertPDErrorStatusToErrorStatus(s int) v1.ErrorStatusT {
 	switch pd.ErrorStatusT(s) {
 	case pd.ErrorStatusInvalidFileDigest:
 		return v1.ErrorStatusInvalidFileDigest

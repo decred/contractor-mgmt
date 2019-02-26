@@ -99,7 +99,8 @@ func (c *cmswww) addInvoicePaymentsForPolling() error {
 			invoicePayment.PollExpiry =
 				time.Now().Add(pollExpiryDuration).Unix()
 
-			err = c.db.UpdateInvoicePayment(&invoicePayment)
+			err = c.db.UpdateInvoicePayment(invoice.Token, invoice.Version,
+				&invoicePayment)
 			if err != nil {
 				return err
 			}

@@ -211,20 +211,29 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	invoice.Status = uint(dbInvoice.Status)
 	invoice.StatusChangeReason = dbInvoice.StatusChangeReason
 	invoice.Timestamp = time.Unix(dbInvoice.Timestamp, 0)
-	if dbInvoice.File != nil {
-		invoice.FilePayload = dbInvoice.File.Payload
-		invoice.FileMIME = dbInvoice.File.MIME
-		invoice.FileDigest = dbInvoice.File.Digest
-	}
 	invoice.PublicKey = dbInvoice.PublicKey
 	invoice.UserSignature = dbInvoice.UserSignature
 	invoice.ServerSignature = dbInvoice.ServerSignature
+	invoice.MerkleRoot = dbInvoice.MerkleRoot
 	invoice.Proposal = dbInvoice.Proposal
 	invoice.Version = dbInvoice.Version
+
+	for idx, dbInvoiceFile := range dbInvoice.Files {
+		invoiceFile := EncodeInvoiceFile(&dbInvoiceFile)
+
+		// Start the ID at 1 because gorm thinks it's a blank field if 0 is
+		// passed and will automatically derive a value for it.
+		invoiceFile.ID = int64(idx + 1)
+
+		invoiceFile.InvoiceToken = invoice.Token
+		invoiceFile.InvoiceVersion = invoice.Version
+		invoice.Files = append(invoice.Files, *invoiceFile)
+	}
 
 	for _, dbInvoiceChange := range dbInvoice.Changes {
 		invoiceChange := EncodeInvoiceChange(&dbInvoiceChange)
 		invoiceChange.InvoiceToken = invoice.Token
+		invoiceChange.InvoiceVersion = invoice.Version
 		invoice.Changes = append(invoice.Changes, *invoiceChange)
 		invoice.Status = invoiceChange.NewStatus
 	}
@@ -232,10 +241,24 @@ func EncodeInvoice(dbInvoice *database.Invoice) *Invoice {
 	for _, dbInvoicePayment := range dbInvoice.Payments {
 		invoicePayment := EncodeInvoicePayment(&dbInvoicePayment)
 		invoicePayment.InvoiceToken = invoice.Token
+		invoicePayment.InvoiceVersion = invoice.Version
 		invoice.Payments = append(invoice.Payments, *invoicePayment)
 	}
 
 	return &invoice
+}
+
+// EncodeInvoiceFile encodes a generic database.InvoiceFile instance into a cockroachdb
+// InvoiceFile.
+func EncodeInvoiceFile(dbInvoiceFile *database.InvoiceFile) *InvoiceFile {
+	invoiceFile := InvoiceFile{}
+
+	invoiceFile.Name = dbInvoiceFile.Name
+	invoiceFile.MIME = dbInvoiceFile.MIME
+	invoiceFile.Digest = dbInvoiceFile.Digest
+	invoiceFile.Payload = dbInvoiceFile.Payload
+
+	return &invoiceFile
 }
 
 // EncodeInvoiceChange encodes a generic database.InvoiceChange instance into a cockroachdb
@@ -255,8 +278,6 @@ func EncodeInvoiceChange(dbInvoiceChange *database.InvoiceChange) *InvoiceChange
 func EncodeInvoicePayment(dbInvoicePayment *database.InvoicePayment) *InvoicePayment {
 	invoicePayment := InvoicePayment{}
 
-	invoicePayment.ID = uint(dbInvoicePayment.ID)
-	invoicePayment.InvoiceToken = dbInvoicePayment.InvoiceToken
 	invoicePayment.IsTotalCost = dbInvoicePayment.IsTotalCost
 	invoicePayment.Address = dbInvoicePayment.Address
 	invoicePayment.Amount = uint(dbInvoicePayment.Amount)
@@ -279,18 +300,17 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	dbInvoice.Status = v1.InvoiceStatusT(invoice.Status)
 	dbInvoice.StatusChangeReason = invoice.StatusChangeReason
 	dbInvoice.Timestamp = invoice.Timestamp.Unix()
-	if invoice.FilePayload != "" {
-		dbInvoice.File = &database.File{
-			Payload: invoice.FilePayload,
-			MIME:    invoice.FileMIME,
-			Digest:  invoice.FileDigest,
-		}
-	}
 	dbInvoice.PublicKey = invoice.PublicKey
 	dbInvoice.UserSignature = invoice.UserSignature
 	dbInvoice.ServerSignature = invoice.ServerSignature
+	dbInvoice.MerkleRoot = invoice.MerkleRoot
 	dbInvoice.Proposal = invoice.Proposal
 	dbInvoice.Version = invoice.Version
+
+	for _, invoiceFile := range invoice.Files {
+		dbInvoiceFile := DecodeInvoiceFile(&invoiceFile)
+		dbInvoice.Files = append(dbInvoice.Files, *dbInvoiceFile)
+	}
 	/*
 		for _, invoiceChange := range invoice.Changes {
 			dbInvoiceChange := DecodeInvoiceChange(&invoiceChange)
@@ -303,6 +323,19 @@ func DecodeInvoice(invoice *Invoice) (*database.Invoice, error) {
 	}
 
 	return &dbInvoice, nil
+}
+
+// DecodeInvoiceFile decodes a cockroachdb InvoiceFile instance into a generic
+// database.InvoiceFile.
+func DecodeInvoiceFile(invoiceFile *InvoiceFile) *database.InvoiceFile {
+	dbInvoiceFile := database.InvoiceFile{}
+
+	dbInvoiceFile.Name = invoiceFile.Name
+	dbInvoiceFile.MIME = invoiceFile.MIME
+	dbInvoiceFile.Digest = invoiceFile.Digest
+	dbInvoiceFile.Payload = invoiceFile.Payload
+
+	return &dbInvoiceFile
 }
 
 // DecodeInvoiceChange decodes a cockroachdb InvoiceChange instance into a generic
@@ -322,8 +355,7 @@ func DecodeInvoiceChange(invoiceChange *InvoiceChange) *database.InvoiceChange {
 func DecodeInvoicePayment(invoicePayment *InvoicePayment) *database.InvoicePayment {
 	dbInvoicePayment := database.InvoicePayment{}
 
-	dbInvoicePayment.ID = uint64(invoicePayment.ID)
-	dbInvoicePayment.InvoiceToken = invoicePayment.InvoiceToken
+	//dbInvoicePayment.ID = uint64(invoicePayment.ID)
 	dbInvoicePayment.IsTotalCost = invoicePayment.IsTotalCost
 	dbInvoicePayment.Address = invoicePayment.Address
 	dbInvoicePayment.Amount = uint64(invoicePayment.Amount)

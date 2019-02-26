@@ -34,6 +34,7 @@ var (
 )
 
 func createLogFile(path string) (*os.File, error) {
+	os.Remove(path)
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 }
 
@@ -444,6 +445,7 @@ func deleteExistingData() error {
 func stopPoliteiad() {
 	if politeiadCmd != nil {
 		fmt.Printf("Stopping politeiad\n")
+		pdLogFile.Sync()
 		politeiadCmd.Process.Kill()
 		politeiadCmd = nil
 	}
@@ -452,6 +454,7 @@ func stopPoliteiad() {
 func stopCmswww() {
 	if cmswwwCmd != nil {
 		fmt.Printf("Stopping cmswww\n")
+		cmswwwLogFile.Sync()
 		cmswwwCmd.Process.Kill()
 		cmswwwCmd = nil
 	}
@@ -624,7 +627,7 @@ func _main() error {
 func main() {
 	err := _main()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "main error: %v\n", err)
 	}
 	stopServers()
 	if err != nil {

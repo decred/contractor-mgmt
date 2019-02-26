@@ -1,11 +1,13 @@
 package client
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/decred/dcrtime/merkle"
 	"github.com/decred/politeia/politeiad/api/v1/identity"
 	"github.com/decred/politeia/util"
 
@@ -28,16 +30,56 @@ func invoiceSignature(file v1.File, id *identity.FullIdentity) (string, error) {
 	return hex.EncodeToString(sig[:]), nil
 }
 
-// verifyProposal verifies the integrity of a proposal by verifying the
-// proposal's merkle root (if the files are present), the proposal signature,
-// and the censorship record signature.
-func verifyProposal(record v1.InvoiceRecord, serverPubKey string) error {
-	// Verify the file digest.
-	if record.File.Digest != record.CensorshipRecord.Merkle {
-		return fmt.Errorf("digests do not match")
+// merkleRoot converts the passed in list of files into SHA256 digests, then
+// calculates and returns the merkle root of the digests.
+func merkleRoot(files []v1.File) (string, error) {
+	if len(files) == 0 {
+		return "", fmt.Errorf("no invoice files found")
 	}
 
-	// Verify proposal signature.
+	digests := make([]*[sha256.Size]byte, len(files))
+	for i, f := range files {
+		d, ok := util.ConvertDigest(f.Digest)
+		if !ok {
+			return "", fmt.Errorf("could not convert digest")
+		}
+		digests[i] = &d
+	}
+
+	return hex.EncodeToString(merkle.Root(digests)[:]), nil
+}
+
+// SignMerkleRoot calculates the merkle root of the passed in list of files,
+// signs the merkle root with the passed in identity and returns the signature.
+func SignMerkleRoot(files []v1.File, id *identity.FullIdentity) (string, error) {
+	if len(files) == 0 {
+		return "", fmt.Errorf("no invoice files found")
+	}
+	mr, err := merkleRoot(files)
+	if err != nil {
+		return "", err
+	}
+	sig := id.SignMessage([]byte(mr))
+	return hex.EncodeToString(sig[:]), nil
+}
+
+// VerifyInvoice verifies the integrity of an invoice by verifying the
+// invoice's merkle root (if the files are present), the signature,
+// and the censorship record signature.
+func VerifyInvoice(record v1.InvoiceRecord, serverPubKey string) error {
+	// Verify merkle root if the invoice files are present.
+	if len(record.Files) > 0 {
+		mr, err := merkleRoot(record.Files)
+		if err != nil {
+			return err
+		}
+		if mr != record.CensorshipRecord.Merkle {
+			return fmt.Errorf("merkle roots do not match; expected %v, got %v",
+				mr, record.CensorshipRecord.Merkle)
+		}
+	}
+
+	// Verify invoice signature.
 	pid, err := util.IdentityFromString(record.PublicKey)
 	if err != nil {
 		return err
@@ -47,7 +89,7 @@ func verifyProposal(record v1.InvoiceRecord, serverPubKey string) error {
 		return err
 	}
 	if !pid.VerifyMessage([]byte(record.CensorshipRecord.Merkle), sig) {
-		return fmt.Errorf("could not verify proposal signature")
+		return fmt.Errorf("could not verify invoice signature")
 	}
 
 	// Verify censorship record signature.

@@ -110,7 +110,7 @@ func RespondWithError(
 	}
 
 	if pdError, ok := args[0].(v1.PDError); ok {
-		pdErrorCode := convertErrorStatusFromPD(pdError.ErrorReply.ErrorCode)
+		pdErrorCode := convertPDErrorStatusToErrorStatus(pdError.ErrorReply.ErrorCode)
 		pdErrorStatus := pd.ErrorStatus[pd.ErrorStatusT(pdError.ErrorReply.ErrorCode)]
 		if pdErrorCode == v1.ErrorStatusInvalid {
 			errorCode := time.Now().Unix()

@@ -19,18 +19,6 @@ type inventoryRecord struct {
 	payments  []BackendInvoiceMDPayment // payments metadata
 }
 
-// updateInventoryRecord updates an existing Politea record within the database.
-//
-// This function must be called WITH the mutex held.
-func (c *cmswww) updateInventoryRecord(record pd.Record) error {
-	dbInvoice, err := c.convertRecordToDatabaseInvoice(record)
-	if err != nil {
-		return err
-	}
-
-	return c.db.UpdateInvoice(dbInvoice)
-}
-
 // newInventoryRecord adds a Politeia record to the database.
 //
 // This function must be called WITH the mutex held.

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 
 	"github.com/decred/contractor-mgmt/cmswww/api/v1"
+	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/client"
 	"github.com/decred/contractor-mgmt/cmswww/cmd/cmswwwcli/config"
 )
 
@@ -63,10 +64,10 @@ func (cmd *EditInvoiceCmd) Execute(args []string) error {
 
 	ei := v1.EditInvoice{
 		Token: token,
-		File: v1.File{
+		Files: []v1.File{{
 			Digest:  digest,
 			Payload: base64.StdEncoding.EncodeToString(payload),
-		},
+		}},
 		PublicKey: hex.EncodeToString(id.Public.Key[:]),
 		Signature: hex.EncodeToString(signature[:]),
 	}
@@ -77,9 +78,15 @@ func (cmd *EditInvoiceCmd) Execute(args []string) error {
 		return err
 	}
 
-	if eir.Invoice.CensorshipRecord.Merkle != digest {
-		return fmt.Errorf("Digest returned from server did not match client's"+
-			" digest: %v %v", digest, eir.Invoice.CensorshipRecord.Merkle)
+	ir := v1.InvoiceRecord{
+		Files:            ei.Files,
+		PublicKey:        ei.PublicKey,
+		Signature:        ei.Signature,
+		CensorshipRecord: eir.Invoice.CensorshipRecord,
+	}
+	err = client.VerifyInvoice(ir, config.ServerPublicKey)
+	if err != nil {
+		return err
 	}
 
 	// Store the revision record in case the submitter ever needs it.

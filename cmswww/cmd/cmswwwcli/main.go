@@ -47,7 +47,9 @@ func _main() error {
 func main() {
 	err := _main()
 	if err != nil {
-		//fmt.Fprintf(os.Stderr, "%v\n", err)
+		if config.Verbose {
+			fmt.Fprintf(os.Stderr, "cli error: %v\n", err)
+		}
 		os.Exit(1)
 	}
 }

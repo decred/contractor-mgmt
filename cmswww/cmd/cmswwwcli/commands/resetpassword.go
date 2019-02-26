@@ -51,7 +51,7 @@ func (cmd *ResetPasswordCmd) Execute(args []string) error {
 
 	if cmd.Token != "" {
 		rp.VerificationToken = cmd.Token
-		rp.NewPassword = cmd.NewPassword
+		rp.NewPassword = DigestSHA3(cmd.NewPassword)
 	}
 
 	var rpr v1.ResetPasswordReply
@@ -65,7 +65,7 @@ func (cmd *ResetPasswordCmd) Execute(args []string) error {
 			// Automatic 2nd reset password call
 			rp = &v1.ResetPassword{
 				Email:             cmd.Args.Email,
-				NewPassword:       cmd.NewPassword,
+				NewPassword:       DigestSHA3(cmd.NewPassword),
 				VerificationToken: rpr.VerificationToken,
 			}
 

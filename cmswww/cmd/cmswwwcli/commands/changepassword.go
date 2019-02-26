@@ -33,8 +33,8 @@ func (cmd *ChangePasswordCmd) Execute(args []string) error {
 
 	// Send the change password request.
 	cp := v1.ChangePassword{
-		CurrentPassword: cmd.Args.CurrentPassword,
-		NewPassword:     cmd.Args.NewPassword,
+		CurrentPassword: DigestSHA3(cmd.Args.CurrentPassword),
+		NewPassword:     DigestSHA3(cmd.Args.NewPassword),
 	}
 
 	var cpr v1.ChangePasswordReply
